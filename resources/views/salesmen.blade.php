@@ -1,9 +1,10 @@
 @extends('layouts.app')
 
+@section('title', 'Sales Registration')
+
 @section('content')
 <div class="card">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-        <h3>Sales Registration</h3>
+    <div style="display: flex; justify-content: flex-end; margin-bottom: 25px;">
         <button class="btn btn-primary" onclick="openSalesmanModal()"><i class="fas fa-plus"></i> Add Salesman</button>
     </div>
 
@@ -20,11 +21,14 @@
             <tbody>
                 @foreach($salesmen as $salesman)
                 <tr>
-                    <td>{{ $salesman['name'] }}</td>
-                    <td><code>{{ $salesman['ref_code'] }}</code></td>
-                    <td><span class="badge badge-success">{{ $salesman['status'] }}</span></td>
+                    <td>{{ $salesman->name }}</td>
+                    <td><code>{{ $salesman->ref_code }}</code></td>
+                    <td><span class="badge badge-success">{{ $salesman->status }}</span></td>
                     <td>
-                        <button class="btn glass" style="padding: 5px 10px; font-size: 12px;" onclick="openPerformanceModal('{{ $salesman['name'] }}')">
+                        <button class="btn glass" style="padding: 5px 10px; font-size: 12px;" onclick="openEditSalesmanModal('{{ $salesman->id }}', '{{ $salesman->name }}', '{{ $salesman->mobile }}', '{{ $salesman->email }}', '{{ $salesman->ref_code }}', '{{ $salesman->status }}')">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn glass" style="padding: 5px 10px; font-size: 12px;" onclick="openPerformanceModal('{{ $salesman->name }}')">
                             <i class="fas fa-chart-line"></i> Performance
                         </button>
                     </td>
@@ -34,12 +38,12 @@
         </table>
     </div>
 </div>
-    </div>
-</div>
+@endsection
 
+@push('modals')
 <!-- Add Salesman Modal -->
-<div id="salesmanModal" style="display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background: rgba(2, 6, 23, 0.85); backdrop-filter: blur(10px); align-items: flex-start; justify-content: center; padding-top: 80px; overflow-y: auto;">
-    <div class="card" style="width: 100%; max-width: 500px; padding: 30px; background: #0f172a; border: 1px solid var(--glass-border); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); animation: modalIn 0.3s ease-out; margin-bottom: 50px;">
+<div id="salesmanModal" style="display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background: rgba(2, 6, 23, 0.85); backdrop-filter: blur(10px); align-items: flex-start; justify-content: center; overflow-y: auto;">
+    <div class="card modal-content" style="padding: 30px; background: #0f172a; border: 1px solid var(--glass-border); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); animation: modalIn 0.3s ease-out; margin-bottom: 50px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
             <h3 style="margin: 0; font-size: 20px; font-weight: 700;">Add New Salesman</h3>
             <div onclick="closeSalesmanModal()" style="width: 30px; height: 30px; border-radius: 50%; background: var(--glass); display: flex; align-items: center; justify-content: center; cursor: pointer;">
@@ -49,17 +53,33 @@
         
         <div class="form-group" style="margin-bottom: 20px;">
             <label class="form-label" style="color: var(--text-muted); font-size: 12px; text-transform: uppercase;">Employee Name</label>
-            <input type="text" class="form-control" placeholder="Enter name..." style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1);">
+            <input type="text" id="salesmanName" class="form-control" placeholder="Enter name..." style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1);">
         </div>
 
         <div class="form-group" style="margin-bottom: 20px;">
             <label class="form-label" style="color: var(--text-muted); font-size: 12px; text-transform: uppercase;">Mobile Number</label>
-            <input type="tel" class="form-control" placeholder="10 digit number..." style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1);">
+            <input type="tel" id="salesmanMobile" class="form-control" placeholder="10 digit number..." style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1);">
         </div>
 
         <div class="form-group" style="margin-bottom: 20px;">
             <label class="form-label" style="color: var(--text-muted); font-size: 12px; text-transform: uppercase;">Email Address</label>
-            <input type="email" class="form-control" placeholder="email@example.com" style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1);">
+            <input type="email" id="salesmanEmail" class="form-control" placeholder="email@example.com" style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1);">
+        </div>
+
+        <div class="form-group" style="margin-bottom: 20px;">
+            <label class="form-label" style="color: var(--text-muted); font-size: 12px; text-transform: uppercase;">Password</label>
+            <div style="position: relative;">
+                <input type="password" id="salesmanPassword" class="form-control" placeholder="Create password..." style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1); padding-right: 40px;">
+                <i class="fas fa-eye" id="togglePassword" onclick="toggleSalesmanPassword()" style="position: absolute; right: 15px; top: 50%; transform: translateY(-50%); color: var(--text-muted); cursor: pointer; font-size: 14px;"></i>
+            </div>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 20px;">
+            <label class="form-label" style="color: var(--text-muted); font-size: 12px; text-transform: uppercase;">Status</label>
+            <select id="salesmanStatus" class="form-control" style="background: #1e293b; border-color: rgba(255,255,255,0.1); color: #fff;">
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive</option>
+            </select>
         </div>
 
         <div class="form-group" style="margin-bottom: 20px;">
@@ -78,8 +98,8 @@
 </div>
 
 <!-- Performance Modal -->
-<div id="performanceModal" style="display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background: rgba(2, 6, 23, 0.85); backdrop-filter: blur(10px); align-items: flex-start; justify-content: center; padding-top: 80px; overflow-y: auto;">
-    <div class="card" style="width: 100%; max-width: 600px; padding: 30px; background: #0f172a; border: 1px solid var(--glass-border); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); animation: modalIn 0.3s ease-out; margin-bottom: 50px;">
+<div id="performanceModal" style="display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background: rgba(2, 6, 23, 0.85); backdrop-filter: blur(10px); align-items: flex-start; justify-content: center; overflow-y: auto;">
+    <div class="card modal-content" style="padding: 30px; background: #0f172a; border: 1px solid var(--glass-border); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); animation: modalIn 0.3s ease-out; margin-bottom: 50px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
             <div>
                 <h3 id="perfName" style="margin: 0; font-size: 20px; font-weight: 700;">Performance Analytics</h3>
@@ -89,7 +109,7 @@
             </div>
         </div>
         
-        <div class="grid" style="grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 30px;">
+        <div class="grid-3" style="gap: 15px; margin-bottom: 30px;">
             <div style="background: rgba(255,255,255,0.02); padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); text-align: center;">
                 <p style="margin: 0; font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Total Revenue</p>
                 <h4 style="margin: 10px 0 0 0; font-size: 18px; color: var(--success);">₹45,200</h4>
@@ -129,12 +149,35 @@
 .form-control:focus { outline: none; border-color: var(--primary); }
 </style>
 
-@endsection
+@endpush
 
 @section('scripts')
 <script>
+    let currentSalesmanId = null;
+
     function openSalesmanModal() {
+        currentSalesmanId = null;
+        resetSalesmanForm();
         document.getElementById('salesmanModal').style.display = 'flex';
+    }
+
+    function openEditSalesmanModal(id, name, mobile, email, ref_code, status) {
+        currentSalesmanId = id;
+        document.getElementById('salesmanName').value = name;
+        document.getElementById('salesmanMobile').value = mobile;
+        document.getElementById('salesmanEmail').value = email;
+        document.getElementById('autoRefCode').value = ref_code;
+        document.getElementById('salesmanStatus').value = status;
+        document.getElementById('salesmanModal').style.display = 'flex';
+    }
+
+    function resetSalesmanForm() {
+        document.getElementById('salesmanName').value = '';
+        document.getElementById('salesmanMobile').value = '';
+        document.getElementById('salesmanEmail').value = '';
+        document.getElementById('salesmanPassword').value = '';
+        document.getElementById('autoRefCode').value = '';
+        document.getElementById('salesmanStatus').value = 'Active';
     }
 
     function closeSalesmanModal() {
@@ -148,9 +191,54 @@
         document.getElementById('autoRefCode').value = code;
     }
 
+    function toggleSalesmanPassword() {
+        const passwordInput = document.getElementById('salesmanPassword');
+        const toggleIcon = document.getElementById('togglePassword');
+        if (passwordInput.type === 'password') {
+            passwordInput.type = 'text';
+            toggleIcon.classList.replace('fa-eye', 'fa-eye-slash');
+        } else {
+            passwordInput.type = 'password';
+            toggleIcon.classList.replace('fa-eye-slash', 'fa-eye');
+        }
+    }
+
     function submitSalesman() {
-        alert('Salesman added successfully! (Simulation)');
-        closeSalesmanModal();
+        const isEdit = currentSalesmanId !== null;
+        const url = isEdit ? `${window.BASE_PATH}/salesmen/${currentSalesmanId}` : `${window.BASE_PATH}/salesmen`;
+        const method = isEdit ? 'PUT' : 'POST';
+
+        const data = {
+            name: document.getElementById('salesmanName').value,
+            mobile: document.getElementById('salesmanMobile').value,
+            email: document.getElementById('salesmanEmail').value,
+            password: document.getElementById('salesmanPassword').value,
+            ref_code: document.getElementById('autoRefCode').value,
+            status: document.getElementById('salesmanStatus').value,
+            _token: '{{ csrf_token() }}'
+        };
+
+        fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                alert(result.message);
+                location.reload();
+            } else {
+                alert('Error: ' + (result.message || 'Something went wrong'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred.');
+        });
     }
 
     function openPerformanceModal(name) {

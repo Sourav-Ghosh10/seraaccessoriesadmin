@@ -22,20 +22,20 @@
             <tbody>
                 @foreach($dealers as $dealer)
                 <tr>
-                    <td>#{{ $dealer['id'] }}</td>
-                    <td>{{ $dealer['name'] }}</td>
-                    <td>{{ $dealer['shop'] }}</td>
-                    <td>{{ $dealer['mobile'] }}</td>
+                    <td>#{{ $dealer->id }}</td>
+                    <td>{{ $dealer->name }}</td>
+                    <td>{{ $dealer->shop }}</td>
+                    <td>{{ $dealer->mobile }}</td>
                     <td>
-                        <span class="badge {{ $dealer['status'] == 'Active' ? 'badge-success' : ($dealer['status'] == 'Pending' ? 'badge-warning' : 'badge-danger') }}">
-                            {{ $dealer['status'] }}
+                        <span class="badge {{ $dealer->status == 'Active' ? 'badge-success' : ($dealer->status == 'Pending' ? 'badge-warning' : 'badge-danger') }}">
+                            {{ $dealer->status }}
                         </span>
                     </td>
                     <td>
-                        <button class="btn glass" style="padding: 5px 10px; font-size: 12px;" onclick="openEditModal('{{ $dealer['id'] }}', '{{ $dealer['name'] }}', '{{ $dealer['shop'] }}', '{{ $dealer['mobile'] }}', '{{ $dealer['status'] }}')">
+                        <button class="btn glass" style="padding: 5px 10px; font-size: 12px;" onclick="openEditModal('{{ $dealer->id }}', '{{ $dealer->name }}', '{{ $dealer->shop }}', '{{ $dealer->mobile }}', '{{ $dealer->status }}', '{{ $dealer->email }}', '{{ addslashes($dealer->address) }}', '{{ $dealer->salesman_id }}')">
                             <i class="fas fa-edit"></i>
                         </button>
-                        <button class="btn glass" style="padding: 5px 10px; font-size: 12px;" onclick="openViewModal('{{ $dealer['id'] }}', '{{ $dealer['name'] }}', '{{ $dealer['shop'] }}', '{{ $dealer['mobile'] }}', '{{ $dealer['status'] }}')">
+                        <button class="btn glass" style="padding: 5px 10px; font-size: 12px;" onclick="openViewModal('{{ $dealer->id }}', '{{ $dealer->name }}', '{{ $dealer->shop }}', '{{ $dealer->mobile }}', '{{ $dealer->status }}', '{{ $dealer->email }}', '{{ addslashes($dealer->address) }}')">
                             <i class="fas fa-eye"></i>
                         </button>
                     </td>
@@ -45,12 +45,12 @@
         </table>
     </div>
 </div>
-    </div>
-</div>
+@endsection
 
+@push('modals')
 <!-- Dealer Modal (Used for Register, Edit, and View) -->
-<div id="dealerModal" style="display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background: rgba(2, 6, 23, 0.85); backdrop-filter: blur(10px); align-items: flex-start; justify-content: center; padding-top: 50px; overflow-y: auto;">
-    <div class="card" style="width: 100%; max-width: 600px; padding: 30px; background: #0f172a; border: 1px solid var(--glass-border); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); animation: modalIn 0.3s ease-out; margin-bottom: 50px;">
+<div id="dealerModal" style="display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background: rgba(2, 6, 23, 0.85); backdrop-filter: blur(10px); align-items: flex-start; justify-content: center; overflow-y: auto;">
+    <div class="card modal-content" style="padding: 30px; background: #0f172a; border: 1px solid var(--glass-border); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); animation: modalIn 0.3s ease-out; margin-bottom: 50px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 15px;">
             <h3 id="modalTitle" style="margin: 0; font-size: 22px; font-weight: 700;">Register New Dealer</h3>
             <div onclick="closeDealerModal()" style="width: 30px; height: 30px; border-radius: 50%; background: var(--glass); display: flex; align-items: center; justify-content: center; cursor: pointer;">
@@ -59,7 +59,7 @@
         </div>
         
         <div id="formFields">
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div class="grid-2">
                 <div class="form-group">
                     <label class="form-label" style="color: var(--text-muted); font-size: 12px; text-transform: uppercase;">Dealer Name</label>
                     <input type="text" id="dealerName" class="form-control" placeholder="Full name..." style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1);">
@@ -83,7 +83,7 @@
                 <textarea id="fullAddress" class="form-control" style="height: 80px; background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1); resize: none;" placeholder="Shop location details..."></textarea>
             </div>
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr 1.5fr; gap: 20px; margin-top: 20px;">
+            <div class="grid-3" style="margin-top: 20px;">
                 <div class="form-group">
                     <label class="form-label" style="color: var(--text-muted); font-size: 12px; text-transform: uppercase;">Status</label>
                     <select id="dealerStatus" class="form-control" style="background: #1e293b; border-color: rgba(255,255,255,0.1); color: #fff;">
@@ -96,9 +96,9 @@
                     <label class="form-label" style="color: var(--text-muted); font-size: 12px; text-transform: uppercase;">Assign Salesman</label>
                     <select id="assignSalesman" class="form-control" style="background: #1e293b; border-color: rgba(255,255,255,0.1); color: #fff;">
                         <option value="" style="background: #1e293b;">Select Salesman</option>
-                        <option value="S001" style="background: #1e293b;">Rahul Kumar (S001)</option>
-                        <option value="S002" style="background: #1e293b;">Anita Singh (S002)</option>
-                        <option value="S003" style="background: #1e293b;">Vikram Patel (S003)</option>
+                        @foreach(\App\Models\Member::where('role', 'salesman')->get() as $salesman)
+                            <option value="{{ $salesman->id }}" style="background: #1e293b;">{{ $salesman->name }} ({{ $salesman->ref_code }})</option>
+                        @endforeach
                     </select>
                 </div>
                 <div class="form-group">
@@ -119,7 +119,7 @@
                 </div>
             </div>
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
+            <div class="grid-2" style="gap: 30px;">
                 <div>
                     <p style="margin: 0; color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 1px;">Mobile Number</p>
                     <p id="dispMobile" style="margin: 5px 0 0 0; font-size: 16px; font-weight: 600; color: #cbd5e1;"></p>
@@ -155,7 +155,7 @@
 .form-control:disabled { opacity: 0.7; cursor: not-allowed; background: rgba(255,255,255,0.05) !important; }
 </style>
 
-@endsection
+@endpush
 
 @section('scripts')
 <script>
@@ -170,8 +170,11 @@
         document.getElementById('dealerModal').style.display = 'flex';
     }
 
-    function openEditModal(id, name, shop, mobile, status) {
+    let currentDealerId = null;
+
+    function openEditModal(id, name, shop, mobile, status, email, address, salesman_id) {
         resetForm();
+        currentDealerId = id;
         document.getElementById('modalTitle').innerText = 'Edit Dealer: #' + id;
         document.getElementById('submitBtn').innerText = 'Update Dealer';
         document.getElementById('submitBtn').style.display = 'block';
@@ -182,12 +185,15 @@
         document.getElementById('shopName').value = shop;
         document.getElementById('mobileNumber').value = mobile;
         document.getElementById('dealerStatus').value = status;
+        document.getElementById('emailAddress').value = email || '';
+        document.getElementById('fullAddress').value = address || '';
+        document.getElementById('assignSalesman').value = salesman_id || '';
         
         enableInputs(true);
         document.getElementById('dealerModal').style.display = 'flex';
     }
 
-    function openViewModal(id, name, shop, mobile, status) {
+    function openViewModal(id, name, shop, mobile, status, email, address) {
         resetForm();
         document.getElementById('modalTitle').innerText = 'Dealer Profile: #' + id;
         document.getElementById('submitBtn').style.display = 'none';
@@ -198,8 +204,8 @@
         document.getElementById('viewDealerName').innerText = name;
         document.getElementById('viewShopName').innerText = shop;
         document.getElementById('dispMobile').innerText = mobile;
-        document.getElementById('dispAddress').innerText = '123, Street Name, Business District, City, State - 123456';
-        document.getElementById('dispSalesman').innerText = 'Rahul Kumar (S001)';
+        document.getElementById('dispAddress').innerText = address || 'No address provided';
+        document.getElementById('dispSalesman').innerText = 'Mapped Salesman ID: ' + (id || 'N/A');
         document.getElementById('initials').innerText = name.split(' ').map(n => n[0]).join('').toUpperCase();
         
         const badgeClass = status === 'Active' ? 'badge-success' : (status === 'Pending' ? 'badge-warning' : 'badge-danger');
@@ -231,8 +237,47 @@
 
     function submitDealer() {
         const isEdit = document.getElementById('submitBtn').innerText.includes('Update');
-        alert(isEdit ? 'Dealer updated successfully!' : 'Dealer registered successfully!');
-        closeDealerModal();
+        const url = isEdit ? `${window.BASE_PATH}/dealers/${currentDealerId}` : `${window.BASE_PATH}/dealers`;
+        const method = isEdit ? 'PUT' : 'POST';
+
+        const data = {
+            name: document.getElementById('dealerName').value,
+            shop: document.getElementById('shopName').value,
+            mobile: document.getElementById('mobileNumber').value,
+            email: document.getElementById('emailAddress').value,
+            address: document.getElementById('fullAddress').value,
+            status: document.getElementById('dealerStatus').value,
+            salesman_id: document.getElementById('assignSalesman').value,
+            _token: '{{ csrf_token() }}'
+        };
+
+        if (!isEdit) {
+            data.password = document.getElementById('dealerPassword').value;
+        } else if (document.getElementById('dealerPassword').value) {
+            data.password = document.getElementById('dealerPassword').value;
+        }
+
+        fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                alert(result.message);
+                location.reload();
+            } else {
+                alert('Error: ' + (result.message || 'Something went wrong'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred. Please try again.');
+        });
     }
 
     window.onclick = function(event) {

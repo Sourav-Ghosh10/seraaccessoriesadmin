@@ -1,5 +1,20 @@
 @extends('layouts.app')
 
+@php
+    if (!function_exists('getInitials')) {
+        function getInitials($name) {
+            $words = explode(' ', trim($name));
+            $initials = '';
+            foreach ($words as $w) {
+                if (!empty($w)) {
+                    $initials .= mb_substr($w, 0, 1);
+                }
+            }
+            return strtoupper(mb_substr($initials, 0, 2));
+        }
+    }
+@endphp
+
 @section('content')
 <div class="dashboard-wrapper">
     <div class="grid">
@@ -7,14 +22,14 @@
             <div class="widget-icon" style="background: rgba(154, 90, 58, 0.1); color: var(--primary);">
                 <i class="fas fa-users"></i>
             </div>
-            <div class="widget-value">1,284</div>
+            <div class="widget-value">{{ number_format($totalDealers) }}</div>
             <div class="widget-label">Total Dealers</div>
         </div>
         <div class="card">
             <div class="widget-icon" style="background: rgba(74, 74, 74, 0.1); color: var(--secondary);">
                 <i class="fas fa-user-tie"></i>
             </div>
-            <div class="widget-value">45</div>
+            <div class="widget-value">{{ number_format($totalSalesmen) }}</div>
             <div class="widget-label">Total Salesmen</div>
         </div>
         @php $role = session('role', 'Admin'); @endphp
@@ -23,21 +38,21 @@
             <div class="widget-icon" style="background: rgba(16, 185, 129, 0.1); color: var(--success);">
                 <i class="fas fa-shopping-cart"></i>
             </div>
-            <div class="widget-value">856</div>
+            <div class="widget-value">{{ number_format($totalOrders) }}</div>
             <div class="widget-label">Total Orders</div>
         </div>
         <div class="card">
             <div class="widget-icon" style="background: rgba(245, 158, 11, 0.1); color: var(--warning);">
                 <i class="fas fa-clock"></i>
             </div>
-            <div class="widget-value">124</div>
+            <div class="widget-value">{{ number_format($pendingOrders) }}</div>
             <div class="widget-label">Pending Orders</div>
         </div>
         @endif
     </div>
 
     @if($role == 'Admin')
-    <div class="grid" style="margin-top: 30px; grid-template-columns: 2fr 1fr;">
+    <div class="grid grid-sales" style="margin-top: 30px;">
         <div class="card">
             <h3 style="margin-bottom: 20px;">Monthly Sales Graph</h3>
             <div style="height: 300px; position: relative;">
@@ -49,31 +64,27 @@
             <div style="display: flex; flex-direction: column; gap: 15px;">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <span style="font-size: 14px;">Delivered Orders</span>
-                    <span class="badge badge-success">712</span>
+                    <span class="badge badge-success">{{ $deliveredOrders }}</span>
                 </div>
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <span style="font-size: 14px;">Invoice Pending</span>
-                    <span class="badge badge-warning">42</span>
-                </div>
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <span style="font-size: 14px;">Cancelled</span>
-                    <span class="badge badge-danger">12</span>
+                    <span class="badge badge-warning">{{ $invoicePending }}</span>
                 </div>
             </div>
 
             <h3 style="margin-top: 30px; margin-bottom: 20px;">Top Performance</h3>
             <div style="display: flex; flex-direction: column; gap: 15px;">
                 <div style="display: flex; align-items: center; gap: 10px;">
-                    <div class="glass" style="width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">JD</div>
+                    <div class="glass" style="width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">{{ getInitials($topDealerName) }}</div>
                     <div>
-                        <div style="font-size: 14px; font-weight: 600;">John Doe</div>
+                        <div style="font-size: 14px; font-weight: 600;">{{ $topDealerName }}</div>
                         <div style="font-size: 12px; color: var(--text-muted);">Top Dealer</div>
                     </div>
                 </div>
                 <div style="display: flex; align-items: center; gap: 10px;">
-                    <div class="glass" style="width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">AS</div>
+                    <div class="glass" style="width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">{{ getInitials($topSalesmanName) }}</div>
                     <div>
-                        <div style="font-size: 14px; font-weight: 600;">Alice Smith</div>
+                        <div style="font-size: 14px; font-weight: 600;">{{ $topSalesmanName }}</div>
                         <div style="font-size: 12px; color: var(--text-muted);">Top Salesman</div>
                     </div>
                 </div>
@@ -96,10 +107,10 @@
     new Chart(ctx, {
         type: 'line',
         data: {
-            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+            labels: {!! json_encode($months) !!},
             datasets: [{
                 label: 'Sales (₹)',
-                data: [12000, 19000, 15000, 25000, 22000, 30000],
+                data: {!! json_encode($salesData) !!},
                 borderColor: '#9a5a3a',
                 backgroundColor: 'rgba(154, 90, 58, 0.1)',
                 fill: true,

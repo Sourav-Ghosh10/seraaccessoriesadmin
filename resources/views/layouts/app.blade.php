@@ -15,6 +15,11 @@
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{{ asset('css/style.css') }}">
     @yield('styles')
+    
+    <script>
+        window.APP_URL = "{{ url('/') }}";
+        window.BASE_PATH = "{{ url('/') }}";
+    </script>
 </head>
 
 <body>
@@ -22,12 +27,18 @@
         @yield('content')
     @else
         <div class="app-container">
+            <!-- Sidebar Overlay -->
+            <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
             <!-- Sidebar -->
-            <aside class="sidebar">
+            <aside class="sidebar" id="sidebar">
                 <div class="logo">
                     <div style="display: flex; flex-direction: column; line-height: 1;">
                         <img src="{{ asset('assets/images/logo.jpg') }}" alt="Logo" style="width: 100px;">
                     </div>
+                    <button class="mobile-close" id="closeSidebar">
+                        <i class="fas fa-times"></i>
+                    </button>
                 </div>
 
                 <ul class="nav-links">
@@ -63,7 +74,15 @@
                     @endif
 
                     <li class="nav-item">
-                        <a href="{{ route('order-requests') }}" class="nav-link {{ Request::is('order-requests*') ? 'active' : '' }}">
+                        <a href="{{ route('estimate-requests') }}" class="nav-link {{ Request::is('estimate-requests*') ? 'active' : '' }}">
+                            <i class="fas fa-calculator"></i>
+                            <span>Get Estimate Request</span>
+                        </a>
+                    </li>
+
+                    <li class="nav-item">
+                        <a href="{{ route('order-requests') }}"
+                            class="nav-link {{ Request::is('order-requests*') ? 'active' : '' }}">
                             <i class="fas fa-comment-alt"></i>
                             <span>Order Requests</span>
                         </a>
@@ -118,11 +137,26 @@
                         </a>
                     </li>
 
+                    @if($role == 'Admin' || $role == 'Account')
+                        <li class="nav-item">
+                            <a href="{{ route('payments.verify') }}" class="nav-link {{ Request::is('payments/verify*') ? 'active' : '' }}">
+                                <i class="fas fa-file-invoice"></i>
+                                <span>Verify Payments</span>
+                            </a>
+                        </li>
+                    @endif
+
                     @if($role == 'Admin')
                         <li class="nav-item">
-                            <a href="#" class="nav-link">
+                            <a href="{{ route('users') }}" class="nav-link {{ Request::is('users*') ? 'active' : '' }}">
                                 <i class="fas fa-user-shield"></i>
                                 <span>User Management</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ route('settings') }}" class="nav-link {{ Request::is('settings*') ? 'active' : '' }}">
+                                <i class="fas fa-cog"></i>
+                                <span>Settings</span>
                             </a>
                         </li>
                     @endif
@@ -137,51 +171,68 @@
                 </div>
             </aside>
 
-            <!-- Main Content -->
-            <main class="main-content">
+            <div class="main-wrapper">
                 <!-- Header -->
                 <header class="header">
                     <div class="header-left">
-                        <h2 id="page-title">Dashboard</h2>
+                        <button class="mobile-toggle" id="mobileToggle">
+                            <i class="fas fa-bars"></i>
+                        </button>
+                        <h2 id="page-title">@yield('title', 'Dashboard')</h2>
                     </div>
-                    <div class="header-right" style="display: flex; align-items: center; gap: 20px;">
-                        <div class="search-bar glass"
-                            style="padding: 8px 15px; border-radius: 20px; display: flex; align-items: center; gap: 10px;">
-                            <i class="fas fa-search" style="color: var(--text-muted);"></i>
-                            <input type="text" placeholder="Search..."
-                                style="background: transparent; border: none; color: white; outline: none; font-size: 14px;">
-                        </div>
-                        <div class="role-switcher glass" style="padding: 5px 10px; border-radius: 10px;">
-                            <form action="{{ route('dashboard') }}" method="GET" id="roleForm">
-                                <select name="role" onchange="this.form.submit()"
-                                    style="background: transparent; border: none; color: white; outline: none; font-size: 12px; cursor: pointer;">
-                                    <option value="Admin" {{ $role == 'Admin' ? 'selected' : '' }}>Role: Admin</option>
-                                    <option value="Operations" {{ $role == 'Operations' ? 'selected' : '' }}>Role: Operations
-                                    </option>
-                                    <option value="Account" {{ $role == 'Account' ? 'selected' : '' }}>Role: Account</option>
-                                </select>
-                            </form>
-                        </div>
-                        <div class="user-profile" style="display: flex; align-items: center; gap: 10px;">
-                            <div class="avatar glass"
-                                style="width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                    <div class="header-right">
+                        <div class="user-profile">
+                            <div class="avatar glass">
                                 <i class="fas fa-user"></i>
                             </div>
-                            <span style="font-size: 14px; font-weight: 600;">{{ $role }}</span>
+                            <span class="user-name">{{ $role }}</span>
                         </div>
                     </div>
                 </header>
 
-                <div class="content-body animate-fade">
-                    @yield('content')
-                </div>
-            </main>
+                <!-- Main Content -->
+                <main class="main-content">
+                    <div class="content-body animate-fade">
+                        @yield('content')
+                    </div>
+                </main>
+            </div>
         </div>
     @endif
 
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            const mobileToggle = document.getElementById('mobileToggle');
+            const closeSidebar = document.getElementById('closeSidebar');
+
+            if (mobileToggle) {
+                mobileToggle.addEventListener('click', () => {
+                    sidebar.classList.add('active');
+                    overlay.classList.add('active');
+                });
+            }
+
+            if (closeSidebar) {
+                closeSidebar.addEventListener('click', () => {
+                    sidebar.classList.remove('active');
+                    overlay.classList.remove('active');
+                });
+            }
+
+            if (overlay) {
+                overlay.addEventListener('click', () => {
+                    sidebar.classList.remove('active');
+                    overlay.classList.remove('active');
+                });
+            }
+        });
+    </script>
     @yield('scripts')
+    @stack('modals')
 </body>
 
 </html>

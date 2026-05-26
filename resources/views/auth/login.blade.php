@@ -8,21 +8,32 @@
             </div>
             <h3 style="text-align: center; margin-bottom: 30px; font-weight: 600;">Welcome Back</h3>
 
-            <form action="{{ route('dashboard') }}" method="GET">
+            <form action="{{ route('login.post') }}" method="POST">
+                @csrf
                 <div class="form-group">
                     <label class="form-label">Email Address</label>
-                    <input type="email" class="form-control" placeholder="admin@shera.com" required>
+                    <input type="email" name="email" class="form-control @error('email') is-invalid @enderror" placeholder="admin@shera.com" required value="{{ old('email') }}">
+                    @error('email')
+                        <div style="color: var(--danger); font-size: 13px; font-weight: 600; margin-top: 5px;">
+                            <i class="fas fa-exclamation-circle"></i> {{ $message }}
+                        </div>
+                    @enderror
                 </div>
                 <div class="form-group">
                     <label class="form-label">Password</label>
-                    <input type="password" class="form-control" placeholder="••••••••" required>
+                    <input type="password" name="password" class="form-control @error('password') is-invalid @enderror" placeholder="••••••••" required>
+                    @error('password')
+                        <div style="color: var(--danger); font-size: 13px; font-weight: 600; margin-top: 5px;">
+                            <i class="fas fa-exclamation-circle"></i> {{ $message }}
+                        </div>
+                    @enderror
                 </div>
 
                 <div class="form-group"
                     style="display: flex; justify-content: space-between; align-items: center; margin-top: -10px;">
                     <label
                         style="font-size: 12px; color: var(--text-muted); cursor: pointer; display: flex; align-items: center; gap: 5px;">
-                        <input type="checkbox"> Remember me
+                        <input type="checkbox" name="remember"> Remember me
                     </label>
                     <a href="#" style="font-size: 12px; color: var(--primary); text-decoration: none;">Forgot Password?</a>
                 </div>

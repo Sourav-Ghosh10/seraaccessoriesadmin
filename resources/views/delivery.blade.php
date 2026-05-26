@@ -18,28 +18,43 @@
                 </tr>
             </thead>
             <tbody>
+                @foreach($orders as $order)
                 <tr>
-                    <td>ORD-5580</td>
-                    <td>10 May, 2024</td>
-                    <td>Bus No: AR-01-2234, Driver: 9876543210</td>
-                    <td><span class="badge badge-warning">Out for Delivery</span></td>
+                    <td>{{ $order->order_number }}</td>
                     <td>
-                        <button class="btn glass" style="padding: 5px 12px; font-size: 11px;" onclick="openDeliveryModal('ORD-5580')">
+                        @if($order->delivery)
+                            {{ \Carbon\Carbon::parse($order->delivery->expected_delivery_at)->format('d M, Y') }}
+                        @else
+                            <span style="color: var(--text-muted);">Not Scheduled</span>
+                        @endif
+                    </td>
+                    <td>
+                        @if($order->delivery)
+                            <div style="font-size: 13px;">{{ $order->delivery->vehicle_no }} ({{ $order->delivery->vehicle_type }})</div>
+                            <div style="font-size: 11px; color: var(--text-muted);">Phone: {{ $order->delivery->driver_phone }}</div>
+                        @else
+                            <span style="color: var(--text-muted);">No Details</span>
+                        @endif
+                    </td>
+                    <td>
+                        @if($order->status == 'Confirmed')
+                            <span class="badge badge-warning">Confirmed</span>
+                        @elseif($order->status == 'Out for Delivery')
+                            <span class="badge badge-primary" style="background: rgba(59, 130, 246, 0.2); color: #3b82f6;">Out for Delivery</span>
+                        @elseif($order->status == 'Delivered')
+                            <span class="badge badge-success">Delivered</span>
+                        @else
+                            <span class="badge badge-secondary">{{ $order->status }}</span>
+                        @endif
+                    </td>
+                    <td>
+                        <button class="btn glass" style="padding: 5px 12px; font-size: 11px;" 
+                            onclick="openDeliveryModal('{{ $order->order_number }}', '{{ $order->id }}', '{{ $order->delivery->vehicle_no ?? '' }}', '{{ $order->delivery->vehicle_type ?? '' }}', '{{ $order->delivery->driver_phone ?? '' }}', '{{ $order->delivery ? \Carbon\Carbon::parse($order->delivery->expected_delivery_at)->format('Y-m-d') : date('Y-m-d') }}', '{{ $order->delivery ? \Carbon\Carbon::parse($order->delivery->expected_delivery_at)->format('H:i') : date('H:i') }}', '{{ addslashes($order->delivery->remarks ?? '') }}')">
                             <i class="fas fa-edit"></i> Update
                         </button>
                     </td>
                 </tr>
-                <tr>
-                    <td>ORD-5581</td>
-                    <td>08 May, 2024</td>
-                    <td>Self Pickup - Contact: John Doe</td>
-                    <td><span class="badge badge-success">Delivered</span></td>
-                    <td>
-                        <button class="btn glass" style="padding: 5px 12px; font-size: 11px;" onclick="openDeliveryModal('ORD-5581')">
-                            <i class="fas fa-edit"></i> Update
-                        </button>
-                    </td>
-                </tr>
+                @endforeach
             </tbody>
         </table>
     </div>
@@ -49,8 +64,8 @@
 
 @section('scripts')
 <!-- Delivery Modal -->
-<div id="deliveryModal" style="display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background: rgba(2, 6, 23, 0.85); backdrop-filter: blur(10px); align-items: flex-start; justify-content: center; padding-top: 80px; overflow-y: auto;">
-    <div class="card" style="width: 100%; max-width: 500px; padding: 30px; background: #0f172a; border: 1px solid var(--glass-border); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); animation: modalIn 0.3s ease-out; margin-bottom: 50px;">
+<div id="deliveryModal" style="display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background: rgba(2, 6, 23, 0.85); backdrop-filter: blur(10px); align-items: flex-start; justify-content: center; overflow-y: auto;">
+    <div class="card modal-content" style="padding: 30px; background: #0f172a; border: 1px solid var(--glass-border); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); animation: modalIn 0.3s ease-out; margin-bottom: 50px; width: 500px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
             <h3 style="margin: 0; font-size: 20px; font-weight: 700;">Update Delivery Status</h3>
             <div onclick="closeModal()" style="width: 30px; height: 30px; border-radius: 50%; background: var(--glass); display: flex; align-items: center; justify-content: center; cursor: pointer;">
@@ -58,14 +73,37 @@
             </div>
         </div>
         
+        <input type="hidden" id="realOrderId">
         <div class="form-group" style="margin-bottom: 20px;">
             <label class="form-label" style="color: var(--text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Order Reference</label>
             <input type="text" id="modalOrderId" class="form-control" style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1); cursor: not-allowed;" readonly>
         </div>
         
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+            <div class="form-group">
+                <label class="form-label" style="color: var(--text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Vehicle No</label>
+                <input type="text" id="vehicleNo" class="form-control" placeholder="AR-01-XXXX" style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1);">
+            </div>
+            <div class="form-group">
+                <label class="form-label" style="color: var(--text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Vehicle Type</label>
+                <input type="text" id="vehicleType" class="form-control" placeholder="e.g. Truck, Van" style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1);">
+            </div>
+        </div>
+
         <div class="form-group" style="margin-bottom: 20px;">
-            <label class="form-label" style="color: var(--text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Expected Delivery Date</label>
-            <input type="date" class="form-control" id="deliveryDate" value="{{ date('Y-m-d') }}" style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1);">
+            <label class="form-label" style="color: var(--text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Phone No</label>
+            <input type="tel" id="phoneNo" class="form-control" placeholder="Enter phone number" style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1);">
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 15px; margin-bottom: 20px;">
+            <div class="form-group">
+                <label class="form-label" style="color: var(--text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Expected Delivery Date</label>
+                <input type="date" class="form-control" id="deliveryDate" style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1);">
+            </div>
+            <div class="form-group">
+                <label class="form-label" style="color: var(--text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Time</label>
+                <input type="time" class="form-control" id="deliveryTime" style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1);">
+            </div>
         </div>
         
         <div class="form-group" style="margin-bottom: 20px;">
@@ -75,7 +113,7 @@
         
         <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 10px;">
             <button class="btn glass" onclick="closeModal()" style="border: none; background: rgba(255,255,255,0.05);">Cancel</button>
-            <button class="btn btn-primary" onclick="submitDelivery()" style="padding: 12px 30px; box-shadow: 0 10px 15px -3px rgba(154, 90, 58, 0.3);">Submit Update</button>
+            <button class="btn btn-primary" id="submitBtn" onclick="submitDelivery()" style="padding: 12px 30px; box-shadow: 0 10px 15px -3px rgba(154, 90, 58, 0.3);">Submit Update</button>
         </div>
     </div>
 </div>
@@ -88,10 +126,17 @@
 </style>
 
 <script>
-    function openDeliveryModal(orderId) {
-        document.getElementById('modalOrderId').value = orderId;
-        const modal = document.getElementById('deliveryModal');
-        modal.style.display = 'flex';
+    function openDeliveryModal(orderNum, id, vNo, vType, phone, date, time, remarks) {
+        document.getElementById('modalOrderId').value = orderNum;
+        document.getElementById('realOrderId').value = id;
+        document.getElementById('vehicleNo').value = vNo;
+        document.getElementById('vehicleType').value = vType;
+        document.getElementById('phoneNo').value = phone;
+        document.getElementById('deliveryDate').value = date;
+        document.getElementById('deliveryTime').value = time;
+        document.getElementById('deliveryRemarks').value = remarks;
+        
+        document.getElementById('deliveryModal').style.display = 'flex';
     }
 
     function closeModal() {
@@ -99,18 +144,48 @@
     }
 
     function submitDelivery() {
-        const orderId = document.getElementById('modalOrderId').value;
-        const date = document.getElementById('deliveryDate').value;
-        const remarks = document.getElementById('deliveryRemarks').value;
+        const id = document.getElementById('realOrderId').value;
+        const submitBtn = document.getElementById('submitBtn');
         
-        if (!date) {
-            alert('Please select an expected delivery date.');
-            return;
-        }
+        const data = {
+            vehicle_no: document.getElementById('vehicleNo').value,
+            vehicle_type: document.getElementById('vehicleType').value,
+            driver_phone: document.getElementById('phoneNo').value,
+            expected_delivery_date: document.getElementById('deliveryDate').value,
+            expected_delivery_time: document.getElementById('deliveryTime').value,
+            delivery_remarks: document.getElementById('deliveryRemarks').value,
+            _token: '{{ csrf_token() }}'
+        };
 
-        // Only frontend logic
-        alert(`Delivery status updated for ${orderId}\nExpected Date: ${date}\nRemarks: ${remarks}`);
-        closeModal();
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating...';
+
+        fetch(`${window.BASE_PATH}/orders/${id}/update-delivery`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                alert(result.message);
+                location.reload();
+            } else {
+                alert('Error: ' + (result.message || 'Unknown error'));
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = 'Submit Update';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Something went wrong!');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = 'Submit Update';
+        });
     }
 
     // Close modal on click outside

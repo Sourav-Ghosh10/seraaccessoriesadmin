@@ -40,12 +40,13 @@ return [
 
         'public' => [
             'driver' => 'local',
-            'root' => storage_path('app/public'),
-            'url' => rtrim(env('APP_URL', 'http://localhost'), '/').'/storage',
+            'root' => base_path('uploads'),
+            'url' => rtrim(env('APP_URL', 'http://localhost'), '/') . '/uploads',
             'visibility' => 'public',
             'throw' => false,
             'report' => false,
         ],
+
 
         's3' => [
             'driver' => 's3',
