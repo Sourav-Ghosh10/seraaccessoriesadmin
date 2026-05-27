@@ -13,7 +13,7 @@
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="{{ asset('css/style.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/style.css') }}?v={{ time() }}">
     @yield('styles')
     
     <script>
@@ -73,20 +73,22 @@
                         </li>
                     @endif
 
-                    <li class="nav-item">
-                        <a href="{{ route('estimate-requests') }}" class="nav-link {{ Request::is('estimate-requests*') ? 'active' : '' }}">
-                            <i class="fas fa-calculator"></i>
-                            <span>Get Estimate Request</span>
-                        </a>
-                    </li>
+                    @if($role == 'Admin' || $role == 'Operations')
+                        <li class="nav-item">
+                            <a href="{{ route('estimate-requests') }}" class="nav-link {{ Request::is('estimate-requests*') ? 'active' : '' }}">
+                                <i class="fas fa-calculator"></i>
+                                <span>Get Estimate Request</span>
+                            </a>
+                        </li>
 
-                    <li class="nav-item">
-                        <a href="{{ route('order-requests') }}"
-                            class="nav-link {{ Request::is('order-requests*') ? 'active' : '' }}">
-                            <i class="fas fa-comment-alt"></i>
-                            <span>Order Requests</span>
-                        </a>
-                    </li>
+                        <li class="nav-item">
+                            <a href="{{ route('order-requests') }}"
+                                class="nav-link {{ Request::is('order-requests*') ? 'active' : '' }}">
+                                <i class="fas fa-comment-alt"></i>
+                                <span>Order Requests</span>
+                            </a>
+                        </li>
+                    @endif
 
                     <li class="nav-item">
                         <a href="{{ route('orders.index') }}" class="nav-link {{ Request::is('orders*') ? 'active' : '' }}">
@@ -113,14 +115,14 @@
                         </li>
                     @endif
 
-                    <li class="nav-item">
-                        <a href="{{ route('rewards') }}" class="nav-link {{ Request::is('rewards*') ? 'active' : '' }}">
-                            <i class="fas fa-gift"></i>
-                            <span>Reward Points</span>
-                        </a>
-                    </li>
-
                     @if($role == 'Admin' || $role == 'Operations')
+                        <li class="nav-item">
+                            <a href="{{ route('rewards') }}" class="nav-link {{ Request::is('rewards*') ? 'active' : '' }}">
+                                <i class="fas fa-gift"></i>
+                                <span>Reward Points</span>
+                            </a>
+                        </li>
+
                         <li class="nav-item">
                             <a href="{{ route('price-list') }}"
                                 class="nav-link {{ Request::is('price-list*') ? 'active' : '' }}">
@@ -128,16 +130,16 @@
                                 <span>Price List PDF</span>
                             </a>
                         </li>
+
+                        <li class="nav-item">
+                            <a href="{{ route('passbook') }}" class="nav-link {{ Request::is('passbook*') ? 'active' : '' }}">
+                                <i class="fas fa-book"></i>
+                                <span>Dealer Passbook</span>
+                            </a>
+                        </li>
                     @endif
 
-                    <li class="nav-item">
-                        <a href="{{ route('passbook') }}" class="nav-link {{ Request::is('passbook*') ? 'active' : '' }}">
-                            <i class="fas fa-book"></i>
-                            <span>Dealer Passbook</span>
-                        </a>
-                    </li>
-
-                    @if($role == 'Admin' || $role == 'Account')
+                    @if($role == 'Admin' || $role == 'Account' || $role == 'Operations')
                         <li class="nav-item">
                             <a href="{{ route('payments.verify') }}" class="nav-link {{ Request::is('payments/verify*') ? 'active' : '' }}">
                                 <i class="fas fa-file-invoice"></i>
@@ -162,13 +164,7 @@
                     @endif
                 </ul>
 
-                <div class="sidebar-footer"
-                    style="margin-top: 20px; border-top: 1px solid var(--glass-border); padding-top: 20px;">
-                    <a href="{{ route('login') }}" class="nav-link">
-                        <i class="fas fa-sign-out-alt"></i>
-                        <span>Logout</span>
-                    </a>
-                </div>
+
             </aside>
 
             <div class="main-wrapper">
@@ -181,11 +177,20 @@
                         <h2 id="page-title">@yield('title', 'Dashboard')</h2>
                     </div>
                     <div class="header-right">
-                        <div class="user-profile">
-                            <div class="avatar glass">
+                        <div class="user-profile" id="userProfileDropdown">
+                            <div class="avatar">
                                 <i class="fas fa-user"></i>
                             </div>
                             <span class="user-name">{{ $role }}</span>
+                            <i class="fas fa-chevron-down dropdown-arrow"></i>
+
+                            <!-- Dropdown Menu -->
+                            <div class="dropdown-menu" id="userDropdownMenu">
+                                <a href="{{ route('login') }}" class="dropdown-item">
+                                    <i class="fas fa-sign-out-alt"></i>
+                                    <span>Logout</span>
+                                </a>
+                            </div>
                         </div>
                     </div>
                 </header>
@@ -227,6 +232,25 @@
                 overlay.addEventListener('click', () => {
                     sidebar.classList.remove('active');
                     overlay.classList.remove('active');
+                });
+            }
+
+            // User Profile Dropdown Toggle
+            const userProfile = document.getElementById('userProfileDropdown');
+            const dropdownMenu = document.getElementById('userDropdownMenu');
+
+            if (userProfile && dropdownMenu) {
+                userProfile.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    userProfile.classList.toggle('active');
+                    dropdownMenu.classList.toggle('show');
+                });
+
+                document.addEventListener('click', function (e) {
+                    if (!userProfile.contains(e.target)) {
+                        userProfile.classList.remove('active');
+                        dropdownMenu.classList.remove('show');
+                    }
                 });
             }
         });

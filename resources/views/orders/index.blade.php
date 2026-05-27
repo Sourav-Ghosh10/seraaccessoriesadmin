@@ -4,7 +4,7 @@
     <div class="card">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
             <h3>Finalized Orders</h3>
-            <a href="{{ route('orders.create') }}" class="btn btn-primary"><i class="fas fa-plus"></i> Create New Order</a>
+            {{-- <a href="{{ route('orders.create') }}" class="btn btn-primary"><i class="fas fa-plus"></i> Create New Order</a> --}}
         </div>
 
         <div class="table-container">
@@ -52,10 +52,13 @@
                                         <i class="fas fa-file-download"></i> Challan
                                     </a>
                                 @endif
-                                <button class="btn glass" style="padding: 5px 12px; font-size: 11px;"
-                                    onclick="openDeliveryModal('{{ $order->id }}', '{{ $order->order_number }}', '{{ $order->delivery->vehicle_no ?? '' }}', '{{ $order->delivery->vehicle_type ?? '' }}', '{{ $order->delivery->driver_phone ?? '' }}', '{{ $order->delivery ? \Carbon\Carbon::parse($order->delivery->expected_delivery_at)->format('Y-m-d') : date('Y-m-d') }}', '{{ $order->delivery ? \Carbon\Carbon::parse($order->delivery->expected_delivery_at)->format('H:i') : date('H:i') }}', '{{ addslashes($order->delivery->remarks ?? '') }}')">
-                                    <i class="fas fa-truck"></i> Delivery
-                                </button>
+                                @php $role = session('role', 'Admin'); @endphp
+                                @if($role == 'Admin' || $role == 'Operations')
+                                    <button class="btn glass" style="padding: 5px 12px; font-size: 11px;"
+                                        onclick="openDeliveryModal('{{ $order->id }}', '{{ $order->order_number }}', '{{ $order->delivery->vehicle_no ?? '' }}', '{{ $order->delivery->vehicle_type ?? '' }}', '{{ $order->delivery->driver_phone ?? '' }}', '{{ $order->delivery ? \Carbon\Carbon::parse($order->delivery->expected_delivery_at)->format('Y-m-d') : date('Y-m-d') }}', '{{ $order->delivery ? \Carbon\Carbon::parse($order->delivery->expected_delivery_at)->format('H:i') : date('H:i') }}', '{{ addslashes($order->delivery->remarks ?? '') }}')">
+                                        <i class="fas fa-truck"></i> Delivery
+                                    </button>
+                                @endif
                             </td>
                         </tr>
                     @endforeach

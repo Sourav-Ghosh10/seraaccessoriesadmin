@@ -58,13 +58,20 @@
                         <th>Request ID</th>
                         <th>Dealer</th>
                         <th>Type</th>
-                        <th>Date/Time</th>
+                        <th>Date</th>
                         <th>Status</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach($orders as $order)
+                        @php
+                            $orderFileUrls = collect($order->file_path ?? [])
+                                ->filter()
+                                ->map(fn ($path) => asset('uploads/' . ltrim(str_replace('\\', '/', (string) $path), '/')))
+                                ->values()
+                                ->all();
+                        @endphp
                         <tr>
                             <td>
                                 <div style="font-weight: 600; color: #fff;">{{ $order->request_number }}</div>
@@ -80,7 +87,7 @@
                             <td>
                                 @if($order->type == 'Voice')
                                     <div style="display: flex; align-items: center; gap: 8px;">
-                                        <i class="fas fa-microphone" style="color: var(--secondary);"></i>
+                                        <i class="fas fa-microphone" style="color: #a855f7;"></i>
                                         <span>Voice Message</span>
                                     </div>
                                 @elseif($order->type == 'Photo')
@@ -107,8 +114,7 @@
                             </td>
                             <td>
                                 <div style="font-size: 12px; color: var(--text-muted);">
-                                    {{ $order->created_at->format('d M, Y') }}<br>
-                                    <span style="font-size: 10px;">{{ $order->created_at->format('h:i A') }}</span>
+                                    {{ $order->created_at->format('d M, Y') }}
                                 </div>
                             </td>
                             <td>
@@ -124,7 +130,7 @@
                                 <div style="display: flex; gap: 8px;">
                                     <button class="btn glass" style="padding: 5px 12px; font-size: 11px;"
                                         data-type="{{ $order->type }}" data-description="{{ $order->description }}"
-                                        data-filepath="{{ json_encode($order->file_path) }}" data-id="{{ $order->id }}"
+                                        data-file-urls='@json($orderFileUrls)' data-id="{{ $order->id }}"
                                         data-sender="{{ $order->member->name ?? 'Unknown' }}"
                                         data-senderid="{{ $order->member_id }}"
                                         data-phone="{{ $order->member->mobile ?? '' }}"
@@ -177,6 +183,57 @@
 
         <!-- Lightbox Zoom Overlay -->
         <style>
+            .attachment-thumb-grid {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 12px;
+                justify-content: flex-start;
+                width: 100%;
+            }
+
+            .attachment-thumb {
+                width: 96px;
+                height: 96px;
+                border-radius: 10px;
+                overflow: hidden;
+                border: 1px solid rgba(255, 255, 255, 0.12);
+                cursor: zoom-in;
+                position: relative;
+                background: rgba(255, 255, 255, 0.03);
+                transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+                flex-shrink: 0;
+            }
+
+            .attachment-thumb:hover {
+                transform: translateY(-2px);
+                border-color: rgba(255, 255, 255, 0.25);
+                box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+            }
+
+            .attachment-thumb img {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+                display: block;
+            }
+
+            .attachment-thumb-overlay {
+                position: absolute;
+                inset: 0;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background: rgba(15, 23, 42, 0.45);
+                opacity: 0;
+                transition: opacity 0.2s ease;
+                color: #fff;
+                font-size: 18px;
+            }
+
+            .attachment-thumb:hover .attachment-thumb-overlay {
+                opacity: 1;
+            }
+
             .lightbox-overlay {
                 display: none;
                 position: fixed;
@@ -299,12 +356,12 @@
         function initViewRequest(btn) {
             const type = btn.getAttribute('data-type');
             const description = btn.getAttribute('data-description');
-            const filePathRaw = btn.getAttribute('data-filepath');
+            const fileUrlsRaw = btn.getAttribute('data-file-urls');
             const id = btn.getAttribute('data-id');
             const senderName = btn.getAttribute('data-sender');
             const senderId = btn.getAttribute('data-senderid');
             const phone = btn.getAttribute('data-phone');
-            viewRequestContent(type, description, filePathRaw, id, senderName, senderId, phone);
+            viewRequestContent(type, description, fileUrlsRaw, id, senderName, senderId, phone);
         }
 
         function openRequestModal() {
@@ -345,7 +402,47 @@
             img.style.transform = `scale(${currentScale})`;
         }
 
-        function viewRequestContent(type, description, filePathRaw, id, senderName, senderId, phone) {
+        function parseFileUrls(raw) {
+            if (!raw || raw === 'null' || raw === 'undefined') {
+                return [];
+            }
+            try {
+                const parsed = JSON.parse(raw);
+                return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function buildImageThumbnails(fileUrls) {
+            if (!fileUrls.length) {
+                return '<p style="font-size: 13px; color: var(--text-muted); margin: 0;">No attachment file found for this request.</p>';
+            }
+
+            let html = '<div class="attachment-thumb-grid">';
+            fileUrls.forEach(url => {
+                const safeUrl = url.replace(/'/g, "\\'");
+                if (url.toLowerCase().includes('.pdf')) {
+                    html += `
+                        <a href="${url}" target="_blank" class="btn glass" style="display: inline-flex; align-items: center; gap: 8px; color: var(--primary); font-size: 13px; padding: 10px 20px; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; text-decoration: none;">
+                            <i class="fas fa-file-pdf" style="font-size: 20px; color: #ef4444;"></i>
+                            <span>View PDF</span>
+                        </a>
+                    `;
+                } else {
+                    html += `
+                        <div class="attachment-thumb" onclick="openLightbox('${safeUrl}')" title="Click to view full size">
+                            <img src="${url}" alt="Request attachment">
+                            <div class="attachment-thumb-overlay"><i class="fas fa-search-plus"></i></div>
+                        </div>
+                    `;
+                }
+            });
+            html += '</div>';
+            return html;
+        }
+
+        function viewRequestContent(type, description, fileUrlsRaw, id, senderName, senderId, phone) {
             const body = document.getElementById('contentBody');
             const title = document.getElementById('viewModalTitle');
             const senderNameEl = document.getElementById('viewSenderName');
@@ -358,22 +455,10 @@
             };
 
             let content = '';
-
-            // Normalize filePath to an array
-            let filePaths = [];
-            try {
-                filePaths = JSON.parse(filePathRaw);
-                if (!Array.isArray(filePaths)) filePaths = filePathRaw ? [filePathRaw] : [];
-            } catch (e) {
-                filePaths = filePathRaw ? [filePathRaw] : [];
-            }
-
-
-
-
+            const fileUrls = parseFileUrls(fileUrlsRaw);
 
             if (type === 'Voice') {
-                const storagePath = filePaths.length > 0 ? `${window.APP_URL}/uploads/${filePaths[0]}` : '#';
+                const storagePath = fileUrls.length > 0 ? fileUrls[0] : '#';
                 content = `
                                                 <div style="text-align: center; width: 100%;">
                                                     <i class="fas fa-microphone" style="font-size: 40px; color: var(--secondary); margin-bottom: 15px;"></i>
@@ -385,38 +470,14 @@
                                                 </div>
                                             `;
             } else if (type === 'Photo' || type === 'Document' || type === 'Pdf') {
-                let imagesHtml = '';
-                filePaths.forEach(path => {
-                    const storagePath = `${window.APP_URL}/uploads/${path}`;
-                    if (path.toLowerCase().endsWith('.pdf')) {
-                        imagesHtml += `
-                            <div style="margin-bottom: 20px; text-align: center;">
-                                <a href="${storagePath}" target="_blank" class="btn glass" style="display: inline-flex; align-items: center; gap: 8px; color: var(--primary); font-size: 13px; padding: 10px 20px; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; text-decoration: none;">
-                                    <i class="fas fa-file-pdf" style="font-size: 20px; color: #ef4444;"></i>
-                                    <span>View Uploaded PDF Document</span>
-                                </a>
-                            </div>
-                        `;
-                    } else {
-                        imagesHtml += `
-                                        <div style="position: relative; display: block; cursor: zoom-in; max-width: 100%; margin-bottom: 20px; border-radius: 10px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1);" onclick="openLightbox('${storagePath}')">
-                                            <img src="${storagePath}" style="width: 100%; max-height: 420px; object-fit: contain; display: block; transition: all 0.2s;">
-                                            <div style="position: absolute; top: 12px; right: 12px; background: rgba(15,23,42,0.75); border: 1px solid rgba(255,255,255,0.1); color: #fff; width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; backdrop-filter: blur(5px);">
-                                                <i class="fas fa-search-plus"></i>
-                                            </div>
-                                        </div>
-                                    `;
-                    }
-                });
+                const imagesHtml = buildImageThumbnails(fileUrls);
 
                 content = `
-                                                <div style="text-align: center; width: 100%;">
-                                                    ${imagesHtml}
-                                                    <div style="display: flex; flex-direction: column; gap: 12px; align-items: center;">
-                                                        <p style="font-size: 13px; color: var(--text-muted); margin: 0;">${description || 'Attachment'}</p>
-                                                    </div>
-                                                </div>
-                                            `;
+                    <div style="width: 100%;">
+                        ${imagesHtml}
+                        <p style="font-size: 13px; color: var(--text-muted); margin: 14px 0 0;">${description || 'Attachment'}</p>
+                    </div>
+                `;
             } else if (type === 'Call') {
                 content = `
                                                 <div style="text-align: center; width: 100%;">
@@ -447,6 +508,7 @@
 
         function closeViewModal() {
             document.getElementById('viewContentModal').style.display = 'none';
+            closeLightbox();
         }
 
         function submitRequest() {

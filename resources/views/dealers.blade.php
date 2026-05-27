@@ -103,7 +103,12 @@
                 </div>
                 <div class="form-group">
                     <label class="form-label" style="color: var(--text-muted); font-size: 12px; text-transform: uppercase;">Set Password</label>
-                    <input type="password" id="dealerPassword" class="form-control" placeholder="Min. 8 characters" style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1);">
+                    <div style="position: relative; display: flex; align-items: center;">
+                        <input type="password" id="dealerPassword" class="form-control" placeholder="Min. 8 characters" style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1); padding-right: 40px; width: 100%;">
+                        <button type="button" id="togglePasswordBtn" onclick="togglePasswordVisibility()" style="position: absolute; right: 10px; background: transparent; border: none; color: var(--text-muted); cursor: pointer; display: flex; align-items: center; justify-content: center; height: 100%; padding: 0 5px; outline: none;">
+                            <i class="fas fa-eye" id="passwordEyeIcon"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -229,6 +234,31 @@
                 input.selectedIndex = 0;
             }
         });
+        
+        // Reset password visibility state to hidden
+        const passwordInput = document.getElementById('dealerPassword');
+        const eyeIcon = document.getElementById('passwordEyeIcon');
+        if (passwordInput && eyeIcon) {
+            passwordInput.type = 'password';
+            eyeIcon.classList.remove('fa-eye-slash');
+            eyeIcon.classList.add('fa-eye');
+        }
+    }
+
+    function togglePasswordVisibility() {
+        const passwordInput = document.getElementById('dealerPassword');
+        const eyeIcon = document.getElementById('passwordEyeIcon');
+        if (passwordInput && eyeIcon) {
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                eyeIcon.classList.remove('fa-eye');
+                eyeIcon.classList.add('fa-eye-slash');
+            } else {
+                passwordInput.type = 'password';
+                eyeIcon.classList.remove('fa-eye-slash');
+                eyeIcon.classList.add('fa-eye');
+            }
+        }
     }
 
     function closeDealerModal() {

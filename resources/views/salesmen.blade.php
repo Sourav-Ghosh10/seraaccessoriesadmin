@@ -28,7 +28,7 @@
                         <button class="btn glass" style="padding: 5px 10px; font-size: 12px;" onclick="openEditSalesmanModal('{{ $salesman->id }}', '{{ $salesman->name }}', '{{ $salesman->mobile }}', '{{ $salesman->email }}', '{{ $salesman->ref_code }}', '{{ $salesman->status }}')">
                             <i class="fas fa-edit"></i>
                         </button>
-                        <button class="btn glass" style="padding: 5px 10px; font-size: 12px;" onclick="openPerformanceModal('{{ $salesman->name }}')">
+                        <button class="btn glass" style="padding: 5px 10px; font-size: 12px;" onclick="openPerformanceModal('{{ $salesman->id }}', '{{ $salesman->name }}')">
                             <i class="fas fa-chart-line"></i> Performance
                         </button>
                     </td>
@@ -112,15 +112,15 @@
         <div class="grid-3" style="gap: 15px; margin-bottom: 30px;">
             <div style="background: rgba(255,255,255,0.02); padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); text-align: center;">
                 <p style="margin: 0; font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Total Revenue</p>
-                <h4 style="margin: 10px 0 0 0; font-size: 18px; color: var(--success);">₹45,200</h4>
+                <h4 id="perfRevenue" style="margin: 10px 0 0 0; font-size: 18px; color: var(--success);">₹0</h4>
             </div>
             <div style="background: rgba(255,255,255,0.02); padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); text-align: center;">
                 <p style="margin: 0; font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Orders</p>
-                <h4 style="margin: 10px 0 0 0; font-size: 18px; color: var(--secondary);">128</h4>
+                <h4 id="perfOrders" style="margin: 10px 0 0 0; font-size: 18px; color: var(--secondary);">0</h4>
             </div>
             <div style="background: rgba(255,255,255,0.02); padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); text-align: center;">
                 <p style="margin: 0; font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Dealers</p>
-                <h4 style="margin: 10px 0 0 0; font-size: 18px; color: var(--primary);">24</h4>
+                <h4 id="perfDealers" style="margin: 10px 0 0 0; font-size: 18px; color: var(--primary);">0</h4>
             </div>
         </div>
 
@@ -128,10 +128,10 @@
             <h4 style="font-size: 14px; margin-bottom: 15px;">Target Completion</h4>
             <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
                 <span style="font-size: 12px; color: var(--text-muted);">Monthly Sales Target</span>
-                <span style="font-size: 12px; color: #fff;">75%</span>
+                <span id="perfTargetText" style="font-size: 12px; color: #fff;">0%</span>
             </div>
             <div class="glass" style="height: 8px; border-radius: 4px; overflow: hidden;">
-                <div style="width: 75%; height: 100%; background: linear-gradient(90deg, var(--primary), var(--secondary));"></div>
+                <div id="perfProgressBar" style="width: 0%; height: 100%; background: linear-gradient(90deg, var(--primary), var(--secondary)); transition: width 0.5s ease-in-out;"></div>
             </div>
         </div>
         
@@ -241,9 +241,39 @@
         });
     }
 
-    function openPerformanceModal(name) {
+    function openPerformanceModal(id, name) {
         document.getElementById('perfName').innerText = name + ' Performance';
+        
+        // Show loading state
+        document.getElementById('perfRevenue').innerText = '...';
+        document.getElementById('perfOrders').innerText = '...';
+        document.getElementById('perfDealers').innerText = '...';
+        document.getElementById('perfTargetText').innerText = '...';
+        document.getElementById('perfProgressBar').style.width = '0%';
+        
         document.getElementById('performanceModal').style.display = 'flex';
+        
+        // Fetch performance data
+        fetch(`${window.BASE_PATH}/salesmen/${id}/performance`)
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    const data = result.data;
+                    document.getElementById('perfRevenue').innerText = '₹' + parseFloat(data.total_revenue).toLocaleString('en-IN');
+                    document.getElementById('perfOrders').innerText = data.orders_count;
+                    document.getElementById('perfDealers').innerText = data.dealers_count;
+                    document.getElementById('perfTargetText').innerText = data.target_completion + '%';
+                    document.getElementById('perfProgressBar').style.width = data.target_completion + '%';
+                } else {
+                    alert('Error: Could not retrieve performance metrics');
+                    closePerformanceModal();
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching performance metrics:', error);
+                alert('An error occurred. Please try again.');
+                closePerformanceModal();
+            });
     }
 
     function closePerformanceModal() {

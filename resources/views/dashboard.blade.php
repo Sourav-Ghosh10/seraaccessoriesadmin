@@ -18,22 +18,25 @@
 @section('content')
 <div class="dashboard-wrapper">
     <div class="grid">
-        <div class="card">
-            <div class="widget-icon" style="background: rgba(154, 90, 58, 0.1); color: var(--primary);">
-                <i class="fas fa-users"></i>
-            </div>
-            <div class="widget-value">{{ number_format($totalDealers) }}</div>
-            <div class="widget-label">Total Dealers</div>
-        </div>
-        <div class="card">
-            <div class="widget-icon" style="background: rgba(74, 74, 74, 0.1); color: var(--secondary);">
-                <i class="fas fa-user-tie"></i>
-            </div>
-            <div class="widget-value">{{ number_format($totalSalesmen) }}</div>
-            <div class="widget-label">Total Salesmen</div>
-        </div>
         @php $role = session('role', 'Admin'); @endphp
-        @if($role == 'Admin')
+        
+        @if($role == 'Admin' || $role == 'Operations')
+            <div class="card">
+                <div class="widget-icon" style="background: rgba(154, 90, 58, 0.1); color: var(--primary);">
+                    <i class="fas fa-users"></i>
+                </div>
+                <div class="widget-value">{{ number_format($totalDealers) }}</div>
+                <div class="widget-label">Total Dealers</div>
+            </div>
+            <div class="card">
+                <div class="widget-icon" style="background: rgba(74, 74, 74, 0.1); color: var(--secondary);">
+                    <i class="fas fa-user-tie"></i>
+                </div>
+                <div class="widget-value">{{ number_format($totalSalesmen) }}</div>
+                <div class="widget-label">Total Salesmen</div>
+            </div>
+        @endif
+
         <div class="card">
             <div class="widget-icon" style="background: rgba(16, 185, 129, 0.1); color: var(--success);">
                 <i class="fas fa-shopping-cart"></i>
@@ -48,7 +51,6 @@
             <div class="widget-value">{{ number_format($pendingOrders) }}</div>
             <div class="widget-label">Pending Orders</div>
         </div>
-        @endif
     </div>
 
     @if($role == 'Admin')
@@ -103,41 +105,44 @@
 
 @section('scripts')
 <script>
-    const ctx = document.getElementById('salesChart').getContext('2d');
-    new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: {!! json_encode($months) !!},
-            datasets: [{
-                label: 'Sales (₹)',
-                data: {!! json_encode($salesData) !!},
-                borderColor: '#9a5a3a',
-                backgroundColor: 'rgba(154, 90, 58, 0.1)',
-                fill: true,
-                tension: 0.4,
-                borderWidth: 3,
-                pointBackgroundColor: '#9a5a3a',
-                pointBorderColor: '#fff',
-                pointHoverRadius: 6
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false }
+    const salesChartEl = document.getElementById('salesChart');
+    if (salesChartEl) {
+        const ctx = salesChartEl.getContext('2d');
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: {!! json_encode($months) !!},
+                datasets: [{
+                    label: 'Sales (₹)',
+                    data: {!! json_encode($salesData) !!},
+                    borderColor: '#9a5a3a',
+                    backgroundColor: 'rgba(154, 90, 58, 0.1)',
+                    fill: true,
+                    tension: 0.4,
+                    borderWidth: 3,
+                    pointBackgroundColor: '#9a5a3a',
+                    pointBorderColor: '#fff',
+                    pointHoverRadius: 6
+                }]
             },
-            scales: {
-                y: {
-                    grid: { color: 'rgba(255, 255, 255, 0.05)' },
-                    ticks: { color: '#94a3b8' }
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
                 },
-                x: {
-                    grid: { display: false },
-                    ticks: { color: '#94a3b8' }
+                scales: {
+                    y: {
+                        grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                        ticks: { color: '#94a3b8' }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: '#94a3b8' }
+                    }
                 }
             }
-        }
-    });
+        });
+    }
 </script>
 @endsection
