@@ -23,6 +23,41 @@
 </head>
 
 <body>
+    <!-- Global AJAX Loader -->
+    <div id="globalLoader" style="
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 99999;
+        background: rgba(2, 6, 23, 0.55);
+        backdrop-filter: blur(3px);
+        align-items: center;
+        justify-content: center;
+        pointer-events: all;
+    ">
+        <div style="
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+        ">
+            <div style="
+                width: 48px;
+                height: 48px;
+                border: 3px solid rgba(255,255,255,0.1);
+                border-top-color: var(--primary, #9a5a3a);
+                border-radius: 50%;
+                animation: loaderSpin 0.75s linear infinite;
+            "></div>
+            <span style="color: rgba(255,255,255,0.6); font-size: 13px; letter-spacing: 0.5px;">Loading...</span>
+        </div>
+    </div>
+    <style>
+        @keyframes loaderSpin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+
     @if(Request::is('login') || Request::is('forgot-password') || Request::is('/') || Request::path() == '/')
         @yield('content')
     @else
@@ -59,9 +94,21 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a href="{{ route('salesmen') }}" class="nav-link {{ Request::is('salesmen*') ? 'active' : '' }}">
+                            <a href="{{ route('salesmen') }}" class="nav-link {{ Request::is('salesmen*') && !Request::is('salesman-attendance*') ? 'active' : '' }}">
                                 <i class="fas fa-user-tie"></i>
                                 <span>Sales Registration</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ route('expenses.index') }}" class="nav-link {{ Request::is('expenses*') ? 'active' : '' }}">
+                                <i class="fas fa-receipt"></i>
+                                <span>Salesman Expenses</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ route('salesman.attendance') }}" class="nav-link {{ Request::is('salesman-attendance*') ? 'active' : '' }}">
+                                <i class="fas fa-calendar-check"></i>
+                                <span>Salesman Attendance</span>
                             </a>
                         </li>
                         <li class="nav-item">
@@ -69,6 +116,12 @@
                                 class="nav-link {{ Request::is('distributors*') ? 'active' : '' }}">
                                 <i class="fas fa-truck"></i>
                                 <span>Distributor Registration</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ route('cities') }}" class="nav-link {{ Request::is('cities*') ? 'active' : '' }}">
+                                <i class="fas fa-city"></i>
+                                <span>City Management</span>
                             </a>
                         </li>
                     @endif
@@ -257,6 +310,111 @@
     </script>
     @yield('scripts')
     @stack('modals')
+
+    <!-- Global AJAX Loader Script -->
+    <script>
+        (function() {
+            var loaderCount = 0;
+
+            function showLoader() {
+                loaderCount++;
+                document.getElementById('globalLoader').style.display = 'flex';
+            }
+
+            function hideLoader() {
+                loaderCount = Math.max(0, loaderCount - 1);
+                if (loaderCount === 0) {
+                    document.getElementById('globalLoader').style.display = 'none';
+                }
+            }
+
+            // jQuery global AJAX hooks (covers $.ajax, $.get, $.post)
+            if (typeof $ !== 'undefined') {
+                $(document).ajaxStart(function() { showLoader(); });
+                $(document).ajaxStop(function()  { hideLoader(); });
+            } else {
+                // Wait for jQuery if loaded later
+                document.addEventListener('DOMContentLoaded', function() {
+                    if (typeof $ !== 'undefined') {
+                        $(document).ajaxStart(function() { showLoader(); });
+                        $(document).ajaxStop(function()  { hideLoader(); });
+                    }
+                });
+            }
+
+            // Native fetch interceptor (covers all fetch() calls)
+            var _origFetch = window.fetch;
+            window.fetch = function() {
+                // Don't show loader for the background polling request
+                var url = arguments[0];
+                var isPolling = typeof url === 'string' && url.indexOf('check-new-requests') !== -1;
+                if (!isPolling) showLoader();
+                return _origFetch.apply(this, arguments).finally(function() {
+                    if (!isPolling) hideLoader();
+                });
+            };
+        })();
+    </script>
+
+    @auth
+    @php
+        $initialEstimateId = \App\Models\Estimate::max('id') ?? 0;
+        $initialOrderId = \App\Models\OrderRequest::max('id') ?? 0;
+    @endphp
+    <!-- New Data Notification Popup -->
+    <div id="newDataPopup">
+        <div class="popup-icon">
+            <i class="fas fa-bell"></i>
+        </div>
+        <div class="popup-content">
+            <p id="newDataMessage" class="popup-message"></p>
+            <div class="popup-actions">
+                <button class="btn glass" onclick="closeNewDataPopup()" style="padding: 6px 12px; font-size: 13px;">Cancel</button>
+                <button id="newDataRefreshBtn" class="btn btn-primary" style="padding: 6px 12px; font-size: 13px;">Refresh</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let lastEstimateId = {{ $initialEstimateId }};
+        let lastOrderId = {{ $initialOrderId }};
+        
+        setInterval(function() {
+            fetch(`${window.BASE_PATH}/api/check-new-requests?last_estimate_id=${lastEstimateId}&last_order_id=${lastOrderId}`)
+                .then(r => r.json())
+                .then(data => {
+                    let showPopup = false;
+                    let message = "";
+                    let redirectUrl = "";
+                    
+                    if (data.new_estimates > 0) {
+                        message = `You have ${data.new_estimates} new Estimate Request(s)!`;
+                        redirectUrl = "{{ route('estimate-requests') }}";
+                        showPopup = true;
+                        lastEstimateId = data.max_estimate_id;
+                    } else if (data.new_orders > 0) {
+                        message = `You have ${data.new_orders} new Order Request(s)!`;
+                        redirectUrl = "{{ route('order-requests') }}";
+                        showPopup = true;
+                        lastOrderId = data.max_order_id;
+                    }
+                    
+                    if (showPopup) {
+                        document.getElementById('newDataMessage').innerText = message;
+                        document.getElementById('newDataRefreshBtn').onclick = function() {
+                            window.location.href = redirectUrl;
+                        };
+                        document.getElementById('newDataPopup').style.display = 'flex';
+                    }
+                })
+                .catch(err => console.error('Error polling for new requests:', err));
+        }, 15000);
+
+        function closeNewDataPopup() {
+            document.getElementById('newDataPopup').style.display = 'none';
+        }
+    </script>
+    @endauth
 </body>
 
 </html>

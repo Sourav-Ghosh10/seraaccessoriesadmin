@@ -44,6 +44,8 @@ Route::middleware(JwtAuthMiddleware::class)->group(function () {
     // ── Dealer APIs ───────────────────────────────────────────────────────────
     Route::prefix('dealer')->name('api.dealer.')->group(function () {
         Route::post('/estimate', [DealerController::class, 'submitEstimate'])->name('estimate');
+        Route::post('/estimate/{id}/confirm', [DealerController::class, 'confirmEstimate'])->name('estimate.confirm');
+        Route::post('/estimate/{id}/cancel', [DealerController::class, 'cancelEstimate'])->name('estimate.cancel');
         Route::post('/order-request', [DealerController::class, 'placeOrderRequest'])->name('order-request');
         Route::get('/my-orders', [DealerController::class, 'myOrders'])->name('my-orders');
         Route::get('/my-orders/details', [DealerController::class, 'orderDetails'])->name('my-orders.details');
@@ -60,10 +62,25 @@ Route::middleware(JwtAuthMiddleware::class)->group(function () {
     // ── Salesman APIs ─────────────────────────────────────────────────────────
     Route::prefix('salesman')->name('api.salesman.')->group(function () {
         Route::get('/my-dealers', [SalesmanController::class, 'myDealers'])->name('my-dealers');
+        Route::post('/order-request', [SalesmanController::class, 'placeOrderRequest'])->name('order-request');
         Route::get('/my-orders', [SalesmanController::class, 'myOrders'])->name('my-orders');
         Route::get('/my-orders/details', [SalesmanController::class, 'orderDetails'])->name('my-orders.details');
         Route::get('/my-points', [SalesmanController::class, 'myPoints'])->name('my-points');
         Route::get('/dealer/passbook', [SalesmanController::class, 'dealerPassbook'])->name('dealer-passbook');
+
+        // Attendance & Visits
+        Route::get('/attendance-status', [SalesmanController::class, 'attendanceStatus'])->name('attendance-status');
+        Route::get('/attendance-history', [SalesmanController::class, 'attendanceHistory'])->name('attendance-history');
+        Route::post('/clock-in', [SalesmanController::class, 'clockIn'])->name('clock-in');
+        Route::post('/clock-out', [SalesmanController::class, 'clockOut'])->name('clock-out');
+        Route::get('/visits', [SalesmanController::class, 'getVisits'])->name('visits.index');
+        Route::post('/visits', [SalesmanController::class, 'storeVisit'])->name('visits.store');
+        Route::post('/location-ping', [SalesmanController::class, 'locationPing'])->name('location-ping');
+
+        // Expenses
+        Route::get('/expense-categories', [SalesmanController::class, 'getExpenseCategories'])->name('expense-categories');
+        Route::get('/expenses', [SalesmanController::class, 'getExpenses'])->name('expenses.index');
+        Route::post('/expenses', [SalesmanController::class, 'storeExpense'])->name('expenses.store');
     });
 
     // ── Distributor APIs ──────────────────────────────────────────────────────

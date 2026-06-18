@@ -10,6 +10,15 @@ use App\Models\Member;
 use App\Models\RewardTransaction;
 use App\Models\OrderRequest;
 use App\Models\Estimate;
+use App\Models\SalesmanAttendance;
+use App\Models\SalesmanVisit;
+use App\Models\SalesmanLocationLog;
+use App\Models\Expense;
+use App\Models\ExpenseCategory;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use Carbon\Carbon;
 use OpenApi\Attributes as OA;
 
 class SalesmanController extends Controller
@@ -20,6 +29,30 @@ class SalesmanController extends Controller
     protected function verifySalesman(Member $member): bool
     {
         return strtolower($member->role) === 'salesman';
+    }
+
+    /**
+     * Helper to fetch address from coordinates using Nominatim API.
+     */
+    protected function getAddressFromCoordinates($latitude, $longitude, $default = null): ?string
+    {
+        try {
+            $response = Http::withHeaders([
+                'User-Agent' => 'SeraAccessoriesApp/1.0',
+            ])->timeout(5)->get('https://nominatim.openstreetmap.org/reverse', [
+                'format' => 'json',
+                'lat' => $latitude,
+                'lon' => $longitude,
+            ]);
+
+            if ($response->successful() && $response->json('display_name')) {
+                return $response->json('display_name');
+            }
+        } catch (\Exception $e) {
+            Log::error('Nominatim API error: ' . $e->getMessage());
+        }
+
+        return $default;
     }
 
     #[OA\Get(
@@ -67,6 +100,7 @@ class SalesmanController extends Controller
                                 new OA\Property(property: "mobile", type: "string"),
                                 new OA\Property(property: "address", type: "string", nullable: true),
                                 new OA\Property(property: "status", type: "string"),
+                                new OA\Property(property: "distributor_name", type: "string", nullable: true),
                                 new OA\Property(property: "points_balance", type: "integer"),
                                 new OA\Property(property: "total_orders", type: "integer"),
                                 new OA\Property(property: "created_at", type: "string", format: "date-time")
@@ -110,6 +144,7 @@ class SalesmanController extends Controller
 
         $dealersQuery = Member::where('salesman_id', $salesman->id)
             ->where('role', 'dealer')
+            ->with('distributor')
             ->withCount('orders')
             ->when($search, function ($query) use ($search) {
                 return $query->where(function ($q) use ($search) {
@@ -132,6 +167,7 @@ class SalesmanController extends Controller
                 'mobile' => $dealer->mobile,
                 'address' => $dealer->address,
                 'status' => $dealer->status,
+                'distributor_name' => $dealer->distributor ? $dealer->distributor->name : null,
                 'points_balance' => (int) $dealer->points_balance,
                 'total_orders' => (int) $dealer->orders_count,
                 'created_at' => $dealer->created_at,
@@ -148,6 +184,131 @@ class SalesmanController extends Controller
                 'total' => $dealers->total(),
             ]
         ], 200);
+    }
+
+    // =========================================================================
+    // PLACE ORDER REQUEST — POST /api/salesman/order-request
+    // Salesman can place on behalf of dealer. Supports: Text | Voice | Photo | Call
+    // =========================================================================
+    #[OA\Post(
+        path: "/salesman/order-request",
+        summary: "Submit an order request on behalf of a dealer",
+        description: "Allows a salesman to place an order request for an assigned dealer via text, voice, photo, or call.",
+        security: [["bearerAuth" => []]],
+        tags: ["Salesman"],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\MediaType(
+                mediaType: "multipart/form-data",
+                schema: new OA\Schema(
+                    required: ["type", "dealer_id"],
+                    properties: [
+                        new OA\Property(property: "dealer_id", type: "integer", description: "ID of the dealer"),
+                        new OA\Property(
+                            property: "type",
+                            type: "string",
+                            enum: ["Text", "Voice", "Photo", "Call"],
+                            description: "Submission type."
+                        ),
+                        new OA\Property(property: "description", type: "string"),
+                        new OA\Property(property: "file", type: "string", format: "binary"),
+                        new OA\Property(property: "files[]", type: "array", items: new OA\Items(type: "string", format: "binary")),
+                    ]
+                )
+            )
+        ),
+        responses: [
+            new OA\Response(response: 201, description: "Order request submitted successfully")
+        ]
+    )]
+    public function placeOrderRequest(Request $request): JsonResponse
+    {
+        /** @var Member $salesman */
+        $salesman = $request->user();
+
+        if (!$this->verifySalesman($salesman)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized.',
+            ], 403);
+        }
+
+        $request->validate([
+            'dealer_id' => 'required|integer|exists:members,id',
+            'type' => 'required|string|in:Text,Voice,Photo,Call,Document,Pdf,text,voice,photo,call,document,pdf',
+            'description' => 'required_if:type,Text,text|nullable|string|max:2000',
+            'file' => 'required_if:type,Voice,voice,Document,document,Pdf,pdf|nullable|file|max:20480',
+            'files' => 'required_if:type,Photo,photo|nullable|array',
+            'files.*' => 'file|max:20480',
+        ]);
+
+        $dealerId = $request->dealer_id;
+
+        // Verify dealer belongs to salesman
+        $isAssigned = Member::where('id', $dealerId)
+            ->where('role', 'dealer')
+            ->where('salesman_id', $salesman->id)
+            ->exists();
+
+        if (!$isAssigned) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Dealer is not assigned to you.',
+            ], 403);
+        }
+
+        $filePaths = [];
+
+        if ($request->hasFile('file') && $request->file('file')->isValid()) {
+            $typeLower = strtolower($request->type);
+            if ($typeLower === 'voice') {
+                $folder = 'order-requests/voice';
+            } elseif ($typeLower === 'document' || $typeLower === 'pdf') {
+                $folder = 'order-requests/documents';
+            } else {
+                $folder = 'order-requests/photos';
+            }
+            $filePaths[] = $request->file('file')->store($folder, 'public');
+        }
+
+        if ($request->hasFile('files')) {
+            foreach ($request->file('files') as $file) {
+                if ($file->isValid()) {
+                    $filePaths[] = $file->store('order-requests/photos', 'public');
+                }
+            }
+        }
+
+        $requestNumber = 'ORD-' . now()->format('Ymd') . '-' . str_pad(
+            (OrderRequest::max('id') ?? 0) + 1,
+            4,
+            '0',
+            STR_PAD_LEFT
+        );
+
+        $orderRequest = OrderRequest::create([
+            'member_id' => $dealerId,
+            'request_number' => $requestNumber,
+            'type' => ucfirst(strtolower($request->type)),
+            'description' => $request->description,
+            'file_path' => $filePaths,
+            'status' => 'Pending',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Order request submitted successfully.',
+            'data' => [
+                'id' => $orderRequest->id,
+                'request_number' => $orderRequest->request_number,
+                'member_id' => $orderRequest->member_id,
+                'type' => $orderRequest->type,
+                'description' => $orderRequest->description,
+                'file_paths' => $orderRequest->file_path,
+                'status' => $orderRequest->status,
+                'created_at' => $orderRequest->created_at,
+            ],
+        ], 201);
     }
 
     #[OA\Get(
@@ -237,11 +398,16 @@ class SalesmanController extends Controller
 
         $tab = $request->query('tab', 'All'); // All, Pending, Confirmed, Order Placed
         $search = $request->query('search');
+        $dealerIdParam = $request->query('dealer_id');
 
         // Fetch assigned dealer IDs
         $dealerIds = Member::where('salesman_id', $salesman->id)
             ->where('role', 'dealer')
             ->pluck('id');
+            
+        if ($dealerIdParam) {
+            $dealerIds = $dealerIds->filter(fn($id) => $id == $dealerIdParam);
+        }
 
         $merged = collect();
 
@@ -619,6 +785,13 @@ class SalesmanController extends Controller
             ], 404);
         }
 
+        if (!$dealer->is_passbook_visible) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Dealer passbook is currently hidden by admin.',
+            ], 403);
+        }
+
         $balance = $dealer->dealerBalance;
         $totalAmount = $balance ? (float) $balance->total_amount : 0.00;
         $paidAmount = $balance ? (float) $balance->paid_amount : 0.00;
@@ -946,5 +1119,761 @@ class SalesmanController extends Controller
             'success' => false,
             'message' => 'Invalid type. Use Order, Order Request, or Estimate.',
         ], 422);
+    }
+
+    // =========================================================================
+    // GET /salesman/attendance-status
+    // =========================================================================
+    #[OA\Get(
+        path: "/salesman/attendance-status",
+        summary: "Check attendance status",
+        description: "Check if the salesman is already clocked in today, so the timer can resume.",
+        security: [["bearerAuth" => []]],
+        tags: ["Salesman Attendance"],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: "Success",
+                content: new OA\JsonContent(properties: [
+                    new OA\Property(property: "success", type: "boolean"),
+                    new OA\Property(property: "data", type: "object", properties: [
+                        new OA\Property(property: "is_clocked_in", type: "boolean"),
+                        new OA\Property(property: "clock_in_time", type: "string", nullable: true),
+                        new OA\Property(property: "today_total_hours", type: "string", nullable: true)
+                    ])
+                ])
+            )
+        ]
+    )]
+    public function attendanceStatus(Request $request): JsonResponse
+    {
+        $salesman = $request->user();
+        if (!$this->verifySalesman($salesman)) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized.'], 403);
+        }
+
+        $today = Carbon::today()->format('Y-m-d');
+        $attendance = SalesmanAttendance::where('member_id', $salesman->id)
+            ->where('date', $today)
+            ->first();
+
+        $isClockedIn = false;
+        $clockInTime = null;
+        $todayTotalHours = '00:00';
+
+        if ($attendance) {
+            $clockInTime = $attendance->clock_in_time->toIso8601String();
+            if ($attendance->clock_out_time) {
+                // Already clocked out
+                $isClockedIn = false;
+                $todayTotalHours = $attendance->total_hours;
+            } else {
+                // Currently clocked in
+                $isClockedIn = true;
+                $diffInMinutes = Carbon::now()->diffInMinutes($attendance->clock_in_time);
+                $hours = floor($diffInMinutes / 60);
+                $mins = $diffInMinutes % 60;
+                $todayTotalHours = sprintf('%02d:%02d', $hours, $mins);
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'is_clocked_in' => $isClockedIn,
+                'clock_in_time' => $clockInTime,
+                'today_total_hours' => $todayTotalHours,
+            ]
+        ]);
+    }
+
+    // =========================================================================
+    // POST /salesman/clock-in
+    // =========================================================================
+    #[OA\Post(
+        path: "/salesman/clock-in",
+        summary: "Clock in",
+        description: "Clock in for the day.",
+        security: [["bearerAuth" => []]],
+        tags: ["Salesman Attendance"],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(properties: [
+                new OA\Property(property: "latitude", type: "number"),
+                new OA\Property(property: "longitude", type: "number"),
+                new OA\Property(property: "address", type: "string", nullable: true)
+            ])
+        ),
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: "Success",
+                content: new OA\JsonContent(properties: [
+                    new OA\Property(property: "success", type: "boolean"),
+                    new OA\Property(property: "message", type: "string"),
+                    new OA\Property(property: "data", type: "object", properties: [
+                        new OA\Property(property: "clock_in_time", type: "string")
+                    ])
+                ])
+            )
+        ]
+    )]
+    public function clockIn(Request $request): JsonResponse
+    {
+        $salesman = $request->user();
+        if (!$this->verifySalesman($salesman)) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized.'], 403);
+        }
+
+        $request->validate([
+            'latitude' => 'required|numeric',
+            'longitude' => 'required|numeric',
+        ]);
+
+        $today = Carbon::today()->format('Y-m-d');
+        $attendance = SalesmanAttendance::where('member_id', $salesman->id)
+            ->where('date', $today)
+            ->first();
+
+        if ($attendance) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Already clocked in today.'
+            ], 400);
+        }
+
+        $lat = $request->input('latitude');
+        $lng = $request->input('longitude');
+        $address = $request->input('address');
+
+        // Reverse Geocode if address is empty or override
+        $fetchedAddress = $this->getAddressFromCoordinates($lat, $lng);
+        $address = $fetchedAddress ?: $address;
+
+        $now = Carbon::now();
+        $attendance = SalesmanAttendance::create([
+            'member_id' => $salesman->id,
+            'date' => $today,
+            'clock_in_time' => $now,
+            'clock_in_latitude' => $lat,
+            'clock_in_longitude' => $lng,
+            'clock_in_address' => $address,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Clocked in successfully',
+            'data' => [
+                'clock_in_time' => $now->toIso8601String(),
+            ]
+        ]);
+    }
+
+    // =========================================================================
+    // POST /salesman/clock-out
+    // =========================================================================
+    #[OA\Post(
+        path: "/salesman/clock-out",
+        summary: "Clock out",
+        description: "Clock out at the end of the day.",
+        security: [["bearerAuth" => []]],
+        tags: ["Salesman Attendance"],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(properties: [
+                new OA\Property(property: "latitude", type: "number"),
+                new OA\Property(property: "longitude", type: "number"),
+                new OA\Property(property: "address", type: "string", nullable: true)
+            ])
+        ),
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: "Success",
+                content: new OA\JsonContent(properties: [
+                    new OA\Property(property: "success", type: "boolean"),
+                    new OA\Property(property: "message", type: "string"),
+                    new OA\Property(property: "data", type: "object", properties: [
+                        new OA\Property(property: "clock_out_time", type: "string"),
+                        new OA\Property(property: "total_hours_today", type: "string")
+                    ])
+                ])
+            )
+        ]
+    )]
+    public function clockOut(Request $request): JsonResponse
+    {
+        $salesman = $request->user();
+        if (!$this->verifySalesman($salesman)) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized.'], 403);
+        }
+
+        $request->validate([
+            'latitude' => 'required|numeric',
+            'longitude' => 'required|numeric',
+        ]);
+
+        $today = Carbon::today()->format('Y-m-d');
+        $attendance = SalesmanAttendance::where('member_id', $salesman->id)
+            ->where('date', $today)
+            ->first();
+
+        if (!$attendance) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You have not clocked in today.'
+            ], 400);
+        }
+
+        if ($attendance->clock_out_time) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Already clocked out today.'
+            ], 400);
+        }
+
+        $lat = $request->input('latitude');
+        $lng = $request->input('longitude');
+        $address = $request->input('address');
+
+        $fetchedAddress = $this->getAddressFromCoordinates($lat, $lng);
+        $address = $fetchedAddress ?: $address;
+
+        $now = Carbon::now();
+        $diffInMinutes = $now->diffInMinutes($attendance->clock_in_time);
+        $hours = floor($diffInMinutes / 60);
+        $mins = $diffInMinutes % 60;
+        $totalHours = sprintf('%02d:%02d', $hours, $mins);
+
+        $attendance->update([
+            'clock_out_time' => $now,
+            'clock_out_latitude' => $lat,
+            'clock_out_longitude' => $lng,
+            'clock_out_address' => $address,
+            'total_hours' => $totalHours,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Clocked out successfully',
+            'data' => [
+                'clock_out_time' => $now->toIso8601String(),
+                'total_hours_today' => $totalHours,
+            ]
+        ]);
+    }
+    // =========================================================================
+    // GET /salesman/attendance-history
+    // =========================================================================
+    #[OA\Get(
+        path: "/salesman/attendance-history",
+        summary: "Get attendance history",
+        description: "Fetch paginated attendance logs.",
+        security: [["bearerAuth" => []]],
+        tags: ["Salesman Attendance"],
+        parameters: [
+            new OA\Parameter(
+                name: "per_page",
+                in: "query",
+                required: false,
+                schema: new OA\Schema(type: "integer", default: 15)
+            ),
+            new OA\Parameter(
+                name: "page",
+                in: "query",
+                required: false,
+                schema: new OA\Schema(type: "integer", default: 1)
+            ),
+            new OA\Parameter(
+                name: "month",
+                in: "query",
+                description: "Filter by month (1-12)",
+                required: false,
+                schema: new OA\Schema(type: "integer")
+            ),
+            new OA\Parameter(
+                name: "year",
+                in: "query",
+                description: "Filter by year (e.g. 2024)",
+                required: false,
+                schema: new OA\Schema(type: "integer")
+            )
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: "Success",
+                content: new OA\JsonContent(properties: [
+                    new OA\Property(property: "success", type: "boolean"),
+                    new OA\Property(property: "data", type: "array", items: new OA\Items(properties: [
+                        new OA\Property(property: "id", type: "integer"),
+                        new OA\Property(property: "date", type: "string"),
+                        new OA\Property(property: "raw_date", type: "string"),
+                        new OA\Property(property: "clock_in_time", type: "string", nullable: true),
+                        new OA\Property(property: "clock_in_address", type: "string", nullable: true),
+                        new OA\Property(property: "clock_out_time", type: "string", nullable: true),
+                        new OA\Property(property: "clock_out_address", type: "string", nullable: true),
+                        new OA\Property(property: "total_hours", type: "string", nullable: true)
+                    ])),
+                    new OA\Property(property: "meta", type: "object")
+                ])
+            )
+        ]
+    )]
+    public function attendanceHistory(Request $request): JsonResponse
+    {
+        $salesman = $request->user();
+        if (!$this->verifySalesman($salesman)) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized.'], 403);
+        }
+
+        $perPage = (int) $request->query('per_page', 15);
+        
+        $query = SalesmanAttendance::where('member_id', $salesman->id)
+            ->orderBy('date', 'desc');
+
+        if ($request->has('month')) {
+            $query->whereMonth('date', $request->query('month'));
+        }
+
+        if ($request->has('year')) {
+            $query->whereYear('date', $request->query('year'));
+        }
+
+        $attendances = $query->paginate($perPage);
+
+        $data = collect($attendances->items())->map(function ($attendance) {
+            return [
+                'id' => $attendance->id,
+                'date' => $attendance->date->format('d M Y'),
+                'raw_date' => $attendance->date->format('Y-m-d'),
+                'clock_in_time' => $attendance->clock_in_time ? $attendance->clock_in_time->format('h:i A') : null,
+                'clock_in_address' => $attendance->clock_in_address,
+                'clock_out_time' => $attendance->clock_out_time ? $attendance->clock_out_time->format('h:i A') : null,
+                'clock_out_address' => $attendance->clock_out_address,
+                'total_hours' => $attendance->total_hours,
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => $data,
+            'meta' => [
+                'current_page' => $attendances->currentPage(),
+                'last_page' => $attendances->lastPage(),
+                'per_page' => $attendances->perPage(),
+                'total' => $attendances->total(),
+            ]
+        ]);
+    }
+
+    // =========================================================================
+    // POST /salesman/visits
+    // =========================================================================
+    #[OA\Post(
+        path: "/salesman/visits",
+        summary: "Submit a new visit",
+        description: "Save a visit log with a photo from a dealer's shop.",
+        security: [["bearerAuth" => []]],
+        tags: ["Salesman Visits"],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\MediaType(
+                mediaType: "multipart/form-data",
+                schema: new OA\Schema(properties: [
+                    new OA\Property(property: "dealer_id", type: "integer"),
+                    new OA\Property(property: "latitude", type: "number"),
+                    new OA\Property(property: "longitude", type: "number"),
+                    new OA\Property(property: "address", type: "string", nullable: true),
+                    new OA\Property(property: "notes", type: "string", nullable: true),
+                    new OA\Property(property: "photo", type: "string", format: "binary", nullable: true)
+                ])
+            )
+        ),
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: "Success",
+                content: new OA\JsonContent(properties: [
+                    new OA\Property(property: "success", type: "boolean"),
+                    new OA\Property(property: "message", type: "string")
+                ])
+            )
+        ]
+    )]
+    public function storeVisit(Request $request): JsonResponse
+    {
+        $salesman = $request->user();
+        if (!$this->verifySalesman($salesman)) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized.'], 403);
+        }
+
+        $request->validate([
+            'dealer_id' => 'required|exists:members,id',
+            'latitude' => 'required|numeric',
+            'longitude' => 'required|numeric',
+            'photo' => 'nullable|image|max:5120', // Max 5MB
+        ]);
+
+        $dealer = Member::where('id', $request->dealer_id)
+            ->where('role', 'dealer')
+            ->where('salesman_id', $salesman->id)
+            ->first();
+
+        if (!$dealer) {
+            return response()->json(['success' => false, 'message' => 'Dealer not found or not assigned to you.'], 404);
+        }
+
+        $lat = $request->input('latitude');
+        $lng = $request->input('longitude');
+        $address = $request->input('address');
+
+        $fetchedAddress = $this->getAddressFromCoordinates($lat, $lng);
+        $address = $fetchedAddress ?: $address;
+
+        $photoPath = null;
+        if ($request->hasFile('photo')) {
+            $file = $request->file('photo');
+            $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+            $file->move(public_path('uploads/visits'), $filename);
+            $photoPath = 'visits/' . $filename;
+        }
+
+        SalesmanVisit::create([
+            'salesman_id' => $salesman->id,
+            'dealer_id' => $dealer->id,
+            'visit_time' => Carbon::now(),
+            'latitude' => $lat,
+            'longitude' => $lng,
+            'address' => $address,
+            'notes' => $request->input('notes'),
+            'photo_path' => $photoPath,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Visit logged successfully.',
+        ]);
+    }
+
+    // =========================================================================
+    // GET /salesman/visits
+    // =========================================================================
+    #[OA\Get(
+        path: "/salesman/visits",
+        summary: "Get visit history",
+        description: "Fetch paginated visit logs.",
+        security: [["bearerAuth" => []]],
+        tags: ["Salesman Visits"],
+        parameters: [
+            new OA\Parameter(
+                name: "per_page",
+                in: "query",
+                required: false,
+                schema: new OA\Schema(type: "integer", default: 15)
+            ),
+            new OA\Parameter(
+                name: "page",
+                in: "query",
+                required: false,
+                schema: new OA\Schema(type: "integer", default: 1)
+            )
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: "Success",
+                content: new OA\JsonContent(properties: [
+                    new OA\Property(property: "success", type: "boolean"),
+                    new OA\Property(property: "data", type: "array", items: new OA\Items(properties: [
+                        new OA\Property(property: "id", type: "integer"),
+                        new OA\Property(property: "dealer_name", type: "string"),
+                        new OA\Property(property: "date", type: "string"),
+                        new OA\Property(property: "time", type: "string"),
+                        new OA\Property(property: "location", type: "string", nullable: true),
+                        new OA\Property(property: "coordinates", type: "string"),
+                        new OA\Property(property: "photo_url", type: "string", nullable: true),
+                        new OA\Property(property: "notes", type: "string", nullable: true)
+                    ])),
+                    new OA\Property(property: "meta", type: "object")
+                ])
+            )
+        ]
+    )]
+    public function getVisits(Request $request): JsonResponse
+    {
+        $salesman = $request->user();
+        if (!$this->verifySalesman($salesman)) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized.'], 403);
+        }
+
+        $perPage = (int) $request->query('per_page', 15);
+
+        $visits = SalesmanVisit::where('salesman_id', $salesman->id)
+            ->with('dealer')
+            ->orderBy('visit_time', 'desc')
+            ->paginate($perPage);
+
+        $data = collect($visits->items())->map(function ($visit) {
+            return [
+                'id' => $visit->id,
+                'dealer_name' => $visit->dealer ? ($visit->dealer->shop ?? $visit->dealer->name) : 'Unknown Dealer',
+                'date' => $visit->visit_time->format('d M Y'),
+                'time' => $visit->visit_time->format('h:i A'),
+                'location' => $visit->address,
+                'coordinates' => "{$visit->latitude}° N, {$visit->longitude}° E",
+                'photo_url' => $visit->photo_path ? asset('uploads/' . $visit->photo_path) : null,
+                'notes' => $visit->notes,
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => $data,
+            'meta' => [
+                'current_page' => $visits->currentPage(),
+                'last_page' => $visits->lastPage(),
+                'per_page' => $visits->perPage(),
+                'total' => $visits->total(),
+            ]
+        ]);
+    }
+
+    // =========================================================================
+    // POST /salesman/location-ping
+    // =========================================================================
+    #[OA\Post(
+        path: "/salesman/location-ping",
+        summary: "Background location ping",
+        description: "Log background location and battery status.",
+        security: [["bearerAuth" => []]],
+        tags: ["Salesman Attendance"],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(properties: [
+                new OA\Property(property: "latitude", type: "number"),
+                new OA\Property(property: "longitude", type: "number"),
+                new OA\Property(property: "timestamp", type: "string"),
+                new OA\Property(property: "battery_level", type: "integer", nullable: true)
+            ])
+        ),
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: "Success",
+                content: new OA\JsonContent(properties: [
+                    new OA\Property(property: "success", type: "boolean"),
+                    new OA\Property(property: "message", type: "string")
+                ])
+            )
+        ]
+    )]
+    public function locationPing(Request $request): JsonResponse
+    {
+        $salesman = $request->user();
+        if (!$this->verifySalesman($salesman)) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized.'], 403);
+        }
+
+        $request->validate([
+            'latitude' => 'required|numeric',
+            'longitude' => 'required|numeric',
+            'timestamp' => 'required|date',
+            'battery_level' => 'nullable|integer|min:0|max:100',
+        ]);
+
+        SalesmanLocationLog::create([
+            'salesman_id' => $salesman->id,
+            'latitude' => $request->input('latitude'),
+            'longitude' => $request->input('longitude'),
+            'timestamp' => Carbon::parse($request->input('timestamp')),
+            'battery_level' => $request->input('battery_level'),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Location logged successfully.',
+        ]);
+    }
+
+    // =========================================================================
+    // GET /salesman/expense-categories
+    // =========================================================================
+    #[OA\Get(
+        path: "/salesman/expense-categories",
+        summary: "Get expense categories",
+        description: "Fetches a list of active expense categories.",
+        security: [["bearerAuth" => []]],
+        tags: ["Salesman Expenses"],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: "Success",
+                content: new OA\JsonContent(properties: [
+                    new OA\Property(property: "success", type: "boolean"),
+                    new OA\Property(property: "data", type: "array", items: new OA\Items(properties: [
+                        new OA\Property(property: "id", type: "integer"),
+                        new OA\Property(property: "name", type: "string")
+                    ]))
+                ])
+            )
+        ]
+    )]
+    public function getExpenseCategories(Request $request): JsonResponse
+    {
+        $salesman = $request->user();
+        if (!$this->verifySalesman($salesman)) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized.'], 403);
+        }
+
+        $categories = ExpenseCategory::where('status', 'active')->get(['id', 'name']);
+
+        return response()->json([
+            'success' => true,
+            'data' => $categories
+        ]);
+    }
+
+    // =========================================================================
+    // POST /salesman/expenses
+    // =========================================================================
+    #[OA\Post(
+        path: "/salesman/expenses",
+        summary: "Submit a new expense",
+        description: "Allows a salesman to submit an expense with a photo.",
+        security: [["bearerAuth" => []]],
+        tags: ["Salesman Expenses"],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\MediaType(
+                mediaType: "multipart/form-data",
+                schema: new OA\Schema(properties: [
+                    new OA\Property(property: "expense_category_id", type: "integer"),
+                    new OA\Property(property: "amount", type: "number"),
+                    new OA\Property(property: "description", type: "string", nullable: true),
+                    new OA\Property(property: "receipt_photo", type: "string", format: "binary", nullable: true)
+                ])
+            )
+        ),
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: "Success",
+                content: new OA\JsonContent(properties: [
+                    new OA\Property(property: "success", type: "boolean"),
+                    new OA\Property(property: "message", type: "string")
+                ])
+            )
+        ]
+    )]
+    public function storeExpense(Request $request): JsonResponse
+    {
+        $salesman = $request->user();
+        if (!$this->verifySalesman($salesman)) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized.'], 403);
+        }
+
+        $request->validate([
+            'expense_category_id' => 'required|exists:expense_categories,id',
+            'amount' => 'required|numeric|min:0.01',
+            'description' => 'nullable|string',
+            'receipt_photo' => 'nullable|image|max:5120',
+        ]);
+
+        $photoPath = null;
+        if ($request->hasFile('receipt_photo')) {
+            $file = $request->file('receipt_photo');
+            $fileName = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+            $file->move(public_path('uploads/expenses'), $fileName);
+            $photoPath = 'expenses/' . $fileName;
+        }
+
+        Expense::create([
+            'salesman_id' => $salesman->id,
+            'expense_category_id' => $request->input('expense_category_id'),
+            'amount' => $request->input('amount'),
+            'description' => $request->input('description'),
+            'receipt_photo_path' => $photoPath,
+            'status' => 'Pending',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Expense submitted successfully and is pending approval.'
+        ]);
+    }
+
+    // =========================================================================
+    // GET /salesman/expenses
+    // =========================================================================
+    #[OA\Get(
+        path: "/salesman/expenses",
+        summary: "Get expense history",
+        description: "Fetches a paginated list of the authenticated salesman's expenses.",
+        security: [["bearerAuth" => []]],
+        tags: ["Salesman Expenses"],
+        parameters: [
+            new OA\Parameter(
+                name: "per_page",
+                in: "query",
+                description: "Number of records per page",
+                required: false,
+                schema: new OA\Schema(type: "integer", default: 15)
+            ),
+            new OA\Parameter(
+                name: "page",
+                in: "query",
+                description: "Page number",
+                required: false,
+                schema: new OA\Schema(type: "integer", default: 1)
+            )
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: "Success",
+                content: new OA\JsonContent(properties: [
+                    new OA\Property(property: "success", type: "boolean"),
+                    new OA\Property(property: "data", type: "array", items: new OA\Items())
+                ])
+            )
+        ]
+    )]
+    public function getExpenses(Request $request): JsonResponse
+    {
+        $salesman = $request->user();
+        if (!$this->verifySalesman($salesman)) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized.'], 403);
+        }
+
+        $perPage = (int) $request->query('per_page', 15);
+
+        $expenses = Expense::where('salesman_id', $salesman->id)
+            ->with('category')
+            ->orderBy('created_at', 'desc')
+            ->paginate($perPage);
+
+        $data = collect($expenses->items())->map(function ($expense) {
+            return [
+                'id' => $expense->id,
+                'category' => $expense->category ? $expense->category->name : 'Unknown',
+                'amount' => (float) $expense->amount,
+                'description' => $expense->description,
+                'receipt_photo_url' => $expense->receipt_photo_path ? asset('uploads/' . $expense->receipt_photo_path) : null,
+                'status' => $expense->status,
+                'date' => $expense->created_at->format('d M, Y h:i A'),
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => $data,
+            'meta' => [
+                'current_page' => $expenses->currentPage(),
+                'last_page' => $expenses->lastPage(),
+                'per_page' => $expenses->perPage(),
+                'total' => $expenses->total(),
+            ]
+        ]);
     }
 }

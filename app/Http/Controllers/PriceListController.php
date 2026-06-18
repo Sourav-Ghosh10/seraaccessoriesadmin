@@ -59,7 +59,7 @@ class PriceListController extends Controller
 
             // 5. Broadcast live FCM push notifications to all dealers and salesmen
             $members = Member::whereIn('role', ['dealer', 'salesman'])->get();
-            $url = asset('storage/' . $path);
+            $url = asset('uploads/' . $path);
 
             foreach ($members as $member) {
                 FcmService::sendPushNotification(

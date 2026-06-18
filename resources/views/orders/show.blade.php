@@ -1,8 +1,20 @@
 @extends('layouts.app')
 
 @section('content')
+    @php
+        $backUrl = route('orders.index');
+        $from = request('from');
+        
+        if ($from === 'requests') {
+            $backUrl = route('order-requests');
+        } elseif (url()->previous() && str_contains(url()->previous(), url('/'))) {
+            // If there's a valid previous URL within our application, use it
+            // This ensures clicking "Back" from Rewards takes you back to Rewards
+            $backUrl = url()->previous();
+        }
+    @endphp
     <div style="margin-bottom: 25px; display: flex; align-items: center; gap: 15px;">
-        <a href="{{ route('orders.index') }}" class="btn glass"
+        <a href="{{ $backUrl }}" class="btn glass"
             style="width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; padding: 0;">
             <i class="fas fa-arrow-left"></i>
         </a>

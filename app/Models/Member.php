@@ -12,7 +12,9 @@ class Member extends Authenticatable
 
     protected $fillable = [
         'name', 'email', 'mobile', 'password', 'role', 'status',
-        'shop', 'address', 'salesman_id', 'emp_id', 'ref_code'
+        'shop', 'address', 'salesman_id', 'emp_id', 'ref_code',
+        'location', 'dist_id', 'gst_no', 'city_id', 'monthly_target',
+        'discount_percent', 'is_passbook_visible'
     ];
 
     protected $hidden = [
@@ -23,12 +25,18 @@ class Member extends Authenticatable
     {
         return [
             'password' => 'hashed',
+            'is_passbook_visible' => 'boolean',
         ];
     }
 
     public function salesman()
     {
         return $this->belongsTo(Member::class, 'salesman_id');
+    }
+
+    public function distributor()
+    {
+        return $this->belongsTo(Member::class, 'dist_id', 'dist_id');
     }
 
     public function dealers()
@@ -79,5 +87,15 @@ class Member extends Authenticatable
     public function paymentSubmissions()
     {
         return $this->hasMany(PaymentSubmission::class, 'member_id');
+    }
+
+    public function city()
+    {
+        return $this->belongsTo(City::class, 'city_id');
+    }
+
+    public function attendances()
+    {
+        return $this->hasMany(SalesmanAttendance::class, 'member_id');
     }
 }

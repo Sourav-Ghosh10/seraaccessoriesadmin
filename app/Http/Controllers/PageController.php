@@ -62,7 +62,7 @@ class PageController extends Controller
             $sum = \App\Models\Order::where('status', '!=', 'Cancelled')
                 ->whereMonth('created_at', $date->month)
                 ->whereYear('created_at', $date->year)
-                ->sum('amount');
+                ->count();
                 
             $salesData[] = (float) $sum;
         }
@@ -81,20 +81,144 @@ class PageController extends Controller
             'salesData'
         ));
     }
+
+    public function chartData(Request $request) {
+        $filter = $request->query('filter', '6_months');
+        $labels = [];
+        $data = [];
+
+        if ($filter == 'yearly') {
+            // All 12 months of current year
+            $year = now()->year;
+            for ($i = 1; $i <= 12; $i++) {
+                $labels[] = date("M", mktime(0, 0, 0, $i, 10));
+                $sum = \App\Models\Order::where('status', '!=', 'Cancelled')
+                    ->whereMonth('created_at', $i)
+                    ->whereYear('created_at', $year)
+                    ->count();
+                $data[] = (float) $sum;
+            }
+        } elseif ($filter == 'monthly' || $filter == 'custom') {
+            if ($filter == 'custom' && $request->filled('month')) {
+                // $request->month format: "YYYY-MM"
+                $parts = explode('-', $request->query('month'));
+                $year = $parts[0] ?? now()->year;
+                $month = $parts[1] ?? now()->month;
+            } else {
+                $month = now()->month;
+                $year = now()->year;
+            }
+            
+            // Days of the month
+            $daysInMonth = \Carbon\Carbon::createFromDate($year, $month, 1)->daysInMonth;
+            for ($i = 1; $i <= $daysInMonth; $i++) {
+                $labels[] = $i;
+                $sum = \App\Models\Order::where('status', '!=', 'Cancelled')
+                    ->whereDate('created_at', "$year-" . str_pad($month, 2, '0', STR_PAD_LEFT) . "-" . str_pad($i, 2, '0', STR_PAD_LEFT))
+                    ->count();
+                $data[] = (float) $sum;
+            }
+        } else {
+            // Last 6 months
+            for ($i = 5; $i >= 0; $i--) {
+                $date = now()->subMonths($i);
+                $labels[] = $date->format('M');
+                
+                $sum = \App\Models\Order::where('status', '!=', 'Cancelled')
+                    ->whereMonth('created_at', $date->month)
+                    ->whereYear('created_at', $date->year)
+                    ->count();
+                    
+                $data[] = (float) $sum;
+            }
+        }
+
+        return response()->json(['labels' => $labels, 'data' => $data]);
+    }
     
     public function dealers() {
-        $dealers = \App\Models\Member::where('role', 'dealer')->get();
-        return view('dealers', compact('dealers'));
+        $dealers = \App\Models\Member::where('role', 'dealer')->with(['salesman', 'city'])->paginate(10);
+        $cities = \App\Models\City::where('status', 1)->orderBy('city')->get();
+        $salesmen = \App\Models\Member::where('role', 'salesman')->orderBy('name')->get();
+        $distributors = \App\Models\Member::where('role', 'distributor')->orderBy('name')->get();
+        return view('dealers', compact('dealers', 'cities', 'salesmen', 'distributors'));
     }
 
-    public function salesmen() {
-        $salesmen = \App\Models\Member::where('role', 'salesman')->get();
+    public function salesmen(Request $request) {
+        $query = \App\Models\Member::where('role', 'salesman');
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'like', "%$search%")
+                  ->orWhere('email', 'like', "%$search%")
+                  ->orWhere('mobile', 'like', "%$search%")
+                  ->orWhere('ref_code', 'like', "%$search%");
+            });
+        }
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        $salesmen = $query->paginate(10);
+        
+        if ($request->ajax()) {
+            return view('salesmen_table', compact('salesmen'))->render();
+        }
+
         return view('salesmen', compact('salesmen'));
     }
 
+    public function salesmanAttendance(Request $request) {
+        $date = $request->filled('date') ? $request->date : now()->toDateString();
+        
+        $query = \App\Models\Member::where('role', 'salesman')
+            ->with(['attendances' => function($q) use ($date) {
+                $q->whereDate('date', $date);
+            }])
+            ->orderBy('name', 'asc');
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'like', "%$search%")
+                  ->orWhere('mobile', 'like', "%$search%")
+                  ->orWhere('email', 'like', "%$search%");
+            });
+        }
+
+        if ($request->filled('salesman_id')) {
+            $query->where('id', $request->salesman_id);
+        }
+
+        $salesmenList = $query->paginate(15);
+        $allSalesmen = \App\Models\Member::where('role', 'salesman')->orderBy('name')->get();
+
+        return view('salesman_attendance', compact('salesmenList', 'allSalesmen', 'date'));
+    }
+
+    public function salesmanAttendanceDetails($id) {
+        $attendance = \App\Models\SalesmanAttendance::with('member')->findOrFail($id);
+        
+        $visits = \App\Models\SalesmanVisit::with('dealer')
+            ->where('salesman_id', $attendance->member_id)
+            ->whereDate('visit_time', $attendance->date)
+            ->orderBy('visit_time', 'asc')
+            ->get();
+            
+        $locations = \App\Models\SalesmanLocationLog::where('salesman_id', $attendance->member_id)
+            ->whereDate('timestamp', $attendance->date)
+            ->orderBy('timestamp', 'asc')
+            ->get();
+            
+        return view('salesman_attendance_details', compact('attendance', 'visits', 'locations'));
+    }
+
     public function distributors() {
-        $distributors = \App\Models\Member::where('role', 'distributor')->get();
-        return view('distributors', compact('distributors'));
+        $distributors = \App\Models\Member::where('role', 'distributor')->with('city')->paginate(10);
+        $cities = \App\Models\City::where('status', 1)->orderBy('city')->get();
+        return view('distributors', compact('distributors', 'cities'));
     }
 
     public function complianceDashboard() {
@@ -126,24 +250,194 @@ class PageController extends Controller
         return view('compliance.reports');
     }
 
-    public function estimateRequests() {
-        $estimates = \App\Models\Estimate::with('member')->orderBy('id', 'desc')->get();
-        return view('estimates.requests', compact('estimates'));
+    public function estimateRequests(Request $request) {
+        $query = \App\Models\Estimate::with(['member.salesman', 'member.distributor']);
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('request_number', 'like', "%$search%")
+                  ->orWhere('id', 'like', "%$search%")
+                  ->orWhereHas('member', function($q2) use ($search) {
+                      $q2->where('name', 'like', "%$search%")
+                         ->orWhere('shop', 'like', "%$search%");
+                  });
+            });
+        }
+
+        if ($request->filled('city_id') || $request->filled('salesman_id') || $request->filled('dist_id')) {
+            $query->whereHas('member', function($q) use ($request) {
+                if ($request->filled('city_id')) {
+                    if (is_array($request->city_id)) {
+                        $q->whereIn('city_id', $request->city_id);
+                    } else {
+                        $q->where('city_id', $request->city_id);
+                    }
+                }
+                if ($request->filled('salesman_id')) {
+                    $q->where('salesman_id', $request->salesman_id);
+                }
+                if ($request->filled('dist_id')) {
+                    $q->where('dist_id', $request->dist_id);
+                }
+            });
+        }
+
+        if ($request->filled('date_type')) {
+            if ($request->date_type === 'individual' && $request->filled('single_date')) {
+                $query->whereDate('created_at', $request->single_date);
+            } elseif ($request->date_type === 'range') {
+                if ($request->filled('date_from')) {
+                    $query->whereDate('created_at', '>=', $request->date_from);
+                }
+                if ($request->filled('date_to')) {
+                    $query->whereDate('created_at', '<=', $request->date_to);
+                }
+            }
+        }
+
+        $estimates = $query->orderBy('id', 'desc')->paginate(5);
+
+        $cities = \App\Models\City::where('status', 1)->orderBy('city')->get();
+        $salesmen = \App\Models\Member::where('role', 'salesman')->orderBy('name')->get();
+        $distributors = \App\Models\Member::where('role', 'distributor')->orderBy('name')->get();
+
+        return view('estimates.requests', compact('estimates', 'cities', 'salesmen', 'distributors'));
     }
 
-    public function orderRequests() {
-        $orders = OrderRequest::with('member')->orderBy('id', 'desc')->get();
+    public function dependentMembers(Request $request) {
+        $cityIds = $request->city_ids;
+        if (!is_array($cityIds)) {
+            $cityIds = $cityIds ? [$cityIds] : [];
+        }
+
+        if (empty($cityIds) || in_array('all', $cityIds)) {
+            $salesmen = \App\Models\Member::where('role', 'salesman')->orderBy('name')->get(['id', 'name']);
+            $distributors = \App\Models\Member::where('role', 'distributor')->orderBy('name')->get(['dist_id', 'name']);
+        } else {
+            $dealers = \App\Models\Member::where('role', 'dealer')->whereIn('city_id', $cityIds)->get(['salesman_id', 'dist_id']);
+            $salesmanIds = $dealers->pluck('salesman_id')->filter()->unique();
+            $distIds = $dealers->pluck('dist_id')->filter()->unique();
+
+            $salesmen = \App\Models\Member::where('role', 'salesman')->whereIn('id', $salesmanIds)->orderBy('name')->get(['id', 'name']);
+            $distributors = \App\Models\Member::where('role', 'distributor')->whereIn('dist_id', $distIds)->orderBy('name')->get(['dist_id', 'name']);
+        }
+
+        return response()->json([
+            'salesmen' => $salesmen,
+            'distributors' => $distributors
+        ]);
+    }
+
+    public function orderRequests(Request $request) {
+        $query = \App\Models\OrderRequest::with(['member.salesman', 'member.distributor', 'order']);
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('request_number', 'like', "%$search%")
+                  ->orWhere('id', 'like', "%$search%")
+                  ->orWhereHas('member', function($q2) use ($search) {
+                      $q2->where('name', 'like', "%$search%")
+                         ->orWhere('shop', 'like', "%$search%");
+                  });
+            });
+        }
+
+        if ($request->filled('city_id') || $request->filled('salesman_id') || $request->filled('dist_id')) {
+            $query->whereHas('member', function($q) use ($request) {
+                if ($request->filled('city_id')) {
+                    if (is_array($request->city_id)) {
+                        $q->whereIn('city_id', $request->city_id);
+                    } else {
+                        $q->where('city_id', $request->city_id);
+                    }
+                }
+                if ($request->filled('salesman_id')) {
+                    $q->where('salesman_id', $request->salesman_id);
+                }
+                if ($request->filled('dist_id')) {
+                    $q->where('dist_id', $request->dist_id);
+                }
+            });
+        }
+
+        if ($request->filled('date_type')) {
+            if ($request->date_type === 'individual' && $request->filled('single_date')) {
+                $query->whereDate('created_at', $request->single_date);
+            } elseif ($request->date_type === 'range') {
+                if ($request->filled('date_from')) {
+                    $query->whereDate('created_at', '>=', $request->date_from);
+                }
+                if ($request->filled('date_to')) {
+                    $query->whereDate('created_at', '<=', $request->date_to);
+                }
+            }
+        }
+
+        $orders = $query->orderBy('id', 'desc')->paginate(5);
         $dealers = Member::where('role', 'dealer')->get();
-        return view('orders.requests', compact('orders', 'dealers'));
+        $cities = \App\Models\City::where('status', 1)->orderBy('city')->get();
+        $salesmen = \App\Models\Member::where('role', 'salesman')->orderBy('name')->get();
+        $distributors = \App\Models\Member::where('role', 'distributor')->orderBy('name')->get();
+
+        return view('orders.requests', compact('orders', 'dealers', 'cities', 'salesmen', 'distributors'));
     }
 
-    public function ordersList() {
-        $finalOrders = \App\Models\Order::with(['member', 'delivery'])
+    public function ordersList(Request $request) {
+        $query = \App\Models\Order::with(['member.salesman', 'member.distributor', 'delivery'])
             ->where('status', '!=', 'Pending')
-            ->where('order_number', 'like', 'ORD-%')
-            ->orderBy('id', 'desc')
-            ->get();
-        return view('orders.index', compact('finalOrders'));
+            ->where('order_number', 'like', 'ORD-%');
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('order_number', 'like', "%$search%")
+                  ->orWhere('id', 'like', "%$search%")
+                  ->orWhereHas('member', function($q2) use ($search) {
+                      $q2->where('name', 'like', "%$search%")
+                         ->orWhere('shop', 'like', "%$search%");
+                  });
+            });
+        }
+
+        if ($request->filled('city_id') || $request->filled('salesman_id') || $request->filled('dist_id')) {
+            $query->whereHas('member', function($q) use ($request) {
+                if ($request->filled('city_id')) {
+                    if (is_array($request->city_id)) {
+                        $q->whereIn('city_id', $request->city_id);
+                    } else {
+                        $q->where('city_id', $request->city_id);
+                    }
+                }
+                if ($request->filled('salesman_id')) {
+                    $q->where('salesman_id', $request->salesman_id);
+                }
+                if ($request->filled('dist_id')) {
+                    $q->where('dist_id', $request->dist_id);
+                }
+            });
+        }
+
+        if ($request->filled('date_type')) {
+            if ($request->date_type === 'individual' && $request->filled('single_date')) {
+                $query->whereDate('created_at', $request->single_date);
+            } elseif ($request->date_type === 'range') {
+                if ($request->filled('date_from')) {
+                    $query->whereDate('created_at', '>=', $request->date_from);
+                }
+                if ($request->filled('date_to')) {
+                    $query->whereDate('created_at', '<=', $request->date_to);
+                }
+            }
+        }
+
+        $finalOrders = $query->orderBy('id', 'desc')->paginate(5);
+        $cities = \App\Models\City::where('status', 1)->orderBy('city')->get();
+        $salesmen = \App\Models\Member::where('role', 'salesman')->orderBy('name')->get();
+        $distributors = \App\Models\Member::where('role', 'distributor')->orderBy('name')->get();
+
+        return view('orders.index', compact('finalOrders', 'cities', 'salesmen', 'distributors'));
     }
 
     public function showOrder($id) {
@@ -157,85 +451,294 @@ class PageController extends Controller
         return view('orders.create', compact('dealers', 'distributors'));
     }
 
-    public function delivery()
+    public function delivery(Request $request)
     {
-        $orders = Order::with('delivery')
-            ->whereIn('status', ['Confirmed', 'Out for Delivery', 'Delivered'])
-            ->orderBy('id', 'desc')
-            ->get();
-        return view('delivery', compact('orders'));
+        $query = Order::with(['member.salesman', 'member.distributor', 'delivery'])
+            ->where('status', '!=', 'Pending')
+            ->where('status', '!=', 'Cancelled')
+            ->where('order_number', 'like', 'ORD-%');
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('order_number', 'like', "%$search%")
+                  ->orWhere('id', 'like', "%$search%")
+                  ->orWhereHas('member', function($q2) use ($search) {
+                      $q2->where('name', 'like', "%$search%")
+                         ->orWhere('shop', 'like', "%$search%");
+                  });
+            });
+        }
+
+        if ($request->filled('city_id') || $request->filled('salesman_id') || $request->filled('dist_id')) {
+            $query->whereHas('member', function($q) use ($request) {
+                if ($request->filled('city_id')) {
+                    if (is_array($request->city_id)) {
+                        $q->whereIn('city_id', $request->city_id);
+                    } else {
+                        $q->where('city_id', $request->city_id);
+                    }
+                }
+                if ($request->filled('salesman_id')) {
+                    $q->where('salesman_id', $request->salesman_id);
+                }
+                if ($request->filled('dist_id')) {
+                    $q->where('dist_id', $request->dist_id);
+                }
+            });
+        }
+
+        if ($request->filled('date_type')) {
+            if ($request->date_type === 'individual' && $request->filled('single_date')) {
+                $query->whereDate('created_at', $request->single_date);
+            } elseif ($request->date_type === 'range') {
+                if ($request->filled('date_from')) {
+                    $query->whereDate('created_at', '>=', $request->date_from);
+                }
+                if ($request->filled('date_to')) {
+                    $query->whereDate('created_at', '<=', $request->date_to);
+                }
+            }
+        }
+
+        if ($request->filled('delivery_status')) {
+            $status = $request->delivery_status;
+            if ($status === 'out_for_delivery') {
+                $query->where('status', 'Out for Delivery');
+            } elseif ($status === 'delivered') {
+                $query->where('status', 'Delivered');
+            } elseif ($status === 'pending') {
+                $query->whereIn('status', ['Confirmed', 'Processing', 'Invoiced']);
+            } elseif ($status === 'returned') {
+                $query->where('status', 'Returned');
+            }
+        }
+
+        $orders = $query->orderBy('id', 'desc')->paginate(10);
+        
+        $cities = \App\Models\City::where('status', 1)->orderBy('city')->get();
+        $salesmen = \App\Models\Member::where('role', 'salesman')->orderBy('name')->get();
+        $distributors = \App\Models\Member::where('role', 'distributor')->orderBy('name')->get();
+
+        return view('delivery', compact('orders', 'cities', 'salesmen', 'distributors'));
     }
 
-    public function invoices()
+    public function invoices(Request $request)
     {
-        $invoices = \App\Models\Invoice::with('order')->orderBy('id', 'desc')->get();
-        $orders = Order::where('status', '!=', 'Cancelled')
-            ->whereDoesntHave('invoice')
-            ->orderBy('id', 'desc')
-            ->get();
-        return view('invoices', compact('invoices', 'orders'));
+        $query = Order::with(['member.salesman', 'member.distributor', 'invoice', 'creditNote'])
+            ->where('status', '!=', 'Cancelled');
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('order_number', 'like', "%$search%")
+                  ->orWhere('id', 'like', "%$search%")
+                  ->orWhereHas('member', function($q2) use ($search) {
+                      $q2->where('name', 'like', "%$search%")
+                         ->orWhere('shop', 'like', "%$search%");
+                  });
+            });
+        }
+
+        if ($request->filled('city_id') || $request->filled('salesman_id') || $request->filled('dist_id')) {
+            $query->whereHas('member', function($q) use ($request) {
+                if ($request->filled('city_id')) {
+                    if (is_array($request->city_id)) {
+                        $q->whereIn('city_id', $request->city_id);
+                    } else {
+                        $q->where('city_id', $request->city_id);
+                    }
+                }
+                if ($request->filled('salesman_id')) {
+                    $q->where('salesman_id', $request->salesman_id);
+                }
+                if ($request->filled('dist_id')) {
+                    $q->where('dist_id', $request->dist_id);
+                }
+            });
+        }
+
+        if ($request->filled('date_type')) {
+            if ($request->date_type === 'individual' && $request->filled('single_date')) {
+                $query->whereDate('created_at', $request->single_date);
+            } elseif ($request->date_type === 'range') {
+                if ($request->filled('date_from')) {
+                    $query->whereDate('created_at', '>=', $request->date_from);
+                }
+                if ($request->filled('date_to')) {
+                    $query->whereDate('created_at', '<=', $request->date_to);
+                }
+            }
+        }
+
+        if ($request->filled('invoice_status')) {
+            $invStatus = $request->invoice_status;
+            if ($invStatus === 'pending') {
+                $query->whereDoesntHave('invoice');
+            } elseif ($invStatus === 'complete') {
+                $query->whereHas('invoice');
+            } elseif ($invStatus === 'pending_credit_note') {
+                $query->where('status', 'Returned')->whereDoesntHave('creditNote');
+            }
+        }
+
+        $orders = $query->orderBy('id', 'desc')->paginate(10);
+        $cities = \App\Models\City::where('status', 1)->orderBy('city')->get();
+        $salesmen = \App\Models\Member::where('role', 'salesman')->orderBy('name')->get();
+        $distributors = \App\Models\Member::where('role', 'distributor')->orderBy('name')->get();
+
+        return view('invoices', compact('orders', 'cities', 'salesmen', 'distributors'));
     }
 
-    public function rewards() {
-        // Dealer Points distributed this month
-        $dealerPointsSum = \App\Models\RewardTransaction::whereHas('member', function ($query) {
-            $query->where('role', 'dealer');
-        })->whereMonth('created_at', date('m'))->whereYear('created_at', date('Y'))->sum('points');
+    public function rewards(Request $request) {
+        // Base query for history of orders with points - with filtering
+        $query = \App\Models\Order::with(['member.salesman', 'rewardTransactions.member'])
+            ->where('status', '!=', 'Pending')
+            ->where('order_number', 'like', 'ORD-%');
 
-        // Salesman Points distributed this month
-        $salesmanPointsSum = \App\Models\RewardTransaction::whereHas('member', function ($query) {
-            $query->where('role', 'salesman');
-        })->whereMonth('created_at', date('m'))->whereYear('created_at', date('Y'))->sum('points');
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('order_number', 'like', "%$search%")
+                  ->orWhere('id', 'like', "%$search%")
+                  ->orWhereHas('member', function($q2) use ($search) {
+                      $q2->where('name', 'like', "%$search%")
+                         ->orWhere('shop', 'like', "%$search%");
+                  });
+            });
+        }
 
-        // Points history
-        $history = \App\Models\RewardTransaction::with(['member', 'order'])->orderBy('created_at', 'desc')->get();
+        if ($request->filled('city_id') || $request->filled('salesman_id') || $request->filled('dist_id')) {
+            $query->whereHas('member', function($q) use ($request) {
+                if ($request->filled('city_id')) {
+                    if (is_array($request->city_id)) {
+                        $q->whereIn('city_id', $request->city_id);
+                    } else {
+                        $q->where('city_id', $request->city_id);
+                    }
+                }
+                if ($request->filled('salesman_id')) {
+                    $q->where('salesman_id', $request->salesman_id);
+                }
+                if ($request->filled('dist_id')) {
+                    $q->where('dist_id', $request->dist_id);
+                }
+            });
+        }
 
-        // Orders to populate drop down
-        $orders = \App\Models\Order::with(['member.salesman'])
+        if ($request->filled('date_type')) {
+            if ($request->date_type === 'individual' && $request->filled('single_date')) {
+                $query->whereDate('created_at', $request->single_date);
+            } elseif ($request->date_type === 'range') {
+                if ($request->filled('date_from')) {
+                    $query->whereDate('created_at', '>=', $request->date_from);
+                }
+                if ($request->filled('date_to')) {
+                    $query->whereDate('created_at', '<=', $request->date_to);
+                }
+            }
+        }
+
+        // Get total sums based on the SAME filtered order IDs
+        $filteredOrderIds = (clone $query)->pluck('id');
+        
+        $dealerPointsSum = \App\Models\RewardTransaction::whereIn('order_id', $filteredOrderIds)
+            ->whereHas('member', function ($q) {
+                $q->where('role', 'dealer');
+            })->sum('points');
+
+        $salesmanPointsSum = \App\Models\RewardTransaction::whereIn('order_id', $filteredOrderIds)
+            ->whereHas('member', function ($q) {
+                $q->where('role', 'salesman');
+            })->sum('points');
+
+        $history = $query->orderBy('id', 'desc')->paginate(10);
+
+        // Orders for dropdown
+        $allOrders = \App\Models\Order::with(['member.salesman'])
             ->where('status', '!=', 'Pending')
             ->where('order_number', 'like', 'ORD-%')
             ->orderBy('id', 'desc')
-            ->get()
-            ->map(function($ord) {
-                return [
-                    'id' => $ord->id,
-                    'order_number' => $ord->order_number,
-                    'dealer' => $ord->member->name . ($ord->member->shop ? ' (' . $ord->member->shop . ')' : ''),
-                    'salesman' => $ord->member->salesman ? $ord->member->salesman->name : 'No Salesman Assigned'
-                ];
-            });
+            ->get();
 
-        return view('rewards', compact('dealerPointsSum', 'salesmanPointsSum', 'history', 'orders'));
+        $orders = $allOrders->map(function($ord) {
+            return [
+                'id' => $ord->id,
+                'order_number' => $ord->order_number,
+                'dealer' => $ord->member->name . ($ord->member->shop ? ' (' . $ord->member->shop . ')' : ''),
+                'salesman' => $ord->member->salesman ? $ord->member->salesman->name : 'No Salesman Assigned'
+            ];
+        });
+
+        $cities = \App\Models\City::where('status', 1)->orderBy('city')->get();
+        $salesmen = \App\Models\Member::where('role', 'salesman')->orderBy('name')->get();
+        $distributors = \App\Models\Member::where('role', 'distributor')->orderBy('name')->get();
+
+        return view('rewards', compact('dealerPointsSum', 'salesmanPointsSum', 'history', 'orders', 'cities', 'salesmen', 'distributors'));
     }
 
     public function priceList() {
         return view('price-list');
     }
 
-    public function passbook() {
-        $dealers = Member::where('role', 'dealer')->with('dealerBalance')->orderBy('name', 'asc')->get();
-        return view('passbook', compact('dealers'));
+    public function passbook(Request $request) {
+        $query = Member::where('role', 'dealer')->with(['dealerBalance', 'salesman', 'distributor', 'city'])->orderBy('name', 'asc');
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'like', "%$search%")
+                  ->orWhere('shop', 'like', "%$search%");
+            });
+        }
+
+        $dealers = $query->paginate(10);
+        
+        // For the dropdown in the modal, we might still need all dealers or we can load them via AJAX
+        // For now, let's keep allDealers for the modal dropdown if needed, but pagination for the table.
+        $allDealers = Member::where('role', 'dealer')->orderBy('name', 'asc')->get();
+
+        return view('passbook', compact('dealers', 'allDealers'));
     }
 
     public function allTransactions(Request $request) {
-        $query = \App\Models\PassbookTransaction::with('member')->orderBy('created_at', 'desc');
+        $query = \App\Models\PassbookTransaction::with(['member.salesman', 'member.distributor', 'member.city'])->orderBy('created_at', 'desc');
 
         $salesmen = Member::where('role', 'salesman')->get();
         $admins = \App\Models\User::all();
+        $distributors = \App\Models\Member::where('role', 'distributor')->get();
 
-        $transactions = $query->get()->map(function($txn) {
+        $transactions = $query->get()->map(function($txn) use ($distributors) {
+            $member = $txn->member;
+            $distributorName = $distributors->firstWhere('dist_id', $member->dist_id)->name ?? $member->dist_id ?? '';
+            
             return [
                 'date' => $txn->created_at->format('Y-m-d'),
-                'dealer' => $txn->member->shop ?? $txn->member->name,
+                'dealer' => $member->shop ?? $member->name,
                 'user' => $txn->managed_by,
                 'type' => $txn->type,
                 'amount' => (float) $txn->amount,
                 'ref' => $txn->ref,
-                'status' => $txn->status
+                'status' => $txn->status,
+                // Member details for modal
+                'member_details' => [
+                    'name' => $member->name,
+                    'email' => $member->email,
+                    'mobile' => $member->mobile,
+                    'code' => $member->ref_code ?? '',
+                    'role' => 'Dealer',
+                    'address' => preg_replace('/\r|\n/', ' ', $member->address ?? ''),
+                    'shop' => $member->shop ?? '',
+                    'city' => $member->city->city ?? '',
+                    'gst' => $member->gst_no ?? '',
+                    'discount' => $member->discount_percent ?? '',
+                    'salesman' => $member->salesman->name ?? '',
+                    'distributor' => $distributorName
+                ]
             ];
         });
 
-        return view('transactions', compact('transactions', 'salesmen', 'admins'));
+        return view('transactions', compact('transactions', 'salesmen', 'admins', 'distributors'));
     }
 
     public function updateBalance(Request $request) {
@@ -338,66 +841,76 @@ class PageController extends Controller
     }
 
     public function verifyPayments() {
-        $submissions = \App\Models\PaymentSubmission::with('member')->orderBy('created_at', 'desc')->get();
-        return view('payments.verify', compact('submissions'));
+        $submissions = \App\Models\PaymentSubmission::with(['member.salesman', 'member.distributor', 'member.city'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+        $distributors = \App\Models\Member::where('role', 'distributor')->get();
+        return view('payments.verify', compact('submissions', 'distributors'));
     }
 
     public function approvePayment(Request $request, $id) {
         $submission = \App\Models\PaymentSubmission::findOrFail($id);
-        $submission->status = 'Approved';
-        $submission->save();
-
-        $dealer = $submission->member;
-        $amount = (float) $submission->amount;
-
-        // Update dealer balance
-        $balance = $dealer->dealerBalance;
-        if (!$balance) {
-            $balance = new \App\Models\DealerBalance([
-                'member_id' => $dealer->id,
-                'total_amount' => 0.00,
-                'paid_amount' => 0.00,
-                'due_amount' => 0.00,
-            ]);
+        
+        if ($submission->status !== 'Pending') {
+            return redirect()->back()->with('error', 'This payment has already been processed.');
         }
-        $balance->paid_amount += $amount;
-        $balance->due_amount = $balance->total_amount - $balance->paid_amount;
-        $balance->save();
 
-        $ref = 'TXN-' . mt_rand(1000, 9999);
-        while (\App\Models\PassbookTransaction::where('ref', $ref)->exists()) {
+        \Illuminate\Support\Facades\DB::transaction(function() use ($submission) {
+            $submission->status = 'Approved';
+            $submission->save();
+
+            $dealer = $submission->member;
+            $amount = (float) $submission->amount;
+
+            // Update dealer balance
+            $balance = $dealer->dealerBalance;
+            if (!$balance) {
+                $balance = new \App\Models\DealerBalance([
+                    'member_id' => $dealer->id,
+                    'total_amount' => 0.00,
+                    'paid_amount' => 0.00,
+                    'due_amount' => 0.00,
+                ]);
+            }
+            $balance->paid_amount += $amount;
+            $balance->due_amount = $balance->total_amount - $balance->paid_amount;
+            $balance->save();
+
             $ref = 'TXN-' . mt_rand(1000, 9999);
-        }
+            while (\App\Models\PassbookTransaction::where('ref', $ref)->exists()) {
+                $ref = 'TXN-' . mt_rand(1000, 9999);
+            }
 
-        $managerName = auth()->user() ? auth()->user()->name : 'System Admin';
+            $managerName = auth()->user() ? auth()->user()->name : 'System Admin';
 
-        \App\Models\PassbookTransaction::create([
-            'member_id' => $dealer->id,
-            'managed_by' => $managerName,
-            'type' => 'Payment',
-            'amount' => $amount,
-            'ref' => $ref,
-            'status' => 'Completed',
-        ]);
+            \App\Models\PassbookTransaction::create([
+                'member_id' => $dealer->id,
+                'managed_by' => $managerName,
+                'type' => 'Payment',
+                'amount' => $amount,
+                'ref' => $ref,
+                'status' => 'Completed',
+            ]);
 
-        // Send push notification
-        try {
-            \App\Services\FcmService::sendPushNotification(
-                $dealer,
-                'Payment Verified & Approved',
-                "Your payment upload of ₹ " . number_format($amount, 2) . " has been approved! Remaining due: ₹ " . number_format($balance->due_amount, 2) . ".",
-                [
-                    'type' => 'passbook',
-                    'deeplink' => 'my-passbook',
-                    'deep_link' => 'my-passbook',
-                    'ref' => $ref,
-                    'amount' => (string) $amount,
-                    'due_amount' => (string) $balance->due_amount,
-                ]
-            );
-        } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error("Failed to send push notification: " . $e->getMessage());
-        }
+            // Send push notification
+            try {
+                \App\Services\FcmService::sendPushNotification(
+                    $dealer,
+                    'Payment Verified & Approved',
+                    "Your payment upload of ₹ " . number_format($amount, 2) . " has been approved! Remaining due: ₹ " . number_format($balance->due_amount, 2) . ".",
+                    [
+                        'type' => 'passbook',
+                        'deeplink' => 'my-passbook',
+                        'deep_link' => 'my-passbook',
+                        'ref' => $ref,
+                        'amount' => (string) $amount,
+                        'due_amount' => (string) $balance->due_amount,
+                    ]
+                );
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error("Failed to send push notification: " . $e->getMessage());
+            }
+        });
 
         return redirect()->back()->with('success', 'Payment receipt approved successfully!');
     }
@@ -443,5 +956,23 @@ class PageController extends Controller
         \App\Models\Setting::set('whatsapp_number', $request->whatsapp_number);
 
         return redirect()->back()->with('success', 'Settings updated successfully!');
+    }
+
+    public function checkNewRequests(Request $request) {
+        $lastEstimateId = $request->query('last_estimate_id', 0);
+        $lastOrderId = $request->query('last_order_id', 0);
+
+        $newEstimates = \App\Models\Estimate::where('id', '>', $lastEstimateId)->count();
+        $newOrders = \App\Models\OrderRequest::where('id', '>', $lastOrderId)->count();
+
+        $maxEstimateId = \App\Models\Estimate::max('id') ?? 0;
+        $maxOrderId = \App\Models\OrderRequest::max('id') ?? 0;
+
+        return response()->json([
+            'new_estimates' => $newEstimates,
+            'new_orders' => $newOrders,
+            'max_estimate_id' => $maxEstimateId,
+            'max_order_id' => $maxOrderId,
+        ]);
     }
 }

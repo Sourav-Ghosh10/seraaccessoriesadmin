@@ -22,7 +22,7 @@
                 <p style="margin: 0 0 4px 0; font-size: 12px; color: var(--text-muted);">Uploaded on: {{ $latest->created_at->format('Y-m-d') }}</p>
                 <p style="margin: 0; font-size: 11px; color: rgba(255,255,255,0.4); font-family: monospace;">File: {{ $latest->file_name }} ({{ $latest->file_size }})</p>
             </div>
-            <a href="{{ asset('storage/' . $latest->file_path) }}" target="_blank" class="btn btn-primary" style="padding: 10px 15px; display: flex; align-items: center; justify-content: center; height: 42px; width: 42px; border-radius: 8px;">
+            <a href="{{ asset('uploads/' . $latest->file_path) }}" target="_blank" class="btn btn-primary" style="padding: 10px 15px; display: flex; align-items: center; justify-content: center; height: 42px; width: 42px; border-radius: 8px;">
                 <i class="fas fa-download"></i>
             </a>
         </div>
@@ -59,7 +59,7 @@
                     <td><span class="badge" style="background: rgba(255,255,255,0.08); color: #fff; padding: 3px 8px; font-size: 11px;">{{ $list->file_size }}</span></td>
                     <td style="font-size: 13px; color: var(--text-muted); max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ $list->file_name }}</td>
                     <td>
-                        <a href="{{ asset('storage/' . $list->file_path) }}" target="_blank" class="btn glass" style="padding: 6px 12px; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; border-radius: 6px;">
+                        <a href="{{ asset('uploads/' . $list->file_path) }}" target="_blank" class="btn glass" style="padding: 6px 12px; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; border-radius: 6px;">
                             <i class="fas fa-download"></i> Download
                         </a>
                     </td>

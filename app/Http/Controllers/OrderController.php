@@ -53,6 +53,13 @@ class OrderController extends Controller
             $challanPath = $request->file('challan_file')->store('challans', 'public');
         }
 
+        if ($request->from_request_id) {
+            $req = OrderRequest::find($request->from_request_id);
+            if ($req && $req->status !== 'Pending') {
+                return response()->json(['success' => false, 'message' => 'An order has already been generated from this request!'], 400);
+            }
+        }
+
         $lastOrder = Order::where('order_number', 'like', 'ORD-%')->orderBy('id', 'desc')->first();
         $nextNumber = $lastOrder ? (int)substr($lastOrder->order_number, 4) + 1 : 1;
         $orderNumber = 'ORD-' . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
@@ -69,7 +76,10 @@ class OrderController extends Controller
         ]);
 
         if ($request->from_request_id) {
-            OrderRequest::where('id', $request->from_request_id)->update(['status' => 'Processed']);
+            OrderRequest::where('id', $request->from_request_id)->update([
+                'status' => 'Processed',
+                'order_id' => $order->id
+            ]);
         }
 
         // Send push notification to dealer with deep link
@@ -206,6 +216,41 @@ class OrderController extends Controller
                 'file_path' => $path
             ]);
 
+            // Update Dealer Balance and Passbook
+            $dealer = $order->member;
+            if ($dealer && $dealer->role === 'dealer') {
+                $balance = $dealer->dealerBalance;
+                if (!$balance) {
+                    $balance = \App\Models\DealerBalance::create([
+                        'member_id' => $dealer->id,
+                        'total_amount' => 0.00,
+                        'paid_amount' => 0.00,
+                        'due_amount' => 0.00,
+                    ]);
+                }
+                
+                $balance->total_amount += $totalAmount;
+                $balance->due_amount = $balance->total_amount - $balance->paid_amount;
+                $balance->save();
+
+                // Record Passbook Transaction
+                $ref = 'INV-' . mt_rand(1000, 9999);
+                while (\App\Models\PassbookTransaction::where('ref', $ref)->exists()) {
+                    $ref = 'INV-' . mt_rand(1000, 9999);
+                }
+
+                $managerName = auth()->user() ? auth()->user()->name : 'System Admin';
+                
+                \App\Models\PassbookTransaction::create([
+                    'member_id' => $dealer->id,
+                    'managed_by' => $managerName,
+                    'type' => 'Order',
+                    'amount' => $totalAmount,
+                    'ref' => $ref,
+                    'status' => 'Confirmed',
+                ]);
+            }
+
             $order->update(['status' => 'Invoiced']);
 
             // Send push notification to dealer with deep link
@@ -341,4 +386,164 @@ class OrderController extends Controller
             'message' => 'No points were entered or processed.',
         ]);
     }
+
+    public function markReturned(Request $request, $id)
+    {
+        $order = Order::findOrFail($id);
+        
+        $request->validate([
+            'note' => 'nullable|string|max:5000',
+            'credit_note_file' => 'nullable|file|mimes:pdf,jpg,png|max:2048',
+        ]);
+
+        $order->update(['status' => 'Returned']);
+
+        if ($request->hasFile('credit_note_file') || $request->filled('note')) {
+            $lastCN = \App\Models\CreditNote::orderBy('id', 'desc')->first();
+            $nextNumber = 1;
+            if ($lastCN) {
+                $parts = explode('-', $lastCN->credit_note_number);
+                $lastSeq = end($parts);
+                $nextNumber = is_numeric($lastSeq) ? (int)$lastSeq + 1 : 1;
+            }
+            $creditNoteNumber = 'CN-' . date('Y') . '-' . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
+            while (\App\Models\CreditNote::where('credit_note_number', $creditNoteNumber)->exists()) {
+                $nextNumber++;
+                $creditNoteNumber = 'CN-' . date('Y') . '-' . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
+            }
+
+            $path = null;
+            if ($request->hasFile('credit_note_file')) {
+                $path = $request->file('credit_note_file')->store('credit_notes/dealer', 'public');
+            }
+
+            \App\Models\CreditNote::create([
+                'credit_note_number' => $creditNoteNumber,
+                'order_id' => $order->id,
+                'amount' => 0.00,
+                'file_path' => $path,
+                'dealer_file_path' => $path,
+                'note' => $request->note ?? 'Order Returned'
+            ]);
+        }
+
+        try {
+            FcmService::sendPushNotification(
+                $order->member,
+                'Order Returned',
+                "Your order {$order->order_number} has been marked as returned.",
+                [
+                    'type' => 'order',
+                    'id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'status' => 'Returned'
+                ]
+            );
+        } catch (\Exception $e) {}
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Order status updated to Returned successfully!'
+        ]);
+    }
+
+    public function storeCreditNote(Request $request)
+    {
+        $validated = $request->validate([
+            'order_id' => 'required|exists:orders,id',
+            'note' => 'required|string|max:5000',
+            'dealer_file' => 'nullable|file|mimes:pdf,jpg,png|max:2048',
+            'distributor_file' => 'nullable|file|mimes:pdf,jpg,png|max:2048',
+        ]);
+
+        if (!$request->hasFile('dealer_file') && !$request->hasFile('distributor_file')) {
+            return response()->json(['success' => false, 'message' => 'Please upload at least one document (Dealer or Distributor).']);
+        }
+
+        $order = Order::findOrFail($validated['order_id']);
+
+        // Auto-generate unique credit note number
+        $lastCN = \App\Models\CreditNote::orderBy('id', 'desc')->first();
+        if ($lastCN) {
+            $parts = explode('-', $lastCN->credit_note_number);
+            $lastSeq = end($parts);
+            $nextNumber = is_numeric($lastSeq) ? (int)$lastSeq + 1 : 1;
+        } else {
+            $nextNumber = 1;
+        }
+        $creditNoteNumber = 'CN-' . date('Y') . '-' . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
+        while (\App\Models\CreditNote::where('credit_note_number', $creditNoteNumber)->exists()) {
+            $nextNumber++;
+            $creditNoteNumber = 'CN-' . date('Y') . '-' . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
+        }
+
+        $dealerPath = null;
+        $distributorPath = null;
+
+        if ($request->hasFile('dealer_file')) {
+            $dealerPath = $request->file('dealer_file')->store('credit_notes/dealer', 'public');
+        }
+
+        if ($request->hasFile('distributor_file')) {
+            $distributorPath = $request->file('distributor_file')->store('credit_notes/distributor', 'public');
+        }
+
+        \App\Models\CreditNote::create([
+            'credit_note_number' => $creditNoteNumber,
+            'order_id' => $order->id,
+            'amount' => 0.00,
+            'file_path' => $dealerPath ?? $distributorPath,
+            'dealer_file_path' => $dealerPath,
+            'distributor_file_path' => $distributorPath,
+            'note' => $validated['note']
+        ]);
+
+        // Send push notification to dealer
+        try {
+            FcmService::sendPushNotification(
+                $order->member,
+                'Credit Note Generated',
+                "Credit Note {$creditNoteNumber} has been generated for order {$order->order_number}.",
+                [
+                    'type' => 'order',
+                    'id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'status' => $order->status,
+                    'credit_note_number' => $creditNoteNumber
+                ]
+            );
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("Failed to send push notification: " . $e->getMessage());
+        }
+
+        return response()->json(['success' => true, 'message' => 'Credit Note uploaded successfully!']);
+    }
+
+    public function cancelOrder(Request $request, $id)
+    {
+        $order = Order::findOrFail($id);
+        
+        if (in_array($order->status, ['Out for Delivery', 'Delivered', 'Returned', 'Cancelled', 'Invoiced'])) {
+            return response()->json(['success' => false, 'message' => 'Order cannot be cancelled in its current state.']);
+        }
+        
+        $order->update(['status' => 'Cancelled']);
+
+        try {
+            FcmService::sendPushNotification(
+                $order->member,
+                'Order Cancelled',
+                "Your order {$order->order_number} has been cancelled.",
+                [
+                    'type' => 'order',
+                    'id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'status' => 'Cancelled'
+                ]
+            );
+        } catch (\Exception $e) {}
+
+        return response()->json(['success' => true, 'message' => 'Order cancelled successfully!']);
+    }
 }
+

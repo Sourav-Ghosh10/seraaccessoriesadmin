@@ -1157,7 +1157,7 @@ class DealerController extends Controller
                 'version' => $latest->version,
                 'file_name' => $latest->file_name,
                 'file_size' => $latest->file_size,
-                'url' => asset('storage/' . $latest->file_path),
+                'url' => asset('uploads/' . $latest->file_path),
                 'uploaded_at' => $latest->created_at->format('Y-m-d H:i:s')
             ]
         ]);
@@ -1251,6 +1251,13 @@ class DealerController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Unauthorized.',
+            ], 403);
+        }
+
+        if (!$dealer->is_passbook_visible) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Passbook is currently hidden by admin.',
             ], 403);
         }
 
@@ -1495,6 +1502,138 @@ class DealerController extends Controller
                 'status' => $order->status,
                 'received_at' => $order->received_at,
             ],
+        ], 200);
+    }
+
+    #[OA\Post(
+        path: "/dealer/estimate/{id}/confirm",
+        summary: "Confirm an estimate and convert to order request",
+        description: "Confirms a Responded estimate and automatically generates an Order Request from it.",
+        security: [["bearerAuth" => []]],
+        tags: ["Dealer"],
+        parameters: [
+            new OA\Parameter(name: "id", in: "path", required: true, description: "Estimate ID", schema: new OA\Schema(type: "integer"))
+        ],
+        responses: [
+            new OA\Response(response: 200, description: "Estimate confirmed and converted"),
+            new OA\Response(response: 400, description: "Invalid state"),
+            new OA\Response(response: 404, description: "Estimate not found")
+        ]
+    )]
+    public function confirmEstimate(Request $request, $id): JsonResponse
+    {
+        /** @var Member $dealer */
+        $dealer = $request->user();
+
+        if (strtolower($dealer->role) !== 'dealer') {
+            return response()->json(['success' => false, 'message' => 'Only dealers can perform this action.'], 403);
+        }
+
+        $estimate = Estimate::where('id', $id)->where('member_id', $dealer->id)->first();
+
+        if (!$estimate) {
+            return response()->json(['success' => false, 'message' => 'Estimate request not found.'], 404);
+        }
+
+        if (in_array($estimate->status, ['Cancelled', 'Confirmed'])) {
+            return response()->json(['success' => false, 'message' => 'Estimate request cannot be confirmed in its current state.'], 400);
+        }
+
+        $requestNumber = 'ORD-' . now()->format('Ymd') . '-' . str_pad(
+            (OrderRequest::max('id') ?? 0) + 1,
+            4,
+            '0',
+            STR_PAD_LEFT
+        );
+
+        $description = 'Converted from Estimate ' . $estimate->request_number;
+        if ($estimate->description) {
+            $description .= "\nOriginal: " . $estimate->description;
+        }
+        if ($estimate->response_description) {
+            $description .= "\nAdmin Response: " . $estimate->response_description;
+        }
+
+        $mergedPaths = [];
+        if (!empty($estimate->file_path) && is_array($estimate->file_path)) {
+            $mergedPaths = array_merge($mergedPaths, $estimate->file_path);
+        }
+        if (!empty($estimate->response_file_path)) {
+            if (is_array($estimate->response_file_path)) {
+                $mergedPaths = array_merge($mergedPaths, $estimate->response_file_path);
+            } else {
+                $mergedPaths[] = $estimate->response_file_path;
+            }
+        }
+
+        $orderRequest = OrderRequest::create([
+            'member_id' => $dealer->id,
+            'request_number' => $requestNumber,
+            'type' => 'Text', // Or we could use the original type, but this encapsulates the details
+            'description' => $description,
+            'file_path' => $mergedPaths,
+            'status' => 'Pending',
+        ]);
+
+        $estimate->update(['status' => 'Confirmed']);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Estimate converted into Order Request successfully.',
+            'data' => [
+                'order_request_id' => $orderRequest->id,
+                'request_number' => $orderRequest->request_number
+            ]
+        ], 200);
+    }
+
+    #[OA\Post(
+        path: "/dealer/estimate/{id}/cancel",
+        summary: "Cancel an estimate",
+        description: "Cancels an estimate.",
+        security: [["bearerAuth" => []]],
+        tags: ["Dealer"],
+        parameters: [
+            new OA\Parameter(name: "id", in: "path", required: true, description: "Estimate ID", schema: new OA\Schema(type: "integer"))
+        ],
+        responses: [
+            new OA\Response(response: 200, description: "Estimate cancelled successfully"),
+            new OA\Response(response: 400, description: "Already cancelled"),
+            new OA\Response(response: 404, description: "Estimate not found")
+        ]
+    )]
+    public function cancelEstimate(Request $request, $id): JsonResponse
+    {
+        /** @var Member $dealer */
+        $dealer = $request->user();
+
+        if (strtolower($dealer->role) !== 'dealer') {
+            return response()->json(['success' => false, 'message' => 'Only dealers can perform this action.'], 403);
+        }
+
+        $estimate = Estimate::where('id', $id)->where('member_id', $dealer->id)->first();
+
+        if (!$estimate) {
+            return response()->json(['success' => false, 'message' => 'Estimate request not found.'], 404);
+        }
+
+        if ($estimate->status === 'Cancelled') {
+            return response()->json(['success' => false, 'message' => 'Estimate request is already cancelled.'], 400);
+        }
+
+        if ($estimate->status === 'Confirmed') {
+            return response()->json(['success' => false, 'message' => 'Cannot cancel an already confirmed estimate.'], 400);
+        }
+
+        $estimate->update(['status' => 'Cancelled']);
+
+        return response()->json([
+            'success' => true, 
+            'message' => 'Estimate request cancelled successfully.',
+            'data' => [
+                'id' => $estimate->id,
+                'status' => $estimate->status
+            ]
         ], 200);
     }
 }

@@ -24,7 +24,10 @@
             <label class="form-label">Select Dealer</label>
             <select class="form-control" id="orderDealerId" {{ request('dealer') ? 'disabled' : '' }}>
                 @foreach($dealers as $dealer)
-                    <option value="{{ $dealer->id }}" {{ request('dealer') == $dealer->id ? 'selected' : '' }}>
+                    <option value="{{ $dealer->id }}" 
+                            data-address="{{ $dealer->address }}" 
+                            data-dist-id="{{ $dealer->distributor ? $dealer->distributor->id : '' }}"
+                            {{ request('dealer') == $dealer->id ? 'selected' : '' }}>
                         {{ $dealer->name }} - {{ $dealer->shop }}
                     </option>
                 @endforeach
@@ -33,16 +36,10 @@
                 <input type="hidden" id="orderDealerIdHidden" value="{{ request('dealer') }}">
             @endif
         </div>
-        <div class="form-group">
-            <label class="form-label">Delivery Type</label>
-            <select class="form-control" id="deliveryTypeSelect" onchange="toggleDistributor()">
-                <option value="Company Self Delivery">Company Self Delivery</option>
-                <option value="Distributor Delivery">Distributor Delivery</option>
-            </select>
-        </div>
         <div class="form-group" id="distributorGroup">
-            <label class="form-label">Select Distributor</label>
-            <select class="form-control" id="distributorId">
+            <label class="form-label">Distributor</label>
+            <select class="form-control" id="distributorId" disabled>
+                <option value="">No Distributor Assigned</option>
                 @foreach($distributors as $distributor)
                     <option value="{{ $distributor->id }}">{{ $distributor->name }}</option>
                 @endforeach
@@ -98,17 +95,6 @@
             document.getElementById('fileName').textContent = fileName;
         });
 
-        function toggleDistributor() {
-            const select = document.getElementById('deliveryTypeSelect');
-            const distGroup = document.getElementById('distributorGroup');
-
-            if (select.value === 'Distributor Delivery') {
-                distGroup.style.display = 'block';
-            } else {
-                distGroup.style.display = 'none';
-            }
-        }
-
         function submitOrder() {
             const submitBtn = document.querySelector('button[onclick="submitOrder()"]');
             if (submitBtn.disabled) return;
@@ -121,11 +107,15 @@
             const dealerId = (dealerSelect.disabled && document.getElementById('orderDealerIdHidden'))
                 ? document.getElementById('orderDealerIdHidden').value
                 : dealerSelect.value;
-            const deliveryType = document.getElementById('deliveryTypeSelect').value;
+            
+            const distSelect = document.getElementById('distributorId');
+            const distId = distSelect.value;
+            const deliveryType = distId ? 'Distributor Delivery' : 'Company Self Delivery';
+            
             formData.append('member_id', dealerId);
             formData.append('delivery_type', deliveryType);
-            if (deliveryType === 'Distributor Delivery') {
-                formData.append('distributor_id', document.getElementById('distributorId').value);
+            if (distId) {
+                formData.append('distributor_id', distId);
             }
             formData.append('delivery_date', document.getElementById('deliveryDate').value);
             formData.append('address', document.getElementById('deliveryAddress').value);
@@ -168,9 +158,28 @@
         document.getElementById('pdfUpload').onchange = function() {
             document.getElementById('fileName').innerText = this.files[0].name;
         };
+        
+        function updateDealerInfo() {
+            const select = document.getElementById('orderDealerId');
+            if (select && select.options.length > 0) {
+                const selectedOption = select.options[select.selectedIndex];
+                const address = selectedOption.getAttribute('data-address');
+                document.getElementById('deliveryAddress').value = address || '';
+                
+                const distId = selectedOption.getAttribute('data-dist-id');
+                const distSelect = document.getElementById('distributorId');
+                if (distId) {
+                    distSelect.value = distId;
+                } else {
+                    distSelect.value = '';
+                }
+            }
+        }
+        
+        document.getElementById('orderDealerId').addEventListener('change', updateDealerInfo);
 
-        // Initial call
-        toggleDistributor();
+        // Initial calls
+        updateDealerInfo();
     </script>
 @endsection
 @stop

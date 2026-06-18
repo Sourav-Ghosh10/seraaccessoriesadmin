@@ -30,6 +30,7 @@ Route::get('/uploads/{path}', function ($path) {
 Route::middleware(['auth'])->group(function () {
     // Shared Dashboard (Admin, Operations, Account)
     Route::get('/dashboard', [PageController::class, 'dashboard'])->name('dashboard');
+    Route::get('/dashboard/chart-data', [PageController::class, 'chartData'])->name('dashboard.chart');
 
     // Admin Only
     Route::middleware(['role:Admin'])->group(function () {
@@ -46,16 +47,29 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/dealers', [PageController::class, 'dealers'])->name('dealers');
         Route::post('/dealers', [DealerController::class, 'store'])->name('dealers.store');
         Route::put('/dealers/{id}', [DealerController::class, 'update'])->name('dealers.update');
+        Route::put('/dealers/{id}/update-points', [DealerController::class, 'updatePoints'])->name('dealers.update-points');
+        Route::patch('/dealers/{id}/toggle-passbook', [DealerController::class, 'togglePassbook'])->name('dealers.toggle-passbook');
+        Route::delete('/dealers/{id}', [DealerController::class, 'destroy'])->name('dealers.destroy');
 
         Route::get('/salesmen', [PageController::class, 'salesmen'])->name('salesmen');
         Route::post('/salesmen', [SalesmanController::class, 'store'])->name('salesmen.store');
         Route::put('/salesmen/{id}', [SalesmanController::class, 'update'])->name('salesmen.update');
+        Route::put('/salesmen/{id}/update-points', [SalesmanController::class, 'updatePoints'])->name('salesmen.update-points');
         Route::get('/salesmen/{id}/performance', [SalesmanController::class, 'performance'])->name('salesmen.performance');
+        Route::get('/salesman-attendance', [PageController::class, 'salesmanAttendance'])->name('salesman.attendance');
+        Route::get('/salesman-attendance/{id}', [PageController::class, 'salesmanAttendanceDetails'])->name('salesman.attendance.details');
+
+        Route::get('/expenses', [\App\Http\Controllers\ExpenseController::class, 'index'])->name('expenses.index');
+        Route::patch('/expenses/{id}/status', [\App\Http\Controllers\ExpenseController::class, 'updateStatus'])->name('expenses.status.update');
 
         Route::get('/distributors', [PageController::class, 'distributors'])->name('distributors');
         Route::post('/distributors', [DistributorController::class, 'store'])->name('distributors.store');
         Route::put('/distributors/{id}', [DistributorController::class, 'update'])->name('distributors.update');
 
+        Route::get('/cities', [\App\Http\Controllers\CityController::class, 'index'])->name('cities');
+        Route::post('/cities', [\App\Http\Controllers\CityController::class, 'store'])->name('cities.store');
+        Route::put('/cities/{id}', [\App\Http\Controllers\CityController::class, 'update'])->name('cities.update');
+        Route::patch('/cities/{id}/toggle-status', [\App\Http\Controllers\CityController::class, 'toggleStatus'])->name('cities.toggle-status');
         Route::get('/estimate-requests', [PageController::class, 'estimateRequests'])->name('estimate-requests');
         Route::post('/estimates/{id}/revert', [OrderController::class, 'revertEstimate'])->name('estimates.revert');
 
@@ -86,6 +100,9 @@ Route::middleware(['auth'])->group(function () {
     Route::middleware(['role:Admin,Account'])->group(function () {
         Route::get('/invoices', [PageController::class, 'invoices'])->name('invoices');
         Route::post('/invoices/store', [OrderController::class, 'storeInvoice'])->name('invoices.store');
+        Route::post('/credit-notes/store', [OrderController::class, 'storeCreditNote'])->name('credit-notes.store');
+        Route::post('/orders/{id}/mark-returned', [OrderController::class, 'markReturned'])->name('orders.mark-returned');
+        Route::patch('/orders/{id}/cancel', [OrderController::class, 'cancelOrder'])->name('orders.cancel');
     });
 
     // Admin, Account & Operations
@@ -100,6 +117,8 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/orders', [PageController::class, 'ordersList'])->name('orders.index');
         Route::get('/orders/create', [PageController::class, 'createOrder'])->name('orders.create');
         Route::get('/orders/{id}', [PageController::class, 'showOrder'])->name('orders.show');
+        Route::get('/api/check-new-requests', [PageController::class, 'checkNewRequests'])->name('check.new.requests');
+        Route::get('/api/dependent-members', [PageController::class, 'dependentMembers'])->name('api.dependent-members');
         Route::post('/order-requests', [OrderController::class, 'storeRequest'])->name('order-requests.store');
         Route::post('/orders/store', [OrderController::class, 'storeOrder'])->name('orders.store');
         Route::post('/orders/{id}/upload-challan', [OrderController::class, 'uploadChallan'])->name('orders.upload-challan');

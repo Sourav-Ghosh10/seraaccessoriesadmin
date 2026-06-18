@@ -16,6 +16,10 @@ class DistributorController extends Controller
             'phone' => 'required|string|max:15',
             'password' => 'required|string|min:6',
             'status' => 'required|string',
+            'address' => 'nullable|string|max:255',
+            'dist_id' => 'required|string|max:6',
+            'gst_no' => 'required|string|max:50',
+            'city_id' => 'required|integer',
         ]);
 
         $validated['password'] = Hash::make($validated['password']);
@@ -35,6 +39,10 @@ class DistributorController extends Controller
             'email' => 'required|email|unique:members,email,' . $id,
             'phone' => 'required|string|max:15',
             'status' => 'required|string',
+            'address' => 'nullable|string|max:255',
+            'dist_id' => 'required|string|max:6',
+            'gst_no' => 'required|string|max:50',
+            'city_id' => 'required|integer',
         ]);
 
         if ($request->filled('password')) {

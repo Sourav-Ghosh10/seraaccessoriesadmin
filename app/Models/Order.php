@@ -30,7 +30,15 @@ class Order extends Model
         return $this->hasOne(Invoice::class);
     }
 
+    public function creditNote() {
+        return $this->hasOne(CreditNote::class);
+    }
+
     public function items() {
         return $this->hasMany(OrderItem::class);
+    }
+
+    public function rewardTransactions() {
+        return $this->hasMany(RewardTransaction::class);
     }
 }

@@ -21,42 +21,59 @@
         @php $role = session('role', 'Admin'); @endphp
         
         @if($role == 'Admin' || $role == 'Operations')
-            <div class="card">
+            <a href="{{ route('dealers') }}" class="card" style="text-decoration: none; color: inherit;">
                 <div class="widget-icon" style="background: rgba(154, 90, 58, 0.1); color: var(--primary);">
                     <i class="fas fa-users"></i>
                 </div>
                 <div class="widget-value">{{ number_format($totalDealers) }}</div>
                 <div class="widget-label">Total Dealers</div>
-            </div>
-            <div class="card">
+            </a>
+            <a href="{{ route('salesmen') }}" class="card" style="text-decoration: none; color: inherit;">
                 <div class="widget-icon" style="background: rgba(74, 74, 74, 0.1); color: var(--secondary);">
                     <i class="fas fa-user-tie"></i>
                 </div>
                 <div class="widget-value">{{ number_format($totalSalesmen) }}</div>
                 <div class="widget-label">Total Salesmen</div>
-            </div>
+            </a>
         @endif
 
-        <div class="card">
+        <a href="{{ route('orders.index') }}" class="card" style="text-decoration: none; color: inherit;">
             <div class="widget-icon" style="background: rgba(16, 185, 129, 0.1); color: var(--success);">
                 <i class="fas fa-shopping-cart"></i>
             </div>
             <div class="widget-value">{{ number_format($totalOrders) }}</div>
             <div class="widget-label">Total Orders</div>
-        </div>
-        <div class="card">
+        </a>
+        <a href="{{ route('order-requests') }}" class="card" style="text-decoration: none; color: inherit;">
             <div class="widget-icon" style="background: rgba(245, 158, 11, 0.1); color: var(--warning);">
                 <i class="fas fa-clock"></i>
             </div>
             <div class="widget-value">{{ number_format($pendingOrders) }}</div>
             <div class="widget-label">Pending Orders</div>
-        </div>
+        </a>
     </div>
 
     @if($role == 'Admin')
     <div class="grid grid-sales" style="margin-top: 30px;">
         <div class="card">
-            <h3 style="margin-bottom: 20px;">Monthly Sales Graph</h3>
+            <style>
+                #customMonthPicker::-webkit-calendar-picker-indicator {
+                    filter: invert(1);
+                    cursor: pointer;
+                }
+            </style>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 style="margin-bottom: 0;">Order Graph</h3>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <input type="month" id="customMonthPicker" onclick="this.showPicker()" class="form-control" style="display: none; width: auto; background: var(--bg-dark); color: var(--text-light); border: 1px solid var(--border-color); border-radius: 4px; padding: 4px 10px; font-size: 14px; cursor: pointer;">
+                    <select id="chartFilter" class="form-control" style="width: auto; background: var(--bg-dark); color: var(--text-light); border: 1px solid var(--border-color); border-radius: 4px; padding: 5px 10px;">
+                        <option value="6_months" style="color: #000; background: #fff;">Last 6 Months</option>
+                        <option value="yearly" style="color: #000; background: #fff;">This Year</option>
+                        <option value="monthly" style="color: #000; background: #fff;">This Month</option>
+                        <option value="custom" style="color: #000; background: #fff;">Custom Month</option>
+                    </select>
+                </div>
+            </div>
             <div style="height: 300px; position: relative;">
                 <canvas id="salesChart"></canvas>
             </div>
@@ -108,12 +125,12 @@
     const salesChartEl = document.getElementById('salesChart');
     if (salesChartEl) {
         const ctx = salesChartEl.getContext('2d');
-        new Chart(ctx, {
+        let salesChart = new Chart(ctx, {
             type: 'line',
             data: {
                 labels: {!! json_encode($months) !!},
                 datasets: [{
-                    label: 'Sales (₹)',
+                    label: 'Orders',
                     data: {!! json_encode($salesData) !!},
                     borderColor: '#9a5a3a',
                     backgroundColor: 'rgba(154, 90, 58, 0.1)',
@@ -143,6 +160,52 @@
                 }
             }
         });
+
+        const chartFilter = document.getElementById('chartFilter');
+        const customMonthPicker = document.getElementById('customMonthPicker');
+
+        function fetchChartData(filter, customMonth = null) {
+            let url = `{{ route('dashboard.chart') }}?filter=${filter}`;
+            if (customMonth) {
+                url += `&month=${customMonth}`;
+            }
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    salesChart.data.labels = data.labels;
+                    salesChart.data.datasets[0].data = data.data;
+                    salesChart.update();
+                })
+                .catch(error => console.error('Error fetching chart data:', error));
+        }
+
+        if (chartFilter) {
+            chartFilter.addEventListener('change', function() {
+                const filter = this.value;
+                if (filter === 'custom') {
+                    customMonthPicker.style.display = 'block';
+                    if (customMonthPicker.value) {
+                        fetchChartData(filter, customMonthPicker.value);
+                    } else {
+                        const now = new Date();
+                        const currentMonth = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+                        customMonthPicker.value = currentMonth;
+                        fetchChartData(filter, currentMonth);
+                    }
+                } else {
+                    customMonthPicker.style.display = 'none';
+                    fetchChartData(filter);
+                }
+            });
+        }
+
+        if (customMonthPicker) {
+            customMonthPicker.addEventListener('change', function() {
+                if (chartFilter.value === 'custom') {
+                    fetchChartData('custom', this.value);
+                }
+            });
+        }
     }
 </script>
 @endsection

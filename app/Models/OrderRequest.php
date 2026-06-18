@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class OrderRequest extends Model
 {
-    protected $fillable = ['member_id', 'request_number', 'type', 'description', 'file_path', 'status'];
+    protected $fillable = ['member_id', 'request_number', 'order_id', 'type', 'description', 'file_path', 'status'];
 
     protected $casts = [
         'file_path' => 'array',
@@ -15,5 +15,10 @@ class OrderRequest extends Model
     public function member()
     {
         return $this->belongsTo(Member::class, 'member_id');
+    }
+
+    public function order()
+    {
+        return $this->belongsTo(Order::class, 'order_id');
     }
 }

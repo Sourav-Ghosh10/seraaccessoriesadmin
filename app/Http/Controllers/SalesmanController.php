@@ -18,8 +18,9 @@ class SalesmanController extends Controller
             'mobile' => 'required|string|max:15',
             'email' => 'required|email|unique:members,email',
             'password' => 'required|string|min:6',
-            'ref_code' => 'required|string|unique:members,ref_code',
+            'ref_code' => 'required|alpha_num|size:6|unique:members,ref_code',
             'status' => 'required|string',
+            'monthly_target' => 'required|numeric|min:0',
         ]);
 
         $validated['password'] = Hash::make($validated['password']);
@@ -37,8 +38,9 @@ class SalesmanController extends Controller
             'name' => 'required|string|max:255',
             'mobile' => 'required|string|max:15',
             'email' => 'required|email|unique:members,email,' . $id,
-            'ref_code' => 'required|string|unique:members,ref_code,' . $id,
+            'ref_code' => 'required|alpha_num|size:6|unique:members,ref_code,' . $id,
             'status' => 'required|string',
+            'monthly_target' => 'required|numeric|min:0',
         ]);
 
         if ($request->filled('password')) {
@@ -54,23 +56,29 @@ class SalesmanController extends Controller
     {
         $salesman = Member::where('role', 'salesman')->findOrFail($id);
 
-        // 1. Dealers count assigned to this salesman
+        // 1. Dealers count assigned to this salesman (Active currently)
         $dealersCount = Member::where('role', 'dealer')
             ->where('salesman_id', $salesman->id)
             ->count();
 
-        // 2. Total orders placed by these dealers
+        // 2. Orders placed by these dealers (Current Month)
         $ordersCount = Order::whereHas('member', function ($q) use ($salesman) {
             $q->where('salesman_id', $salesman->id);
-        })->count();
+        })
+        ->whereMonth('created_at', now()->month)
+        ->whereYear('created_at', now()->year)
+        ->count();
 
-        // 3. Total revenue from invoices for orders placed by these dealers
+        // 3. Revenue from invoices for orders placed by these dealers (Current Month)
         $totalRevenue = Invoice::whereHas('order.member', function ($q) use ($salesman) {
             $q->where('salesman_id', $salesman->id);
-        })->sum('amount');
+        })
+        ->whereMonth('created_at', now()->month)
+        ->whereYear('created_at', now()->year)
+        ->sum('amount');
 
         // 4. Monthly Target and Completion Percentage
-        $monthlyTarget = (float) Setting::get('salesman_monthly_target', 100000);
+        $monthlyTarget = $salesman->monthly_target ? (float) $salesman->monthly_target : (float) Setting::get('salesman_monthly_target', 100000);
         $targetCompletion = $monthlyTarget > 0 ? min(100, round(($totalRevenue / $monthlyTarget) * 100)) : 0;
 
         return response()->json([
@@ -84,5 +92,27 @@ class SalesmanController extends Controller
                 'monthly_target' => $monthlyTarget
             ]
         ]);
+    }
+    public function updatePoints(Request $request, $id)
+    {
+        $salesman = Member::where('role', 'salesman')->findOrFail($id);
+        
+        $request->validate([
+            'points' => 'required|numeric'
+        ]);
+
+        $currentPoints = $salesman->points_balance;
+        $newPoints = (int) $request->points;
+
+        if ($currentPoints !== $newPoints) {
+            $difference = $newPoints - $currentPoints;
+            \App\Models\RewardTransaction::create([
+                'member_id' => $salesman->id,
+                'points' => $difference,
+                'type' => 'Admin Adjustment'
+            ]);
+        }
+
+        return response()->json(['success' => true, 'message' => 'Points updated successfully!']);
     }
 }
