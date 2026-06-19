@@ -221,6 +221,15 @@ class PageController extends Controller
         return view('distributors', compact('distributors', 'cities'));
     }
 
+    public function distributorStaff($id) {
+        $distributor = \App\Models\Member::where('role', 'distributor')->findOrFail($id);
+        $staffMembers = \App\Models\Member::where('role', 'distributor_staff')
+            ->where('dist_id', $distributor->dist_id)
+            ->paginate(10);
+            
+        return view('distributor_staff', compact('distributor', 'staffMembers'));
+    }
+
     public function complianceDashboard() {
         return view('compliance.dashboard');
     }

@@ -66,6 +66,10 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/distributors', [DistributorController::class, 'store'])->name('distributors.store');
         Route::put('/distributors/{id}', [DistributorController::class, 'update'])->name('distributors.update');
 
+        Route::get('/distributors/{id}/staff', [PageController::class, 'distributorStaff'])->name('distributors.staff');
+        Route::post('/distributors/staff', [\App\Http\Controllers\DistributorStaffController::class, 'store'])->name('distributors.staff.store');
+        Route::put('/distributors/staff/{id}', [\App\Http\Controllers\DistributorStaffController::class, 'update'])->name('distributors.staff.update');
+
         Route::get('/cities', [\App\Http\Controllers\CityController::class, 'index'])->name('cities');
         Route::post('/cities', [\App\Http\Controllers\CityController::class, 'store'])->name('cities.store');
         Route::put('/cities/{id}', [\App\Http\Controllers\CityController::class, 'update'])->name('cities.update');

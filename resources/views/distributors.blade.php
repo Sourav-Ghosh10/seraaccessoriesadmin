@@ -161,7 +161,10 @@
                     <td>{{ $distributor->gst_no ?? 'N/A' }}</td>
                     <td><span class="badge badge-success">{{ $distributor->status }}</span></td>
                     <td>
-                        <button class="btn glass" onclick="editDistributor('{{ $distributor->id }}', '{{ addslashes($distributor->name) }}', '{{ addslashes($distributor->email) }}', '{{ addslashes($distributor->mobile) }}', '{{ $distributor->status }}', '{{ addslashes($distributor->dist_id) }}', '{{ addslashes($distributor->address) }}', '{{ addslashes($distributor->gst_no) }}', '{{ $distributor->city_id }}')" style="padding: 5px 10px; font-size: 12px;"><i class="fas fa-edit"></i></button>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn glass" onclick="editDistributor('{{ $distributor->id }}', '{{ addslashes($distributor->name) }}', '{{ addslashes($distributor->email) }}', '{{ addslashes($distributor->mobile) }}', '{{ $distributor->status }}', '{{ addslashes($distributor->dist_id) }}', '{{ addslashes($distributor->address) }}', '{{ addslashes($distributor->gst_no) }}', '{{ $distributor->city_id }}')" style="padding: 5px 10px; font-size: 12px;" title="Edit Distributor"><i class="fas fa-edit"></i></button>
+                            <a href="{{ route('distributors.staff', $distributor->id) }}" class="btn glass" style="padding: 5px 10px; font-size: 12px; color: #fff;" title="Manage Staff"><i class="fas fa-users"></i></a>
+                        </div>
                     </td>
                 </tr>
                 @endforeach
