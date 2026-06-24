@@ -125,9 +125,11 @@ class DistributorController extends Controller
         $search = $request->query('search');
         $status = $request->query('status');
         $perPage = (int) $request->query('per_page', 15);
+        $startDate = $request->query('start_date');
+        $endDate = $request->query('end_date');
 
         $ordersQuery = Order::where('distributor_id', $distributor->id)
-            ->with(['member', 'delivery'])
+            ->with(['member', 'delivery', 'invoice', 'items'])
             ->when($status, function ($query) use ($status) {
                 return $query->where('status', $status);
             })
@@ -139,6 +141,12 @@ class DistributorController extends Controller
                              ->orWhere('shop', 'like', "%{$search}%");
                       });
                 });
+            })
+            ->when($startDate, function ($query) use ($startDate) {
+                return $query->whereDate('created_at', '>=', $startDate);
+            })
+            ->when($endDate, function ($query) use ($endDate) {
+                return $query->whereDate('created_at', '<=', $endDate);
             })
             ->orderBy('created_at', 'desc');
 
@@ -157,10 +165,13 @@ class DistributorController extends Controller
                 ];
             }
 
+            $calculatedAmount = $order->items->sum(function($i) { return $i->qty * $i->price; });
+            $finalAmount = $order->amount > 0 ? $order->amount : ($order->invoice && $order->invoice->amount > 0 ? $order->invoice->amount : $calculatedAmount);
+
             return [
                 'id' => $order->id,
                 'order_number' => $order->order_number,
-                'amount' => (float) $order->amount,
+                'amount' => (float) $finalAmount,
                 'status' => $order->status,
                 'received_at' => $order->received_at,
                 'created_at' => $order->created_at,
@@ -172,6 +183,8 @@ class DistributorController extends Controller
                     'email' => $order->member->email,
                 ],
                 'delivery' => $delivery,
+                'invoice_number' => $order->invoice ? $order->invoice->invoice_number : null,
+                'has_invoice' => ($order->invoice_file || $order->challan_file || ($order->invoice && $order->invoice->file_path)) ? true : false,
             ];
         });
 

@@ -439,6 +439,8 @@ class DealerController extends Controller
 
         $tab = $request->query('tab', 'All'); // All, Pending, Confirmed, Order Placed
         $search = $request->query('search');
+        $startDate = $request->query('start_date');
+        $endDate = $request->query('end_date');
 
         $merged = collect();
 
@@ -499,9 +501,16 @@ class DealerController extends Controller
         // 3. Orders
         if (in_array($tab, ['All', 'Order Placed'])) {
             $orders = Order::where('member_id', $dealer->id)
+                ->with(['invoice', 'items'])
                 ->when($search, function ($query) use ($search) {
                     return $query->where('order_number', 'like', "%$search%")
                         ->orWhere('created_at', 'like', "%$search%");
+                })
+                ->when($startDate, function ($query) use ($startDate) {
+                    return $query->whereDate('created_at', '>=', $startDate);
+                })
+                ->when($endDate, function ($query) use ($endDate) {
+                    return $query->whereDate('created_at', '<=', $endDate);
                 })
                 ->get()
                 ->map(function ($item) {
@@ -513,6 +522,9 @@ class DealerController extends Controller
                         'status' => 'Order Placed',
                         'type' => 'Order',
                         'raw_date' => $item->created_at,
+                        'amount' => $item->amount > 0 ? $item->amount : ($item->invoice && $item->invoice->amount > 0 ? $item->invoice->amount : $item->items->sum(function($i) { return $i->qty * $i->price; })),
+                        'invoice_number' => $item->invoice ? $item->invoice->invoice_number : null,
+                        'has_invoice' => ($item->invoice_file || $item->challan_file || ($item->invoice && $item->invoice->file_path)) ? true : false,
                     ];
                 });
             $merged = $merged->concat($orders);
@@ -802,6 +814,120 @@ class DealerController extends Controller
             'success' => false,
             'message' => 'Invalid type provided. Must be one of: Order, Order Request, Estimate',
         ], 422);
+    }
+
+    #[OA\Get(
+        path: "/dealer/my-orders/download-invoice",
+        summary: "Download invoice for an order",
+        description: "Fetches the direct download link for the invoice or challan of a specific order.",
+        security: [["bearerAuth" => []]],
+        tags: ["Dealer"],
+        parameters: [
+            new OA\Parameter(
+                name: "order_id",
+                in: "query",
+                description: "The unique identifier of the order",
+                required: true,
+                schema: new OA\Schema(type: "string")
+            ),
+            new OA\Parameter(
+                name: "type",
+                in: "query",
+                description: "Type of the record (Order)",
+                required: true,
+                schema: new OA\Schema(type: "string", enum: ["Order"])
+            )
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: "Link fetched successfully",
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: "success", type: "boolean", example: true),
+                        new OA\Property(property: "data", type: "object", properties: [
+                            new OA\Property(property: "download_link", type: "string", example: "https://example.com/uploads/invoices/123.pdf")
+                        ])
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 404,
+                description: "Invoice not found",
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: "success", type: "boolean", example: false),
+                        new OA\Property(property: "message", type: "string", example: "Invoice or challan not found for this order.")
+                    ]
+                )
+            )
+        ]
+    )]
+    public function downloadInvoice(Request $request): JsonResponse
+    {
+        /** @var Member $dealer */
+        $dealer = $request->user();
+
+        // Dealer-only guard
+        if (strtolower($dealer->role) !== 'dealer') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized.',
+            ], 403);
+        }
+
+        $request->validate([
+            'order_id' => 'required',
+            'type' => 'required|string'
+        ]);
+
+        $orderId = $request->query('order_id');
+        $type = strtolower($request->query('type'));
+
+        if ($type === 'order') {
+            $order = Order::where('member_id', $dealer->id)
+                ->where(function ($query) use ($orderId) {
+                    $query->where('order_number', $orderId)
+                        ->orWhere('id', $orderId);
+                })
+                ->with('invoice')
+                ->first();
+
+            if (!$order) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Order not found.',
+                ], 404);
+            }
+
+            $downloadLink = null;
+            if ($order->invoice && $order->invoice->file_path) {
+                $downloadLink = asset('uploads/' . $order->invoice->file_path);
+            } elseif ($order->invoice_file) {
+                $downloadLink = asset('uploads/' . $order->invoice_file);
+            } elseif ($order->challan_file) {
+                $downloadLink = asset('uploads/' . $order->challan_file);
+            }
+
+            if (!$downloadLink) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invoice or challan not found for this order.',
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'download_link' => $downloadLink,
+                ],
+            ]);
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Download not supported for this type.',
+        ], 400);
     }
 
     #[OA\Post(

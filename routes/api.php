@@ -49,6 +49,7 @@ Route::middleware(JwtAuthMiddleware::class)->group(function () {
         Route::post('/order-request', [DealerController::class, 'placeOrderRequest'])->name('order-request');
         Route::get('/my-orders', [DealerController::class, 'myOrders'])->name('my-orders');
         Route::get('/my-orders/details', [DealerController::class, 'orderDetails'])->name('my-orders.details');
+        Route::get('/my-orders/download-invoice', [DealerController::class, 'downloadInvoice'])->name('my-orders.download-invoice');
         Route::post('/update-fcm-token', [DealerController::class, 'updateFcmToken'])->name('update-fcm-token');
         Route::get('/notifications', [DealerController::class, 'getNotifications'])->name('notifications.list');
         Route::post('/notifications/read-all', [DealerController::class, 'readAllNotifications'])->name('notifications.read-all');
