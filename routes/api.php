@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DealerController;
 use App\Http\Controllers\Api\SalesmanController;
 use App\Http\Controllers\Api\DistributorController;
+use App\Http\Controllers\Api\RewardTransactionController;
 
 /*
 |--------------------------------------------------------------------------
@@ -31,6 +32,8 @@ Route::prefix('auth')->name('api.auth.')->group(function () {
     Route::post('/refresh', [AuthController::class, 'refresh'])->name('refresh');
 });
 
+Route::get('/reward-transactions', [RewardTransactionController::class, 'index']);
+
 use App\Http\Middleware\JwtAuthMiddleware;
 
 // ── Auth Protected (JWT) ──────────────────────────────────────────────────────
@@ -54,6 +57,7 @@ Route::middleware(JwtAuthMiddleware::class)->group(function () {
         Route::get('/notifications', [DealerController::class, 'getNotifications'])->name('notifications.list');
         Route::post('/notifications/read-all', [DealerController::class, 'readAllNotifications'])->name('notifications.read-all');
         Route::get('/my-points', [DealerController::class, 'myPoints'])->name('my-points');
+        Route::post('/redeem-request', [DealerController::class, 'submitRedeemRequest'])->name('redeem-request');
         Route::get('/price-list', [DealerController::class, 'getLatestPriceList'])->name('price-list');
         Route::get('/my-passbook', [DealerController::class, 'myPassbook'])->name('my-passbook');
         Route::post('/upload-payment', [DealerController::class, 'uploadPayment'])->name('upload-payment');
@@ -67,6 +71,7 @@ Route::middleware(JwtAuthMiddleware::class)->group(function () {
         Route::get('/my-orders', [SalesmanController::class, 'myOrders'])->name('my-orders');
         Route::get('/my-orders/details', [SalesmanController::class, 'orderDetails'])->name('my-orders.details');
         Route::get('/my-points', [SalesmanController::class, 'myPoints'])->name('my-points');
+        Route::post('/redeem-request', [SalesmanController::class, 'submitRedeemRequest'])->name('redeem-request');
         Route::get('/dealer/passbook', [SalesmanController::class, 'dealerPassbook'])->name('dealer-passbook');
 
         // Attendance & Visits

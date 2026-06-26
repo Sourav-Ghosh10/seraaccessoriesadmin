@@ -6,6 +6,8 @@ use Illuminate\Http\Request;
 use App\Models\OrderRequest;
 use App\Models\Member;
 use App\Models\Order;
+use App\Models\RedeemRequest;
+
 
 class PageController extends Controller
 {
@@ -137,7 +139,7 @@ class PageController extends Controller
     }
     
     public function dealers() {
-        $dealers = \App\Models\Member::where('role', 'dealer')->with(['salesman', 'city'])->paginate(10);
+        $dealers = \App\Models\Member::where('role', 'dealer')->with(['salesman', 'city'])->orderBy('id', 'desc')->paginate(10);
         $cities = \App\Models\City::where('status', 1)->orderBy('city')->get();
         $salesmen = \App\Models\Member::where('role', 'salesman')->orderBy('name')->get();
         $distributors = \App\Models\Member::where('role', 'distributor')->orderBy('name')->get();
@@ -403,7 +405,72 @@ class PageController extends Controller
         return view('orders.requests', compact('orders', 'dealers', 'cities', 'salesmen', 'distributors'));
     }
 
+    public function redeemRequests(Request $request) {
+        if (!\Illuminate\Support\Facades\Schema::hasColumn('redeem_request', 'dealer_file_path')) {
+            \Illuminate\Support\Facades\Schema::table('redeem_request', function (\Illuminate\Database\Schema\Blueprint $table) {
+                $table->string('dealer_file_path')->nullable()->after('status');
+                $table->string('distributor_file_path')->nullable()->after('dealer_file_path');
+            });
+        }
+
+        $query = RedeemRequest::with(['member' => function($q) {
+            $q->with(['salesman', 'distributor', 'city'])->withSum('rewardTransactions', 'points');
+        }]);
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('id', 'like', "%$search%")
+                  ->orWhereHas('member', function($q2) use ($search) {
+                      $q2->where('name', 'like', "%$search%")
+                         ->orWhere('shop', 'like', "%$search%")
+                         ->orWhere('emp_id', 'like', "%$search%");
+                  });
+            });
+        }
+
+        if ($request->filled('city_id') || $request->filled('salesman_id') || $request->filled('dist_id')) {
+            $query->whereHas('member', function($q) use ($request) {
+                if ($request->filled('city_id')) {
+                    if (is_array($request->city_id)) {
+                        $q->whereIn('city_id', $request->city_id);
+                    } else {
+                        $q->where('city_id', $request->city_id);
+                    }
+                }
+                if ($request->filled('salesman_id')) {
+                    $q->where('salesman_id', $request->salesman_id);
+                }
+                if ($request->filled('dist_id')) {
+                    $q->where('dist_id', $request->dist_id);
+                }
+            });
+        }
+
+        if ($request->filled('date_type')) {
+            if ($request->date_type === 'individual' && $request->filled('single_date')) {
+                $query->whereDate('created_at', $request->single_date);
+            } elseif ($request->date_type === 'range') {
+                if ($request->filled('date_from')) {
+                    $query->whereDate('created_at', '>=', $request->date_from);
+                }
+                if ($request->filled('date_to')) {
+                    $query->whereDate('created_at', '<=', $request->date_to);
+                }
+            }
+        }
+
+        $requests = $query->orderBy('id', 'desc')->paginate(10);
+        $dealers = Member::where('role', 'dealer')->get();
+        $cities = \App\Models\City::where('status', 1)->orderBy('city')->get();
+        $salesmen = Member::where('role', 'salesman')->orderBy('name')->get();
+        $distributors = Member::where('role', 'distributor')->orderBy('name')->get();
+
+        return view('redeem_requests', compact('requests', 'dealers', 'cities', 'salesmen', 'distributors'));
+    }
+
     public function ordersList(Request $request) {
+
         $query = \App\Models\Order::with(['member.salesman', 'member.distributor', 'delivery'])
             ->where('status', '!=', 'Pending')
             ->where('order_number', 'like', 'ORD-%');

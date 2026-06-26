@@ -1074,7 +1074,7 @@ input:-webkit-autofill:active{
         if (!currentEditPointsDealerId) return;
 
         showLoader();
-        fetch(`/dealers/${currentEditPointsDealerId}/update-points`, {
+        fetch(`${window.BASE_PATH}/dealers/${currentEditPointsDealerId}/update-points`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
@@ -1086,20 +1086,20 @@ input:-webkit-autofill:active{
         .then(result => {
             hideLoader();
             if (result.success) {
-                showToast('Success', result.message, 'success');
-                setTimeout(() => window.location.reload(), 1000);
+                alert(result.message);
+                setTimeout(() => window.location.reload(), 500);
             } else {
                 if (result.errors && result.errors.points) {
                     showError('quickEditPointsInput', 'err-quick-points', result.errors.points[0]);
                 } else {
-                    showToast('Error', result.message || 'An error occurred.', 'error');
+                    alert('Error: ' + (result.message || 'An error occurred.'));
                 }
             }
         })
         .catch(error => {
             hideLoader();
             console.error('Error:', error);
-            showToast('Error', 'Server error occurred.', 'error');
+            alert('Server error occurred.');
         });
     }
 

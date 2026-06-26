@@ -177,6 +177,14 @@
                         </li>
 
                         <li class="nav-item">
+                            <a href="{{ route('redeem-requests') }}" class="nav-link {{ Request::is('redeem-requests*') ? 'active' : '' }}">
+                                <i class="fas fa-coins"></i>
+                                <span>Redeem Requests</span>
+                            </a>
+                        </li>
+
+
+                        <li class="nav-item">
                             <a href="{{ route('price-list') }}"
                                 class="nav-link {{ Request::is('price-list*') ? 'active' : '' }}">
                                 <i class="fas fa-file-pdf"></i>
