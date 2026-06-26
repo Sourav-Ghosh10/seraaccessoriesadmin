@@ -167,8 +167,17 @@
             </div>
         </div>
 
+        <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+            <a href="{{ route('order-requests', array_merge(request()->query(), ['tab' => 'dealer'])) }}" 
+               class="btn {{ request('tab', 'dealer') == 'dealer' ? 'btn-primary' : 'glass' }}"
+               style="padding: 8px 20px;">Dealer Requests</a>
+            <a href="{{ route('order-requests', array_merge(request()->query(), ['tab' => 'distributor'])) }}" 
+               class="btn {{ request('tab') == 'distributor' ? 'btn-primary' : 'glass' }}"
+               style="padding: 8px 20px;">Distributor Requests</a>
+        </div>
+
         <form id="filterForm" method="GET" action="" style="background: rgba(255,255,255,0.02); padding: 20px; border-radius: 12px; margin-bottom: 25px; border: 1px solid rgba(255,255,255,0.05);">
-            <div class="grid-4" style="gap: 15px; margin-bottom: 15px;">
+            <div class="grid-4" style="gap: 15px; align-items: end;">
                 <div>
                     <label class="form-label" style="font-size: 11px; text-transform: uppercase; color: var(--text-muted);">Search</label>
                     <input type="text" name="search" id="searchInput" class="form-control" placeholder="ID, Dealer or Shop Name" value="{{ request('search') }}" style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1);">
@@ -182,6 +191,7 @@
                         @endforeach
                     </select>
                 </div>
+                @if(request('tab', 'dealer') !== 'distributor')
                 <div>
                     <label class="form-label" style="font-size: 11px; text-transform: uppercase; color: var(--text-muted);">Salesman</label>
                     <select name="salesman_id" id="filterSalesman" class="form-control select2" style="width: 100%;">
@@ -191,6 +201,7 @@
                         @endforeach
                     </select>
                 </div>
+                @endif
                 <div>
                     <label class="form-label" style="font-size: 11px; text-transform: uppercase; color: var(--text-muted);">Distributor</label>
                     <select name="dist_id" id="filterDistributor" class="form-control select2" style="width: 100%;">
@@ -200,9 +211,7 @@
                         @endforeach
                     </select>
                 </div>
-            </div>
 
-            <div class="grid-4" style="gap: 15px; align-items: end;">
                 <div>
                     <label class="form-label" style="font-size: 11px; text-transform: uppercase; color: var(--text-muted);">Date Filter</label>
                     <select name="date_type" id="dateTypeSelect" class="form-control" style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1); color: #fff;" onchange="toggleDateInputs()">
@@ -275,8 +284,10 @@
                     <tr>
                         <th>Request ID</th>
                         <th>Order ID</th>
+                        @if(request('tab', 'dealer') !== 'distributor')
                         <th>Shop Name</th>
                         <th>Salesman</th>
+                        @endif
                         <th>Distributor</th>
                         <th>Type</th>
                         <th>Date</th>
@@ -306,6 +317,7 @@
                                     <span style="font-weight: 500; color: var(--text-muted);">-</span>
                                 @endif
                             </td>
+                            @if(request('tab', 'dealer') !== 'distributor')
                             <td>
                                 <a href="javascript:void(0)" onclick="viewMemberDetails('{{ addslashes($order->member->name) }}', '{{ addslashes($order->member->email) }}', '{{ addslashes($order->member->mobile) }}', '{{ addslashes($order->member->ref_code ?? '') }}', 'Dealer', '{{ addslashes(preg_replace('/\r|\n/', ' ', $order->member->address ?? '')) }}', '{{ addslashes($order->member->shop ?? '') }}', '{{ addslashes($order->member->city->city ?? '') }}', '{{ addslashes($order->member->gst_no ?? '') }}', '{{ $order->member->discount_percent ?? '' }}', '{{ addslashes($order->member->salesman->name ?? '') }}', '{{ addslashes($distributors->firstWhere('dist_id', $order->member->dist_id)->name ?? $order->member->dist_id ?? '') }}')" style="font-weight: 500; color: #3b82f6; text-decoration: none;">
                                     {{ $order->member->shop ?? $order->member->name }}
@@ -325,6 +337,7 @@
                                     <span style="color: var(--text-muted);">N/A</span>
                                 @endif
                             </td>
+                            @endif
                             <td>
                                 @if(isset($order->member->distributor))
                                     <a href="javascript:void(0)" onclick="viewMemberDetails('{{ addslashes($order->member->distributor->name) }}', '{{ addslashes($order->member->distributor->email) }}', '{{ addslashes($order->member->distributor->mobile) }}', '{{ addslashes($order->member->distributor->dist_id) }}', 'Distributor', '{{ addslashes(preg_replace('/\r|\n/', ' ', $order->member->distributor->address ?? '')) }}', '', '{{ addslashes($order->member->distributor->city->city ?? '') }}', '', '', '', '')" style="font-weight: 500; color: #3b82f6; text-decoration: none;">
@@ -332,6 +345,11 @@
                                     </a>
                                 @else
                                     <span style="color: var(--text-muted);">N/A</span>
+                                @endif
+                                @if(request('tab', 'dealer') === 'distributor' && $order->description)
+                                    <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">
+                                        <i class="fas fa-info-circle"></i> {{ Str::limit($order->description, 50) }}
+                                    </div>
                                 @endif
                             </td>
                             <td>

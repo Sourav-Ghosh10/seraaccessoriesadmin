@@ -264,6 +264,11 @@ class PageController extends Controller
     public function estimateRequests(Request $request) {
         $query = \App\Models\Estimate::with(['member.salesman', 'member.distributor']);
 
+        $tab = $request->query('tab', 'dealer');
+        $query->whereHas('member', function($q) use ($tab) {
+            $q->where('role', $tab);
+        });
+
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function($q) use ($search) {
@@ -342,6 +347,11 @@ class PageController extends Controller
 
     public function orderRequests(Request $request) {
         $query = \App\Models\OrderRequest::with(['member.salesman', 'member.distributor', 'order']);
+
+        $tab = $request->query('tab', 'dealer');
+        $query->whereHas('member', function($q) use ($tab) {
+            $q->where('role', $tab);
+        });
 
         if ($request->filled('search')) {
             $search = $request->search;
@@ -465,6 +475,11 @@ class PageController extends Controller
             ->where('status', '!=', 'Pending')
             ->where('order_number', 'like', 'ORD-%');
 
+        $tab = $request->query('tab', 'dealer');
+        $query->whereHas('member', function($q) use ($tab) {
+            $q->where('role', $tab);
+        });
+
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function($q) use ($search) {
@@ -521,10 +536,23 @@ class PageController extends Controller
         return view('orders.show', compact('order'));
     }
 
-    public function createOrder() {
+    public function createOrder(Request $request) {
         $dealers = \App\Models\Member::where('role', 'dealer')->get();
         $distributors = \App\Models\Member::where('role', 'distributor')->get();
-        return view('orders.create', compact('dealers', 'distributors'));
+        
+        $targetMember = null;
+        if ($request->filled('dealer')) {
+            $targetMember = \App\Models\Member::find($request->dealer);
+        } elseif ($request->filled('from_req')) {
+            $req = \App\Models\OrderRequest::find($request->from_req);
+            if ($req) {
+                $targetMember = $req->member;
+            }
+        }
+        
+        $isDistributor = $targetMember && $targetMember->role === 'distributor';
+
+        return view('orders.create', compact('dealers', 'distributors', 'targetMember', 'isDistributor'));
     }
 
     public function delivery(Request $request)
@@ -533,6 +561,11 @@ class PageController extends Controller
             ->where('status', '!=', 'Pending')
             ->where('status', '!=', 'Cancelled')
             ->where('order_number', 'like', 'ORD-%');
+
+        $tab = $request->query('tab', 'dealer');
+        $query->whereHas('member', function($q) use ($tab) {
+            $q->where('role', $tab);
+        });
 
         if ($request->filled('search')) {
             $search = $request->search;
@@ -603,6 +636,11 @@ class PageController extends Controller
     {
         $query = Order::with(['member.salesman', 'member.distributor', 'invoice', 'creditNote'])
             ->where('status', '!=', 'Cancelled');
+
+        $tab = $request->query('tab', 'dealer');
+        $query->whereHas('member', function($q) use ($tab) {
+            $q->where('role', $tab);
+        });
 
         if ($request->filled('search')) {
             $search = $request->search;
@@ -758,7 +796,10 @@ class PageController extends Controller
     }
 
     public function passbook(Request $request) {
-        $query = Member::where('role', 'dealer')->with(['dealerBalance', 'salesman', 'distributor', 'city'])->orderBy('name', 'asc');
+        $tab = $request->query('tab', 'dealer');
+        $role = $tab === 'distributor' ? 'distributor' : 'dealer';
+
+        $query = Member::where('role', $role)->with(['dealerBalance', 'salesman', 'distributor', 'city'])->orderBy('name', 'asc');
 
         if ($request->filled('search')) {
             $search = $request->search;
@@ -769,12 +810,9 @@ class PageController extends Controller
         }
 
         $dealers = $query->paginate(10);
-        
-        // For the dropdown in the modal, we might still need all dealers or we can load them via AJAX
-        // For now, let's keep allDealers for the modal dropdown if needed, but pagination for the table.
-        $allDealers = Member::where('role', 'dealer')->orderBy('name', 'asc')->get();
+        $allDealers = Member::where('role', $role)->orderBy('name', 'asc')->get();
 
-        return view('passbook', compact('dealers', 'allDealers'));
+        return view('passbook', compact('dealers', 'allDealers', 'tab'));
     }
 
     public function allTransactions(Request $request) {

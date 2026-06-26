@@ -429,8 +429,8 @@ class DealerController extends Controller
         /** @var Member $dealer */
         $dealer = $request->user();
 
-        // Dealer-only guard
-        if (strtolower($dealer->role) !== 'dealer') {
+        // Dealer & Distributor guard
+        if (!in_array(strtolower($dealer->role), ['dealer', 'distributor'])) {
             return response()->json([
                 'success' => false,
                 'message' => 'Unauthorized.',
@@ -619,8 +619,8 @@ class DealerController extends Controller
         /** @var Member $dealer */
         $dealer = $request->user();
 
-        // Dealer-only guard
-        if (strtolower($dealer->role) !== 'dealer') {
+        // Dealer & Distributor guard
+        if (!in_array(strtolower($dealer->role), ['dealer', 'distributor'])) {
             return response()->json([
                 'success' => false,
                 'message' => 'Unauthorized.',
@@ -868,8 +868,8 @@ class DealerController extends Controller
         /** @var Member $dealer */
         $dealer = $request->user();
 
-        // Dealer-only guard
-        if (strtolower($dealer->role) !== 'dealer') {
+        // Dealer & Distributor guard
+        if (!in_array(strtolower($dealer->role), ['dealer', 'distributor'])) {
             return response()->json([
                 'success' => false,
                 'message' => 'Unauthorized.',
@@ -1441,7 +1441,7 @@ class DealerController extends Controller
         /** @var Member $dealer */
         $dealer = $request->user();
 
-        if (strtolower($dealer->role) !== 'dealer') {
+        if (!in_array(strtolower($dealer->role), ['dealer', 'distributor'])) {
             return response()->json([
                 'success' => false,
                 'message' => 'Unauthorized.',
@@ -1571,10 +1571,10 @@ class DealerController extends Controller
         $dealer = $request->user();
 
         // Dealer-only guard
-        if (strtolower($dealer->role) !== 'dealer') {
+        if (!in_array(strtolower($dealer->role), ['dealer', 'distributor'])) {
             return response()->json([
                 'success' => false,
-                'message' => 'Only dealers can upload payment details.',
+                'message' => 'Only dealers and distributors can upload payment details.',
             ], 403);
         }
 
@@ -1719,8 +1719,8 @@ class DealerController extends Controller
         /** @var Member $dealer */
         $dealer = $request->user();
 
-        if (strtolower($dealer->role) !== 'dealer') {
-            return response()->json(['success' => false, 'message' => 'Only dealers can perform this action.'], 403);
+        if (!in_array(strtolower($dealer->role), ['dealer', 'distributor'])) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized.'], 403);
         }
 
         $estimate = Estimate::where('id', $id)->where('member_id', $dealer->id)->first();
@@ -1801,8 +1801,8 @@ class DealerController extends Controller
         /** @var Member $dealer */
         $dealer = $request->user();
 
-        if (strtolower($dealer->role) !== 'dealer') {
-            return response()->json(['success' => false, 'message' => 'Only dealers can perform this action.'], 403);
+        if (!in_array(strtolower($dealer->role), ['dealer', 'distributor'])) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized.'], 403);
         }
 
         $estimate = Estimate::where('id', $id)->where('member_id', $dealer->id)->first();

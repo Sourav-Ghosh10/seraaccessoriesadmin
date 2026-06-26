@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use App\Models\Order;
+use App\Models\Estimate;
+use App\Models\OrderRequest;
 use App\Models\Member;
 use App\Models\Delivery;
 use App\Services\FcmService;
@@ -536,5 +538,149 @@ class DistributorController extends Controller
                 'delivery_remarks'     => $delivery->remarks,
             ],
         ], 200);
+    }
+
+    public function submitEstimate(Request $request): JsonResponse
+    {
+        /** @var Member $distributor */
+        $distributor = $request->user();
+
+        if (!$this->verifyDistributor($distributor)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only distributors can submit estimate requests.',
+            ], 403);
+        }
+
+        $request->validate([
+            'type' => 'required|string|in:Text,Voice,Photo,Document,Pdf,text,voice,photo,document,pdf',
+            'description' => 'required_if:type,Text,text|nullable|string|max:2000',
+            'file' => 'required_if:type,Voice,voice,Document,document,Pdf,pdf|nullable|file|max:20480',
+            'files' => 'required_if:type,Photo,photo|nullable|array',
+            'files.*' => 'file|max:20480',
+        ]);
+
+        $filePaths = [];
+
+        if ($request->hasFile('file') && $request->file('file')->isValid()) {
+            $typeLower = strtolower($request->type);
+            if ($typeLower === 'voice') {
+                $folder = 'estimates/voice';
+            } elseif ($typeLower === 'document' || $typeLower === 'pdf') {
+                $folder = 'estimates/documents';
+            } else {
+                $folder = 'estimates/photos';
+            }
+            $filePaths[] = $request->file('file')->store($folder, 'public');
+        }
+
+        if ($request->hasFile('files')) {
+            foreach ($request->file('files') as $file) {
+                if ($file->isValid()) {
+                    $filePaths[] = $file->store('estimates/photos', 'public');
+                }
+            }
+        }
+
+        $nextId = (Estimate::max('id') ?? 0) + 1;
+        $requestNumber = 'EST-' . str_pad($nextId, 4, '0', STR_PAD_LEFT);
+
+        $estimate = Estimate::create([
+            'member_id' => $distributor->id,
+            'request_number' => $requestNumber,
+            'type' => ucfirst(strtolower($request->type)),
+            'description' => $request->description,
+            'file_path' => $filePaths,
+            'status' => 'Pending',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Estimate request submitted successfully.',
+            'data' => [
+                'id' => $estimate->id,
+                'request_number' => $estimate->request_number,
+                'member_id' => $estimate->member_id,
+                'type' => $estimate->type,
+                'description' => $estimate->description,
+                'file_paths' => $estimate->file_path,
+                'status' => $estimate->status,
+                'created_at' => $estimate->created_at,
+            ],
+        ], 201);
+    }
+
+    public function placeOrderRequest(Request $request): JsonResponse
+    {
+        /** @var Member $distributor */
+        $distributor = $request->user();
+
+        if (!$this->verifyDistributor($distributor)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only distributors can place order requests.',
+            ], 403);
+        }
+
+        $request->validate([
+            'type' => 'required|string|in:Text,Voice,Photo,Call,Document,Pdf,text,voice,photo,call,document,pdf',
+            'description' => 'required_if:type,Text,text|nullable|string|max:2000',
+            'file' => 'required_if:type,Voice,voice,Document,document,Pdf,pdf|nullable|file|max:20480',
+            'files' => 'required_if:type,Photo,photo|nullable|array',
+            'files.*' => 'file|max:20480',
+        ]);
+
+        $filePaths = [];
+
+        if ($request->hasFile('file') && $request->file('file')->isValid()) {
+            $typeLower = strtolower($request->type);
+            if ($typeLower === 'voice') {
+                $folder = 'order-requests/voice';
+            } elseif ($typeLower === 'document' || $typeLower === 'pdf') {
+                $folder = 'order-requests/documents';
+            } else {
+                $folder = 'order-requests/photos';
+            }
+            $filePaths[] = $request->file('file')->store($folder, 'public');
+        }
+
+        if ($request->hasFile('files')) {
+            foreach ($request->file('files') as $file) {
+                if ($file->isValid()) {
+                    $filePaths[] = $file->store('order-requests/photos', 'public');
+                }
+            }
+        }
+
+        $requestNumber = 'ORD-' . now()->format('Ymd') . '-' . str_pad(
+            (OrderRequest::max('id') ?? 0) + 1,
+            4,
+            '0',
+            STR_PAD_LEFT
+        );
+
+        $orderRequest = OrderRequest::create([
+            'member_id' => $distributor->id,
+            'request_number' => $requestNumber,
+            'type' => ucfirst(strtolower($request->type)),
+            'description' => $request->description,
+            'file_path' => $filePaths,
+            'status' => 'Pending',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Order request submitted successfully.',
+            'data' => [
+                'id' => $orderRequest->id,
+                'request_number' => $orderRequest->request_number,
+                'member_id' => $orderRequest->member_id,
+                'type' => $orderRequest->type,
+                'description' => $orderRequest->description,
+                'file_paths' => $orderRequest->file_path,
+                'status' => $orderRequest->status,
+                'created_at' => $orderRequest->created_at,
+            ],
+        ], 201);
     }
 }

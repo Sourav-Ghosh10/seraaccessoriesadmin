@@ -4,8 +4,8 @@
 
 @section('content')
 <div class="card">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
-        <h3>Dealer Account Ledger</h3>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h3>Account Ledger</h3>
         <div style="display: flex; gap: 15px; align-items: center;">
             <button class="btn glass" onclick="location.reload()" style="font-size: 13px;">
                 <i class="fas fa-sync-alt"></i> Refresh
@@ -16,19 +16,30 @@
         </div>
     </div>
 
+    <!-- Tabs -->
+    <div style="display: flex; gap: 10px; margin-bottom: 25px;">
+        <a href="{{ route('passbook', ['tab' => 'dealer', 'search' => request('search')]) }}" class="btn {{ ($tab ?? 'dealer') === 'dealer' ? 'btn-primary' : 'glass' }}" style="padding: 10px 25px; font-weight: 600; text-decoration: none;">
+            <i class="fas fa-store"></i> Dealer Ledger
+        </a>
+        <a href="{{ route('passbook', ['tab' => 'distributor', 'search' => request('search')]) }}" class="btn {{ ($tab ?? 'dealer') === 'distributor' ? 'btn-primary' : 'glass' }}" style="padding: 10px 25px; font-weight: 600; text-decoration: none;">
+            <i class="fas fa-truck-moving"></i> Distributor Ledger
+        </a>
+    </div>
+
     <!-- Filter Form style search -->
     <div style="background: rgba(255,255,255,0.02); padding: 20px; border-radius: 12px; margin-bottom: 25px; border: 1px solid rgba(255,255,255,0.05);">
         <form id="filterForm" method="GET" action="" class="grid-3" style="gap: 15px; align-items: flex-end;">
+            <input type="hidden" name="tab" value="{{ $tab ?? 'dealer' }}">
             <div style="grid-column: span 2;">
-                <label class="form-label" style="font-size: 11px; text-transform: uppercase; color: var(--text-muted);">Search Dealer</label>
+                <label class="form-label" style="font-size: 11px; text-transform: uppercase; color: var(--text-muted);">Search {{ ($tab ?? 'dealer') === 'distributor' ? 'Distributor' : 'Dealer' }}</label>
                 <div class="search-bar glass" style="border: 1px solid var(--glass-border); padding: 5px 15px; border-radius: 8px;">
                     <i class="fas fa-search" style="color: var(--text-muted);"></i>
-                    <input type="text" name="search" id="dealerSearch" placeholder="Search ID, Shop or Dealer Name..." value="{{ request('search') }}" style="background: transparent; border: none; color: white; outline: none; width: 100%; height: 32px;">
+                    <input type="text" name="search" id="dealerSearch" placeholder="Search ID, Shop or Name..." value="{{ request('search') }}" style="background: transparent; border: none; color: white; outline: none; width: 100%; height: 32px;">
                 </div>
             </div>
             <div style="display: flex; gap: 10px;">
                 <button type="submit" class="btn btn-primary" style="flex: 1; justify-content: center;">Filter</button>
-                <a href="{{ route('passbook') }}" class="btn glass" style="flex: 1; justify-content: center; text-decoration: none;">Reset</a>
+                <a href="{{ route('passbook', ['tab' => $tab ?? 'dealer']) }}" class="btn glass" style="flex: 1; justify-content: center; text-decoration: none;">Reset</a>
             </div>
         </form>
     </div>
@@ -36,8 +47,8 @@
     <!-- Dealer Balance Summary -->
     <div class="table-container">
         <div style="padding: 20px; border-bottom: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center;">
-            <h4 style="margin: 0; color: var(--primary); font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">Dealer Balance Summary</h4>
-            <div style="font-size: 12px; color: var(--text-muted);">Total Dealers: {{ $dealers->total() }}</div>
+            <h4 style="margin: 0; color: var(--primary); font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">{{ ($tab ?? 'dealer') === 'distributor' ? 'Distributor' : 'Dealer' }} Balance Summary</h4>
+            <div style="font-size: 12px; color: var(--text-muted);">Total: {{ $dealers->total() }}</div>
         </div>
         <table id="balanceSummaryTable">
             <thead>
@@ -62,7 +73,7 @@
                 @endphp
                 <tr>
                     <td>
-                        <a href="javascript:void(0)" onclick="viewMemberDetails('{{ addslashes($dealer->name) }}', '{{ addslashes($dealer->email) }}', '{{ addslashes($dealer->mobile) }}', '{{ addslashes($dealer->ref_code ?? '') }}', 'Dealer', '{{ addslashes(preg_replace('/\r|\n/', ' ', $dealer->address ?? '')) }}', '{{ addslashes($dealer->shop ?? '') }}', '{{ addslashes($dealer->city->city ?? '') }}', '{{ addslashes($dealer->gst_no ?? '') }}', '{{ $dealer->discount_percent ?? '' }}', '{{ addslashes($dealer->salesman->name ?? '') }}', '{{ addslashes($distributorName) }}')" style="font-weight: 600; color: #3b82f6; text-decoration: none; border-bottom: 1px dashed rgba(59, 130, 246, 0.3);">
+                        <a href="javascript:void(0)" onclick="viewMemberDetails('{{ addslashes($dealer->name) }}', '{{ addslashes($dealer->email) }}', '{{ addslashes($dealer->mobile) }}', '{{ addslashes($dealer->ref_code ?? '') }}', '{{ ucfirst($dealer->role) }}', '{{ addslashes(preg_replace('/\r|\n/', ' ', $dealer->address ?? '')) }}', '{{ addslashes($dealer->shop ?? '') }}', '{{ addslashes($dealer->city->city ?? '') }}', '{{ addslashes($dealer->gst_no ?? '') }}', '{{ $dealer->discount_percent ?? '' }}', '{{ addslashes($dealer->salesman->name ?? '') }}', '{{ addslashes($distributorName) }}')" style="font-weight: 600; color: #3b82f6; text-decoration: none; border-bottom: 1px dashed rgba(59, 130, 246, 0.3);">
                             {{ $dealer->shop ?? $dealer->name }}
                         </a>
                         <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">{{ $dealer->city->city ?? '' }}</div>
@@ -85,7 +96,7 @@
                 <tr>
                     <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 50px;">
                         <i class="fas fa-user-slash" style="display: block; font-size: 24px; margin-bottom: 10px; opacity: 0.5;"></i>
-                        No dealers found matching your search.
+                        No {{ ($tab ?? 'dealer') === 'distributor' ? 'distributors' : 'dealers' }} found matching your search.
                     </td>
                 </tr>
                 @endforelse
@@ -174,16 +185,16 @@
 <div id="balanceModal" style="display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background: rgba(2, 6, 23, 0.85); backdrop-filter: blur(10px); align-items: center; justify-content: center; overflow-y: auto;">
     <div class="card modal-content" style="padding: 30px; background: #0f172a; border: 1px solid var(--glass-border); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); animation: modalIn 0.3s ease-out; margin: 20px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 15px;">
-            <h3 id="modalTitle" style="margin: 0; font-size: 22px; font-weight: 700;">Add Dealer Balance</h3>
+            <h3 id="modalTitle" style="margin: 0; font-size: 22px; font-weight: 700;">Add {{ ($tab ?? 'dealer') === 'distributor' ? 'Distributor' : 'Dealer' }} Balance</h3>
             <div onclick="closeBalanceModal()" style="width: 30px; height: 30px; border-radius: 50%; background: var(--glass); display: flex; align-items: center; justify-content: center; cursor: pointer;">
                 <i class="fas fa-times" style="color: var(--text-muted); font-size: 14px;"></i>
             </div>
         </div>
         
         <div class="form-group">
-            <label class="form-label" style="color: var(--text-muted); font-size: 12px; text-transform: uppercase;">Select Dealer</label>
+            <label class="form-label" style="color: var(--text-muted); font-size: 12px; text-transform: uppercase;">Select {{ ($tab ?? 'dealer') === 'distributor' ? 'Distributor' : 'Dealer' }}</label>
             <select id="dealerSelect" class="form-control" onchange="updateModalBalanceFields()" style="background: #1e293b; border-color: rgba(255,255,255,0.1); color: #fff;">
-                <option value="">Select a Dealer</option>
+                <option value="">Select a {{ ($tab ?? 'dealer') === 'distributor' ? 'Distributor' : 'Dealer' }}</option>
                 @foreach($allDealers as $dealer)
                     <option value="{{ $dealer->id }}" 
                             data-total="{{ $dealer->dealerBalance->total_amount ?? 0 }}"
