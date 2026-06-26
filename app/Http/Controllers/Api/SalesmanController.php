@@ -494,9 +494,15 @@ class SalesmanController extends Controller
         }
 
         // 3. Orders
-        if (in_array($tab, ['All', 'Order Placed'])) {
+        if (in_array($tab, ['All', 'Order Placed', 'Delivered'])) {
             $orders = Order::whereIn('member_id', $dealerIds)
                 ->with('member')
+                ->when($tab === 'Order Placed', function ($query) {
+                    return $query->where('status', '!=', 'Delivered');
+                })
+                ->when($tab === 'Delivered', function ($query) {
+                    return $query->where('status', 'Delivered');
+                })
                 ->when($search, function ($query) use ($search) {
                     return $query->where(function ($q) use ($search) {
                         $q->where('order_number', 'like', "%$search%")
@@ -514,7 +520,7 @@ class SalesmanController extends Controller
                         'order_id' => $item->order_number,
                         'request_number' => $item->order_number,
                         'date' => $item->created_at->format('d M Y'),
-                        'status' => 'Order Placed',
+                        'status' => $item->status ?: 'Order Placed',
                         'type' => 'Order',
                         'raw_date' => $item->created_at,
                         'dealer' => [
@@ -673,6 +679,8 @@ class SalesmanController extends Controller
                     'status' => ucfirst($req->status ?? 'Pending'),
                     'credit_note' => $req->Credit_note ?? 'Pending',
                     'note' => $req->notes ?? 'Redemption request submitted.',
+                    'dealer_document_url' => $req->dealer_file_path ? asset('uploads/' . $req->dealer_file_path) : null,
+                    'distributor_document_url' => $req->distributor_file_path ? asset('uploads/' . $req->distributor_file_path) : null,
                 ];
             });
 

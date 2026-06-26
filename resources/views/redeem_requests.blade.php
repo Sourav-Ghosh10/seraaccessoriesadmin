@@ -167,7 +167,17 @@
             <h3>Redeem Requests</h3>
         </div>
 
+        <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+            <a href="{{ route('redeem-requests', array_merge(request()->query(), ['tab' => 'dealer'])) }}" 
+               class="btn {{ request('tab', 'dealer') == 'dealer' ? 'btn-primary' : 'glass' }}"
+               style="padding: 8px 20px;">Dealer Redeem Requests</a>
+            <a href="{{ route('redeem-requests', array_merge(request()->query(), ['tab' => 'salesman'])) }}" 
+               class="btn {{ request('tab') == 'salesman' ? 'btn-primary' : 'glass' }}"
+               style="padding: 8px 20px;">Salesman Redeem Requests</a>
+        </div>
+
         <form id="filterForm" method="GET" action="" style="background: rgba(255,255,255,0.02); padding: 20px; border-radius: 12px; margin-bottom: 25px; border: 1px solid rgba(255,255,255,0.05);">
+            <input type="hidden" name="tab" value="{{ request('tab', 'dealer') }}">
             <div class="grid-4" style="gap: 15px; margin-bottom: 15px;">
                 <div>
                     <label class="form-label" style="font-size: 11px; text-transform: uppercase; color: var(--text-muted);">Search</label>

@@ -417,6 +417,11 @@ class PageController extends Controller
             $q->with(['salesman', 'distributor', 'city'])->withSum('rewardTransactions', 'points');
         }]);
 
+        $tab = strtolower($request->query('tab', 'dealer'));
+        $query->whereHas('member', function($q) use ($tab) {
+            $q->where('role', $tab);
+        });
+
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function($q) use ($search) {
@@ -460,13 +465,13 @@ class PageController extends Controller
             }
         }
 
-        $requests = $query->orderBy('id', 'desc')->paginate(10);
+        $requests = $query->orderBy('id', 'desc')->paginate(10)->withQueryString();
         $dealers = Member::where('role', 'dealer')->get();
         $cities = \App\Models\City::where('status', 1)->orderBy('city')->get();
         $salesmen = Member::where('role', 'salesman')->orderBy('name')->get();
         $distributors = Member::where('role', 'distributor')->orderBy('name')->get();
 
-        return view('redeem_requests', compact('requests', 'dealers', 'cities', 'salesmen', 'distributors'));
+        return view('redeem_requests', compact('requests', 'dealers', 'cities', 'salesmen', 'distributors', 'tab'));
     }
 
     public function ordersList(Request $request) {

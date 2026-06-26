@@ -499,9 +499,15 @@ class DealerController extends Controller
         }
 
         // 3. Orders
-        if (in_array($tab, ['All', 'Order Placed'])) {
+        if (in_array($tab, ['All', 'Order Placed', 'Delivered'])) {
             $orders = Order::where('member_id', $dealer->id)
                 ->with(['invoice', 'items'])
+                ->when($tab === 'Order Placed', function ($query) {
+                    return $query->where('status', '!=', 'Delivered');
+                })
+                ->when($tab === 'Delivered', function ($query) {
+                    return $query->where('status', 'Delivered');
+                })
                 ->when($search, function ($query) use ($search) {
                     return $query->where('order_number', 'like', "%$search%")
                         ->orWhere('created_at', 'like', "%$search%");
@@ -519,7 +525,7 @@ class DealerController extends Controller
                         'order_id' => $item->order_number,
                         'request_number' => $item->order_number,
                         'date' => $item->created_at->format('d M Y'),
-                        'status' => 'Order Placed',
+                        'status' => $item->status ?: 'Order Placed',
                         'type' => 'Order',
                         'raw_date' => $item->created_at,
                         'amount' => $item->amount > 0 ? $item->amount : ($item->invoice && $item->invoice->amount > 0 ? $item->invoice->amount : $item->items->sum(function($i) { return $i->qty * $i->price; })),
@@ -693,7 +699,7 @@ class DealerController extends Controller
                     'id' => $order->id,
                     'order_id' => $order->order_number,
                     'date' => $order->created_at->format('d M Y'),
-                    'status' => 'Order Placed',
+                    'status' => $order->status ?: 'Order Placed',
                     'type' => 'Order',
                     'description' => $order->description,
                     'amount' => $order->amount,
@@ -1221,6 +1227,8 @@ class DealerController extends Controller
                     'status' => ucfirst($req->status ?? 'Pending'),
                     'credit_note' => $req->Credit_note ?? 'Pending',
                     'note' => $req->notes ?? 'Redemption request submitted.',
+                    'dealer_document_url' => $req->dealer_file_path ? asset('uploads/' . $req->dealer_file_path) : null,
+                    'distributor_document_url' => $req->distributor_file_path ? asset('uploads/' . $req->distributor_file_path) : null,
                 ];
             });
 

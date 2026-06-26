@@ -10,6 +10,7 @@ use App\Models\Estimate;
 use App\Models\OrderRequest;
 use App\Models\Member;
 use App\Models\Delivery;
+use App\Models\RedeemRequest;
 use App\Services\FcmService;
 use OpenApi\Attributes as OA;
 
@@ -682,5 +683,102 @@ class DistributorController extends Controller
                 'created_at' => $orderRequest->created_at,
             ],
         ], 201);
+    }
+
+    public function redeemRequests(Request $request): JsonResponse
+    {
+        /** @var Member $distributor */
+        $distributor = $request->user();
+
+        if (!$this->verifyDistributor($distributor)) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized.'], 403);
+        }
+
+        $status = $request->query('status');
+        $search = $request->query('search');
+
+        $orderDealerIds = Order::where('distributor_id', $distributor->id)->pluck('member_id');
+        $distDealerIds = Member::where(function ($q) {
+                $q->where('role', 'dealer')
+                  ->orWhere('role', 'Dealer')
+                  ->orWhere('role', 'like', '%dealer%');
+            })
+            ->where(function ($q) use ($distributor) {
+                if ($distributor->dist_id) {
+                    $q->where('dist_id', $distributor->dist_id);
+                }
+                $q->orWhere('dist_id', (string) $distributor->id);
+            })
+            ->pluck('id');
+
+        $dealerIds = $orderDealerIds->merge($distDealerIds)->unique()->filter()->values();
+
+        $requests = RedeemRequest::whereIn('member_id', $dealerIds)
+            ->with('member')
+            ->when($status && $status !== 'All', function ($query) use ($status) {
+                return $query->where('status', strtolower($status))
+                             ->orWhere('status', ucfirst($status))
+                             ->orWhere('status', $status);
+            })
+            ->when($search, function ($query) use ($search) {
+                return $query->whereHas('member', function ($mq) use ($search) {
+                    $mq->where('name', 'like', "%{$search}%")
+                       ->orWhere('shop', 'like', "%{$search}%")
+                       ->orWhere('mobile', 'like', "%{$search}%");
+                });
+            })
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($req) {
+                return [
+                    'id' => $req->id,
+                    'request_id' => '#RDM' . str_pad($req->id, 5, '0', STR_PAD_LEFT),
+                    'req_id' => '#RDM' . str_pad($req->id, 5, '0', STR_PAD_LEFT),
+                    'title' => '#RDM' . str_pad($req->id, 5, '0', STR_PAD_LEFT),
+                    'dealer_name' => $req->member->name ?? 'Dealer',
+                    'shop_name' => $req->member->shop ?? '',
+                    'points' => (int) $req->Points,
+                    'raw_points' => (int) $req->Points,
+                    'status' => ucfirst($req->status ?? 'Pending'),
+                    'date' => $req->created_at ? $req->created_at->format('d M Y') : 'N/A',
+                    'credit_note' => $req->Credit_note ?? 'Pending',
+                    'remarks' => $req->notes ?? '',
+                    'note' => $req->notes ?? '',
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'data' => $requests,
+        ]);
+    }
+
+    public function updateRedeemRequestStatus(Request $request, $id): JsonResponse
+    {
+        /** @var Member $distributor */
+        $distributor = $request->user();
+
+        if (!$this->verifyDistributor($distributor)) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized.'], 403);
+        }
+
+        $validated = $request->validate([
+            'status' => 'required|string',
+            'remarks' => 'nullable|string',
+        ]);
+
+        $redeemRequest = RedeemRequest::findOrFail($id);
+
+        $redeemRequest->status = $validated['status'];
+        if (isset($validated['remarks'])) {
+            $redeemRequest->notes = $validated['remarks'];
+        }
+        $redeemRequest->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => "Redeem request updated to {$validated['status']}.",
+            'data' => $redeemRequest,
+        ]);
     }
 }
