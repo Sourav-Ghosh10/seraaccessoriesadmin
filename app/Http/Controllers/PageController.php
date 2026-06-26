@@ -138,8 +138,39 @@ class PageController extends Controller
         return response()->json(['labels' => $labels, 'data' => $data]);
     }
     
-    public function dealers() {
-        $dealers = \App\Models\Member::where('role', 'dealer')->with(['salesman', 'city'])->orderBy('id', 'desc')->paginate(10);
+    public function dealers(Request $request) {
+        $query = \App\Models\Member::where('role', 'dealer')->with(['salesman', 'city']);
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('shop', 'like', "%{$search}%")
+                  ->orWhere('mobile', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%")
+                  ->orWhere('id', 'like', "%{$search}%")
+                  ->orWhereHas('city', function($q2) use ($search) {
+                      $q2->where('city', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        if ($request->filled('salesman')) {
+            $query->where('salesman_id', $request->salesman);
+        }
+
+        if ($request->filled('distributor')) {
+            $query->where('dist_id', $request->distributor);
+        }
+
+        if ($request->filled('city')) {
+            $citiesFilter = is_array($request->city) ? $request->city : [$request->city];
+            if (!in_array('all', $citiesFilter)) {
+                $query->whereIn('city_id', $citiesFilter);
+            }
+        }
+
+        $dealers = $query->orderBy('id', 'desc')->paginate(10);
         $cities = \App\Models\City::where('status', 1)->orderBy('city')->get();
         $salesmen = \App\Models\Member::where('role', 'salesman')->orderBy('name')->get();
         $distributors = \App\Models\Member::where('role', 'distributor')->orderBy('name')->get();
@@ -217,18 +248,54 @@ class PageController extends Controller
         return view('salesman_attendance_details', compact('attendance', 'visits', 'locations'));
     }
 
-    public function distributors() {
-        $distributors = \App\Models\Member::where('role', 'distributor')->with('city')->paginate(10);
+    public function distributors(Request $request) {
+        $query = \App\Models\Member::where('role', 'distributor')->with('city');
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%")
+                  ->orWhere('mobile', 'like', "%{$search}%")
+                  ->orWhere('dist_id', 'like', "%{$search}%")
+                  ->orWhere('gst_no', 'like', "%{$search}%")
+                  ->orWhere('address', 'like', "%{$search}%");
+            });
+        }
+
+        if ($request->filled('status')) {
+            $query->where(\DB::raw('LOWER(status)'), strtolower($request->status));
+        }
+
+        if ($request->filled('city')) {
+            $cityFilter = is_array($request->city) ? $request->city : [$request->city];
+            if (!in_array('all', $cityFilter)) {
+                $query->whereHas('city', function($q) use ($cityFilter) {
+                    $q->whereIn(\DB::raw('LOWER(city)'), array_map('strtolower', $cityFilter));
+                });
+            }
+        }
+
+        $distributors = $query->paginate(10);
         $cities = \App\Models\City::where('status', 1)->orderBy('city')->get();
         return view('distributors', compact('distributors', 'cities'));
     }
 
-    public function distributorStaff($id) {
+    public function distributorStaff(Request $request, $id) {
         $distributor = \App\Models\Member::where('role', 'distributor')->findOrFail($id);
-        $staffMembers = \App\Models\Member::where('role', 'distributor_staff')
-            ->where('dist_id', $distributor->dist_id)
-            ->paginate(10);
-            
+        $query = \App\Models\Member::where('role', 'distributor_staff')
+            ->where('dist_id', $distributor->dist_id);
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%")
+                  ->orWhere('mobile', 'like', "%{$search}%");
+            });
+        }
+
+        $staffMembers = $query->paginate(10);
         return view('distributor_staff', compact('distributor', 'staffMembers'));
     }
 

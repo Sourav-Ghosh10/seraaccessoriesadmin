@@ -20,7 +20,19 @@ class DistributorController extends Controller
      */
     protected function verifyDistributor(Member $member): bool
     {
-        return strtolower($member->role) === 'distributor';
+        return in_array(strtolower($member->role), ['distributor', 'distributor_staff', 'staff']);
+    }
+
+    protected function getDistributorId(Member $member): ?int
+    {
+        if (strtolower($member->role) === 'distributor') {
+            return $member->id;
+        }
+        if (in_array(strtolower($member->role), ['distributor_staff', 'staff']) && $member->dist_id) {
+            $dist = Member::where('dist_id', $member->dist_id)->where('role', 'distributor')->first();
+            return $dist ? $dist->id : null;
+        }
+        return $member->id;
     }
 
     #[OA\Get(
@@ -130,9 +142,18 @@ class DistributorController extends Controller
         $startDate = $request->query('start_date');
         $endDate = $request->query('end_date');
 
-        $ordersQuery = Order::where('distributor_id', $distributor->id)
+        $distributorId = $this->getDistributorId($distributor);
+
+        $ordersQuery = Order::where('distributor_id', $distributorId)
             ->with(['member', 'delivery', 'invoice', 'items'])
-            ->when($status, function ($query) use ($status) {
+            ->when($status && $status !== 'All', function ($query) use ($status) {
+                $statusLower = strtolower(trim($status));
+                if (in_array($statusLower, ['not yet dispatch', 'not yet dispatched'])) {
+                    return $query->whereDoesntHave('delivery');
+                }
+                if ($statusLower === 'dispatched') {
+                    return $query->whereHas('delivery');
+                }
                 return $query->where('status', $status);
             })
             ->when($search, function ($query) use ($search) {
@@ -294,7 +315,8 @@ class DistributorController extends Controller
             ], 422);
         }
 
-        $order = Order::where('distributor_id', $distributor->id)
+        $distributorId = $this->getDistributorId($distributor);
+        $order = Order::where('distributor_id', $distributorId)
             ->where(function ($query) use ($orderId) {
                 $query->where('order_number', $orderId)
                     ->orWhere('id', $orderId);
@@ -473,7 +495,8 @@ class DistributorController extends Controller
         }
 
         // Ensure the order is assigned to this distributor
-        $order = Order::where('distributor_id', $distributor->id)->with('member')->find($id);
+        $distributorId = $this->getDistributorId($distributor);
+        $order = Order::where('distributor_id', $distributorId)->with('member')->find($id);
         if (!$order) {
             return response()->json([
                 'success' => false,
@@ -585,8 +608,10 @@ class DistributorController extends Controller
         $nextId = (Estimate::max('id') ?? 0) + 1;
         $requestNumber = 'EST-' . str_pad($nextId, 4, '0', STR_PAD_LEFT);
 
+        $distributorId = $this->getDistributorId($distributor);
+
         $estimate = Estimate::create([
-            'member_id' => $distributor->id,
+            'member_id' => $distributorId,
             'request_number' => $requestNumber,
             'type' => ucfirst(strtolower($request->type)),
             'description' => $request->description,
@@ -659,8 +684,10 @@ class DistributorController extends Controller
             STR_PAD_LEFT
         );
 
+        $distributorId = $this->getDistributorId($distributor);
+
         $orderRequest = OrderRequest::create([
-            'member_id' => $distributor->id,
+            'member_id' => $distributorId,
             'request_number' => $requestNumber,
             'type' => ucfirst(strtolower($request->type)),
             'description' => $request->description,

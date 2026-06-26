@@ -849,31 +849,28 @@ input:-webkit-autofill:active{
         });
     }
 
+    var filterTimeout;
     function filterTable() {
-        const search = document.getElementById('filterSearch').value.toLowerCase();
-        const salesman = document.getElementById('filterSalesman').value;
-        const distributor = document.getElementById('filterDistributor').value;
-        
-        // Handle Select2 multiple values
-        let city = $('#filterCity').val() || [];
-        if (!Array.isArray(city)) city = [city];
-        // If "all" is selected, clear the filter
-        if (city.includes('all')) city = [];
+        clearTimeout(filterTimeout);
+        filterTimeout = setTimeout(function() {
+            let city = $('#filterCity').val() || [];
+            if (!Array.isArray(city)) city = [city];
+            if (city.includes('all')) city = [];
 
-        document.querySelectorAll('.dealer-row').forEach(row => {
-            const matchesSearch = row.dataset.search.includes(search);
-            const matchesSalesman = salesman === "" || row.dataset.salesman === salesman;
-            const matchesDistributor = distributor === "" || row.dataset.distributor === distributor;
-            
-            const rowCity = row.dataset.city;
-            const matchesCity = city.length === 0 || city.includes(rowCity);
-
-            if (matchesSearch && matchesSalesman && matchesDistributor && matchesCity) {
-                row.style.display = '';
-            } else {
-                row.style.display = 'none';
-            }
-        });
+            $.ajax({
+                url: window.location.pathname,
+                data: {
+                    search: $('#filterSearch').val(),
+                    salesman: $('#filterSalesman').val(),
+                    distributor: $('#filterDistributor').val(),
+                    city: city
+                },
+                success: function(response) {
+                    var newTable = $(response).find('.table-container').html();
+                    $('.table-container').html(newTable);
+                }
+            });
+        }, 300);
     }
 
     function deleteDealer(id, name) {
@@ -1008,6 +1005,18 @@ input:-webkit-autofill:active{
         $('#filterCity').on('change select2:close', function() {
             updatePlaceholder();
             filterTable();
+        });
+
+        $(document).on('click', '#paginationContainer a', function(e) {
+            e.preventDefault();
+            var url = $(this).attr('href');
+            $.ajax({
+                url: url,
+                success: function(response) {
+                    var newTable = $(response).find('.table-container').html();
+                    $('.table-container').html(newTable);
+                }
+            });
         });
     });
 
