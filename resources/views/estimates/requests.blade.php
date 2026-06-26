@@ -106,8 +106,17 @@
             <h3>Incoming Estimate Requests</h3>
         </div>
 
+        <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+            <a href="{{ route('estimate-requests', array_merge(request()->query(), ['tab' => 'dealer'])) }}" 
+               class="btn {{ request('tab', 'dealer') == 'dealer' ? 'btn-primary' : 'glass' }}"
+               style="padding: 8px 20px;">Dealer Requests</a>
+            <a href="{{ route('estimate-requests', array_merge(request()->query(), ['tab' => 'distributor'])) }}" 
+               class="btn {{ request('tab') == 'distributor' ? 'btn-primary' : 'glass' }}"
+               style="padding: 8px 20px;">Distributor Requests</a>
+        </div>
+
         <form id="filterForm" method="GET" action="{{ route('estimate-requests') }}" style="background: rgba(255,255,255,0.02); padding: 20px; border-radius: 12px; margin-bottom: 25px; border: 1px solid rgba(255,255,255,0.05);">
-            <div class="grid-4" style="gap: 15px; margin-bottom: 15px;">
+            <div class="grid-4" style="gap: 15px; align-items: end;">
                 <div>
                     <label class="form-label" style="font-size: 11px; text-transform: uppercase; color: var(--text-muted);">Search</label>
                     <input type="text" name="search" id="searchInput" class="form-control" placeholder="ID, Dealer or Shop Name" value="{{ request('search') }}" style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1);">
@@ -121,6 +130,7 @@
                         @endforeach
                     </select>
                 </div>
+                @if(request('tab', 'dealer') !== 'distributor')
                 <div>
                     <label class="form-label" style="font-size: 11px; text-transform: uppercase; color: var(--text-muted);">Salesman</label>
                     <select name="salesman_id" id="filterSalesman" class="form-control select2" style="width: 100%;">
@@ -130,6 +140,7 @@
                         @endforeach
                     </select>
                 </div>
+                @endif
                 <div>
                     <label class="form-label" style="font-size: 11px; text-transform: uppercase; color: var(--text-muted);">Distributor</label>
                     <select name="dist_id" id="filterDistributor" class="form-control select2" style="width: 100%;">
@@ -139,9 +150,7 @@
                         @endforeach
                     </select>
                 </div>
-            </div>
 
-            <div class="grid-4" style="gap: 15px; align-items: end;">
                 <div>
                     <label class="form-label" style="font-size: 11px; text-transform: uppercase; color: var(--text-muted);">Date Filter</label>
                     <select name="date_type" id="dateTypeSelect" class="form-control" style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1); color: #fff;" onchange="toggleDateInputs()">
@@ -173,8 +182,10 @@
                 <thead>
                     <tr>
                         <th>Request ID</th>
+                        @if(request('tab', 'dealer') !== 'distributor')
                         <th>Shop Name</th>
                         <th>Salesman</th>
+                        @endif
                         <th>Distributor</th>
                         <th>Type</th>
                         <th>Date/Time</th>
@@ -193,6 +204,7 @@
                         @endphp
                         <tr>
                             <td>{{ $estimate->request_number ?? 'EST-' . str_pad($estimate->id, 4, '0', STR_PAD_LEFT) }}</td>
+                            @if(request('tab', 'dealer') !== 'distributor')
                             <td>
                                 <a href="javascript:void(0)" onclick="viewMemberDetails('{{ addslashes($estimate->member->name) }}', '{{ addslashes($estimate->member->email) }}', '{{ addslashes($estimate->member->mobile) }}', '{{ addslashes($estimate->member->ref_code ?? '') }}', 'Dealer', '{{ addslashes(preg_replace('/\r|\n/', ' ', $estimate->member->address ?? '')) }}', '{{ addslashes($estimate->member->shop ?? '') }}', '{{ addslashes($estimate->member->city->city ?? '') }}', '{{ addslashes($estimate->member->gst_no ?? '') }}', '{{ $estimate->member->discount_percent ?? '' }}', '{{ addslashes($estimate->member->salesman->name ?? '') }}', '{{ addslashes($distributors->firstWhere('dist_id', $estimate->member->dist_id)->name ?? $estimate->member->dist_id ?? '') }}')" style="font-weight: 500; color: #3b82f6; text-decoration: none;">
                                     {{ $estimate->member->shop ?? $estimate->member->name }}
@@ -207,6 +219,7 @@
                                     <span style="color: var(--text-muted);">N/A</span>
                                 @endif
                             </td>
+                            @endif
                             <td>
                                 @if(isset($estimate->member->distributor))
                                     <a href="javascript:void(0)" onclick="viewMemberDetails('{{ addslashes($estimate->member->distributor->name) }}', '{{ addslashes($estimate->member->distributor->email) }}', '{{ addslashes($estimate->member->distributor->mobile) }}', '{{ addslashes($estimate->member->distributor->dist_id) }}', 'Distributor', '{{ addslashes(preg_replace('/\r|\n/', ' ', $estimate->member->distributor->address ?? '')) }}', '', '{{ addslashes($estimate->member->distributor->city->city ?? '') }}', '', '', '', '')" style="font-weight: 500; color: #3b82f6; text-decoration: none;">

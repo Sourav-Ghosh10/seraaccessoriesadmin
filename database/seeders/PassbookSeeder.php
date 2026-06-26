@@ -181,5 +181,36 @@ class PassbookSeeder extends Seeder
             'status' => 'Completed',
             'created_at' => '2026-05-10 15:20:00'
         ]);
+
+        // Seed Distributor Balances & Transactions
+        $distributors = Member::whereRaw('LOWER(role) = ?', ['distributor'])->get();
+        foreach ($distributors as $dist) {
+            DealerBalance::create([
+                'member_id' => $dist->id,
+                'total_amount' => 85000.00,
+                'paid_amount' => 50000.00,
+                'due_amount' => 35000.00,
+            ]);
+
+            PassbookTransaction::create([
+                'member_id' => $dist->id,
+                'managed_by' => 'System Admin',
+                'type' => 'Order',
+                'amount' => 85000.00,
+                'ref' => 'ORD-' . mt_rand(1000, 9999),
+                'status' => 'Confirmed',
+                'created_at' => now()->subDays(3)
+            ]);
+
+            PassbookTransaction::create([
+                'member_id' => $dist->id,
+                'managed_by' => 'System Admin',
+                'type' => 'Payment',
+                'amount' => 50000.00,
+                'ref' => 'TXN-' . mt_rand(1000, 9999),
+                'status' => 'Completed',
+                'created_at' => now()->subDays(1)
+            ]);
+        }
     }
 }

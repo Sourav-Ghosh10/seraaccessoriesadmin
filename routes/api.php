@@ -89,6 +89,8 @@ Route::middleware(JwtAuthMiddleware::class)->group(function () {
         Route::get('/my-orders', [DistributorController::class, 'myOrders'])->name('my-orders');
         Route::get('/my-orders/details', [DistributorController::class, 'orderDetails'])->name('my-orders.details');
         Route::post('/order/{id}/delivery', [DistributorController::class, 'updateDelivery'])->name('order.delivery');
+        Route::post('/estimate', [DistributorController::class, 'submitEstimate'])->name('estimate');
+        Route::post('/order-request', [DistributorController::class, 'placeOrderRequest'])->name('order-request');
     });
 
 });

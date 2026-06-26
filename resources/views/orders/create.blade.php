@@ -21,21 +21,33 @@
     <div class="grid" id="orderGrid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
         <input type="hidden" id="fromRequestId" value="{{ request('from_req') }}">
         <div class="form-group">
-            <label class="form-label">Select Dealer</label>
+            <label class="form-label">{{ !empty($isDistributor) ? 'Select Distributor' : 'Select Dealer' }}</label>
             <select class="form-control" id="orderDealerId" {{ request('dealer') ? 'disabled' : '' }}>
-                @foreach($dealers as $dealer)
-                    <option value="{{ $dealer->id }}" 
-                            data-address="{{ $dealer->address }}" 
-                            data-dist-id="{{ $dealer->distributor ? $dealer->distributor->id : '' }}"
-                            {{ request('dealer') == $dealer->id ? 'selected' : '' }}>
-                        {{ $dealer->name }} - {{ $dealer->shop }}
-                    </option>
-                @endforeach
+                @if(!empty($isDistributor))
+                    @foreach($distributors as $dist)
+                        <option value="{{ $dist->id }}" 
+                                data-address="{{ !empty($dist->address) ? preg_replace('/\r|\n/', ' ', $dist->address) : ($dist->city->city ?? '') }}" 
+                                data-dist-id=""
+                                {{ request('dealer') == $dist->id ? 'selected' : '' }}>
+                            {{ $dist->name }}
+                        </option>
+                    @endforeach
+                @else
+                    @foreach($dealers as $dealer)
+                        <option value="{{ $dealer->id }}" 
+                                data-address="{{ !empty($dealer->address) ? preg_replace('/\r|\n/', ' ', $dealer->address) : ($dealer->city->city ?? '') }}" 
+                                data-dist-id="{{ $dealer->distributor ? $dealer->distributor->id : '' }}"
+                                {{ request('dealer') == $dealer->id ? 'selected' : '' }}>
+                            {{ $dealer->name }} - {{ $dealer->shop }}
+                        </option>
+                    @endforeach
+                @endif
             </select>
             @if(request('dealer'))
                 <input type="hidden" id="orderDealerIdHidden" value="{{ request('dealer') }}">
             @endif
         </div>
+        @if(empty($isDistributor))
         <div class="form-group" id="distributorGroup">
             <label class="form-label">Distributor</label>
             <select class="form-control" id="distributorId" disabled>
@@ -45,6 +57,9 @@
                 @endforeach
             </select>
         </div>
+        @else
+        <input type="hidden" id="distributorId" value="">
+        @endif
         <div class="form-group">
             <label class="form-label">Expected Delivery Date</label>
             <input type="date" id="deliveryDate" class="form-control" value="2024-05-12">
@@ -68,7 +83,7 @@
 
     <div class="form-group" style="margin-top: 20px;">
         <label class="form-label">Delivery Address</label>
-        <textarea id="deliveryAddress" class="form-control" style="height: 60px;" placeholder="Enter full delivery address..."></textarea>
+        <textarea id="deliveryAddress" class="form-control" style="height: 60px;" placeholder="Enter full delivery address...">{{ !empty($targetMember->address) ? $targetMember->address : ($targetMember->city->city ?? '') }}</textarea>
     </div>
 
 
@@ -168,10 +183,12 @@
                 
                 const distId = selectedOption.getAttribute('data-dist-id');
                 const distSelect = document.getElementById('distributorId');
-                if (distId) {
-                    distSelect.value = distId;
-                } else {
-                    distSelect.value = '';
+                if (distSelect && distSelect.tagName === 'SELECT') {
+                    if (distId) {
+                        distSelect.value = distId;
+                    } else {
+                        distSelect.value = '';
+                    }
                 }
             }
         }

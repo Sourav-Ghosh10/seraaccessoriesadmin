@@ -106,9 +106,18 @@
         <h3>Delivery Status Management</h3>
     </div>
 
+    <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+        <a href="{{ route('delivery', array_merge(request()->query(), ['tab' => 'dealer'])) }}" 
+           class="btn {{ request('tab', 'dealer') == 'dealer' ? 'btn-primary' : 'glass' }}"
+           style="padding: 8px 20px;">Dealer Requests</a>
+        <a href="{{ route('delivery', array_merge(request()->query(), ['tab' => 'distributor'])) }}" 
+           class="btn {{ request('tab') == 'distributor' ? 'btn-primary' : 'glass' }}"
+           style="padding: 8px 20px;">Distributor Requests</a>
+    </div>
+
     <!-- Filter Form -->
     <form id="filterForm" method="GET" action="" style="background: rgba(255,255,255,0.02); padding: 20px; border-radius: 12px; margin-bottom: 25px; border: 1px solid rgba(255,255,255,0.05);">
-        <div class="grid-4" style="gap: 15px; margin-bottom: 15px;">
+        <div class="grid-4" style="gap: 15px; align-items: end;">
             <div>
                 <label class="form-label" style="font-size: 11px; text-transform: uppercase; color: var(--text-muted);">Search</label>
                 <div class="search-bar glass" style="border: 1px solid var(--glass-border); padding: 5px 15px; border-radius: 8px;">
@@ -125,6 +134,7 @@
                     @endforeach
                 </select>
             </div>
+            @if(request('tab', 'dealer') !== 'distributor')
             <div>
                 <label class="form-label" style="font-size: 11px; text-transform: uppercase; color: var(--text-muted);">Salesman</label>
                 <select name="salesman_id" id="filterSalesman" class="form-control select2" style="width: 100%;">
@@ -134,6 +144,7 @@
                     @endforeach
                 </select>
             </div>
+            @endif
             <div>
                 <label class="form-label" style="font-size: 11px; text-transform: uppercase; color: var(--text-muted);">Distributor</label>
                 <select name="dist_id" id="filterDistributor" class="form-control select2" style="width: 100%;">
@@ -143,9 +154,6 @@
                     @endforeach
                 </select>
             </div>
-        </div>
-
-        <div class="grid-4" style="gap: 15px; align-items: end;">
             <div>
                 <label class="form-label" style="font-size: 11px; text-transform: uppercase; color: var(--text-muted);">Delivery Status</label>
                 <select name="delivery_status" id="deliveryStatusSelect" class="form-control" style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1); color: #fff;">
@@ -179,11 +187,6 @@
                 <label class="form-label" style="font-size: 11px; text-transform: uppercase; color: var(--text-muted);">To Date</label>
                 <input type="date" name="date_to" class="form-control" value="{{ request('date_to') }}" style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1); color: var(--text-muted);">
             </div>
-
-            {{-- <div style="display: flex; gap: 10px;">
-                <button type="submit" class="btn btn-primary" style="flex: 1;">Filter</button>
-                <a href="{{ route('delivery') }}" class="btn glass" style="flex: 1; text-align: center; text-decoration: none; display: flex; align-items: center; justify-content: center;">Reset</a>
-            </div> --}}
         </div>
     </form>
 
@@ -192,8 +195,10 @@
             <thead>
                 <tr>
                     <th>Order ID</th>
+                    @if(request('tab', 'dealer') !== 'distributor')
                     <th>Shop Name</th>
                     <th>Salesman</th>
+                    @endif
                     <th>Distributor</th>
                     <th>Expected Delivery</th>
                     <th>Transport Details</th>
@@ -209,6 +214,7 @@
                             {{ $order->order_number }}
                         </a>
                     </td>
+                    @if(request('tab', 'dealer') !== 'distributor')
                     <td>
                         <a href="javascript:void(0)" onclick="viewMemberDetails('{{ addslashes($order->member->name) }}', '{{ addslashes($order->member->email) }}', '{{ addslashes($order->member->mobile) }}', '{{ addslashes($order->member->ref_code ?? '') }}', 'Dealer', '{{ addslashes(preg_replace('/\r|\n/', ' ', $order->member->address ?? '')) }}', '{{ addslashes($order->member->shop ?? '') }}', '{{ addslashes($order->member->city->city ?? '') }}', '{{ addslashes($order->member->gst_no ?? '') }}', '{{ $order->member->discount_percent ?? '' }}', '{{ addslashes($order->member->salesman->name ?? '') }}', '{{ addslashes($distributors->firstWhere('dist_id', $order->member->dist_id)->name ?? $order->member->dist_id ?? '') }}')" style="font-weight: 500; color: #3b82f6; text-decoration: none; border-bottom: 1px dashed rgba(59, 130, 246, 0.3);">
                             {{ $order->member->shop ?? $order->member->name }}
@@ -224,6 +230,7 @@
                             <span style="color: var(--text-muted);">-</span>
                         @endif
                     </td>
+                    @endif
                     <td>
                         @if(isset($order->member->distributor))
                             <a href="javascript:void(0)" onclick="viewMemberDetails('{{ addslashes($order->member->distributor->name) }}', '{{ addslashes($order->member->distributor->email) }}', '{{ addslashes($order->member->distributor->mobile) }}', '{{ addslashes($order->member->distributor->dist_id) }}', 'Distributor', '{{ addslashes(preg_replace('/\r|\n/', ' ', $order->member->distributor->address ?? '')) }}', '', '{{ addslashes($order->member->distributor->city->city ?? '') }}', '', '', '', '')" style="font-weight: 500; color: #3b82f6; text-decoration: none; border-bottom: 1px dashed rgba(59, 130, 246, 0.3);">
