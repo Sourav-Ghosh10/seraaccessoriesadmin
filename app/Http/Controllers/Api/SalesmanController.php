@@ -633,6 +633,9 @@ class SalesmanController extends Controller
         }
 
         $totalPoints = (int) $salesman->points_balance;
+        $lockedPoints = (int) $salesman->rewardTransactions()->where('count_days', '>', 0)->sum('points');
+        $redeemedPoints = (int) \App\Models\RedeemRequest::where('member_id', $salesman->id)->whereIn('status', ['Pending', 'Approved', 'Processed'])->sum('Points');
+        $redeemablePoints = max(0, $totalPoints - $lockedPoints - $redeemedPoints);
         $perPage = (int) $request->query('per_page', 15);
 
         $transactions = $salesman->rewardTransactions()
@@ -656,11 +659,31 @@ class SalesmanController extends Controller
             ];
         });
 
+        $redeemRequests = \App\Models\RedeemRequest::where('member_id', $salesman->id)
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($req) {
+                return [
+                    'id' => $req->id,
+                    'title' => '#RDM' . str_pad($req->id, 5, '0', STR_PAD_LEFT),
+                    'points' => '-' . $req->Points,
+                    'date' => $req->created_at ? $req->created_at->format('d M Y') : 'N/A',
+                    'type' => 'Redemption',
+                    'raw_points' => -((int) $req->Points),
+                    'status' => ucfirst($req->status ?? 'Pending'),
+                    'credit_note' => $req->Credit_note ?? 'Pending',
+                    'note' => $req->notes ?? 'Redemption request submitted.',
+                ];
+            });
+
         return response()->json([
             'success' => true,
             'data' => [
                 'total_points' => $totalPoints,
+                'redeemable_points' => $redeemablePoints,
+                'locked_points' => $lockedPoints,
                 'history' => $history,
+                'redeem_requests' => $redeemRequests,
                 'meta' => [
                     'current_page' => $transactions->currentPage(),
                     'last_page' => $transactions->lastPage(),
@@ -669,6 +692,58 @@ class SalesmanController extends Controller
                 ]
             ]
         ], 200);
+    }
+
+    #[OA\Post(
+        path: "/salesman/redeem-request",
+        summary: "Submit a points redeem request",
+        description: "Stores a redeem request for the authenticated salesman.",
+        security: [["bearerAuth" => []]]
+    )]
+    public function submitRedeemRequest(Request $request): JsonResponse
+    {
+        $salesman = $request->user();
+
+        if (!$this->verifySalesman($salesman)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized.',
+            ], 403);
+        }
+
+        $points = (int) $request->input('points', $request->input('Points', 0));
+        $notes = $request->input('notes', $request->input('note', $request->input('remarks', '')));
+
+        if ($points <= 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Please enter a valid points amount to redeem.',
+            ], 422);
+        }
+
+        $totalPoints = (int) $salesman->points_balance;
+        $lockedPoints = (int) $salesman->rewardTransactions()->where('count_days', '>', 0)->sum('points');
+        $redeemedPoints = (int) \App\Models\RedeemRequest::where('member_id', $salesman->id)->whereIn('status', ['Pending', 'Approved', 'Processed'])->sum('Points');
+        $redeemablePoints = max(0, $totalPoints - $lockedPoints - $redeemedPoints);
+
+        if ($points > $redeemablePoints) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You do not have enough redeemable points.',
+            ], 422);
+        }
+
+        \App\Models\RedeemRequest::create([
+            'member_id' => $salesman->id,
+            'Points' => $points,
+            'notes' => $notes,
+            'status' => 'Pending',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Redeem request submitted successfully.',
+        ]);
     }
 
     #[OA\Get(

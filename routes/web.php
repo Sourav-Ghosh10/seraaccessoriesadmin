@@ -85,6 +85,10 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/rewards', [PageController::class, 'rewards'])->name('rewards');
         Route::post('/rewards/store', [OrderController::class, 'storeRewardPoints'])->name('rewards.store');
 
+        Route::get('/redeem-requests', [PageController::class, 'redeemRequests'])->name('redeem-requests');
+        Route::post('/redeem-requests/{id}/status', [OrderController::class, 'updateRedeemStatus'])->name('redeem-requests.update-status');
+
+
         Route::get('/price-list', [PriceListController::class, 'index'])->name('price-list');
         Route::post('/price-list/upload', [PriceListController::class, 'upload'])->name('price-list.upload');
 

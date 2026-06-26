@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class RewardTransaction extends Model
 {
-    protected $fillable = ['member_id', 'order_id', 'points', 'type'];
+    protected $fillable = ['member_id', 'order_id', 'points', 'type', 'unlock_days', 'count_days'];
 
     protected $casts = [
         'points' => 'integer',

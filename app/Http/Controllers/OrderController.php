@@ -7,6 +7,7 @@ use App\Models\OrderRequest;
 use App\Models\Delivery;
 use App\Models\Invoice;
 use App\Models\RewardTransaction;
+use App\Models\RedeemRequest;
 use App\Services\FcmService;
 use Illuminate\Http\Request;
 
@@ -314,6 +315,7 @@ class OrderController extends Controller
             'order_id' => 'required|exists:orders,id',
             'dealer_points' => 'nullable|integer|min:0',
             'salesman_points' => 'nullable|integer|min:0',
+            'unlock_days' => 'nullable|integer|min:0',
         ]);
 
         $order = Order::with(['member.salesman'])->findOrFail($validated['order_id']);
@@ -322,6 +324,12 @@ class OrderController extends Controller
 
         $hasAddedPoints = false;
 
+        $unlockDays = $request->input('unlock_days');
+        $countDays = null;
+        if ($unlockDays !== null && $unlockDays !== '') {
+            $countDays = $unlockDays;
+        }
+
         // 1. Assign Dealer Points
         if (!empty($validated['dealer_points']) && $validated['dealer_points'] > 0) {
             RewardTransaction::create([
@@ -329,6 +337,8 @@ class OrderController extends Controller
                 'order_id' => $order->id,
                 'points' => $validated['dealer_points'],
                 'type' => 'Order Points',
+                'unlock_days' => $unlockDays,
+                'count_days' => $countDays,
             ]);
 
             // Send push notification to Dealer
@@ -355,6 +365,8 @@ class OrderController extends Controller
                 'order_id' => $order->id,
                 'points' => $validated['salesman_points'],
                 'type' => 'Order Points',
+                'unlock_days' => $unlockDays,
+                'count_days' => $countDays,
             ]);
 
             // Send push notification to Salesman
@@ -545,5 +557,40 @@ class OrderController extends Controller
 
         return response()->json(['success' => true, 'message' => 'Order cancelled successfully!']);
     }
+
+    public function updateRedeemStatus(Request $request, $id)
+    {
+        $redeem = RedeemRequest::findOrFail($id);
+        
+        $request->validate([
+            'status' => 'required|in:Pending,Approved,Processed,Rejected',
+            'credit_note' => 'nullable|string|max:255',
+            'dealer_file' => 'nullable|file|mimes:pdf,jpg,png|max:2048',
+            'distributor_file' => 'nullable|file|mimes:pdf,jpg,png|max:2048',
+        ]);
+
+        $redeem->status = $request->status;
+        if ($request->has('credit_note')) {
+            $redeem->Credit_note = $request->credit_note;
+        }
+
+        if ($request->hasFile('dealer_file')) {
+            $path = $request->file('dealer_file')->store('redeem_requests/dealer', 'public');
+            $redeem->dealer_file_path = $path;
+        }
+
+        if ($request->hasFile('distributor_file')) {
+            $path = $request->file('distributor_file')->store('redeem_requests/distributor', 'public');
+            $redeem->distributor_file_path = $path;
+        }
+
+        $redeem->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Redeem request updated successfully!'
+        ]);
+    }
 }
+
 

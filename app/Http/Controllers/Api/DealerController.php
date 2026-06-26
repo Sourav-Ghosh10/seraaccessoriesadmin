@@ -1181,6 +1181,9 @@ class DealerController extends Controller
         }
 
         $totalPoints = (int) $dealer->points_balance;
+        $lockedPoints = (int) $dealer->rewardTransactions()->where('count_days', '>', 0)->sum('points');
+        $redeemedPoints = (int) \App\Models\RedeemRequest::where('member_id', $dealer->id)->whereIn('status', ['Pending', 'Approved', 'Processed'])->sum('Points');
+        $redeemablePoints = max(0, $totalPoints - $lockedPoints - $redeemedPoints);
 
         $perPage = (int) $request->query('per_page', 15);
         $transactions = $dealer->rewardTransactions()
@@ -1204,11 +1207,31 @@ class DealerController extends Controller
             ];
         });
 
+        $redeemRequests = \App\Models\RedeemRequest::where('member_id', $dealer->id)
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($req) {
+                return [
+                    'id' => $req->id,
+                    'title' => '#RDM' . str_pad($req->id, 5, '0', STR_PAD_LEFT),
+                    'points' => '-' . $req->Points,
+                    'date' => $req->created_at ? $req->created_at->format('d M Y') : 'N/A',
+                    'type' => 'Redemption',
+                    'raw_points' => -((int) $req->Points),
+                    'status' => ucfirst($req->status ?? 'Pending'),
+                    'credit_note' => $req->Credit_note ?? 'Pending',
+                    'note' => $req->notes ?? 'Redemption request submitted.',
+                ];
+            });
+
         return response()->json([
             'success' => true,
             'data' => [
                 'total_points' => $totalPoints,
+                'redeemable_points' => $redeemablePoints,
+                'locked_points' => $lockedPoints,
                 'history' => $history,
+                'redeem_requests' => $redeemRequests,
                 'meta' => [
                     'current_page' => $transactions->currentPage(),
                     'last_page' => $transactions->lastPage(),
@@ -1216,6 +1239,51 @@ class DealerController extends Controller
                     'total' => $transactions->total(),
                 ]
             ]
+        ]);
+    }
+
+    #[OA\Post(
+        path: "/dealer/redeem-request",
+        summary: "Submit a points redeem request",
+        description: "Stores a redeem request for the authenticated dealer.",
+        security: [["bearerAuth" => []]]
+    )]
+    public function submitRedeemRequest(Request $request): JsonResponse
+    {
+        $dealer = $request->user();
+
+        $points = (int) $request->input('points', $request->input('Points', 0));
+        $notes = $request->input('notes', $request->input('note', $request->input('remarks', '')));
+
+        if ($points <= 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Please enter a valid points amount to redeem.',
+            ], 422);
+        }
+
+        $totalPoints = (int) $dealer->points_balance;
+        $lockedPoints = (int) $dealer->rewardTransactions()->where('count_days', '>', 0)->sum('points');
+        $redeemedPoints = (int) \App\Models\RedeemRequest::where('member_id', $dealer->id)->whereIn('status', ['Pending', 'Approved', 'Processed'])->sum('Points');
+        $redeemablePoints = max(0, $totalPoints - $lockedPoints - $redeemedPoints);
+
+        if ($points > $redeemablePoints) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You do not have enough redeemable points.',
+            ], 422);
+        }
+
+        \App\Models\RedeemRequest::create([
+            'member_id' => $dealer->id,
+            'Points' => $points,
+            'notes' => $notes,
+            'status' => 'Pending',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Redeem request submitted successfully.',
         ]);
     }
 

@@ -382,6 +382,11 @@
             </div>
         </div>
 
+        <div class="form-group" style="margin-bottom: 20px;">
+            <label class="form-label" style="color: var(--text-muted); font-size: 12px; text-transform: uppercase;">Unlock days count</label>
+            <input type="number" id="unlockDaysCount" class="form-control" placeholder="0" style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1);">
+        </div>
+
         <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 40px;">
             <button class="btn glass" onclick="closeAddPointsModal()" style="border: none; background: rgba(255,255,255,0.05); padding: 12px 30px;">Cancel</button>
             <button id="submitPointsBtn" class="btn btn-primary" onclick="submitPoints()" style="padding: 12px 35px; box-shadow: 0 10px 15px -3px rgba(154, 90, 58, 0.3);">Add Points</button>
@@ -801,6 +806,7 @@
         const orderId = document.getElementById('orderNumber').value;
         const dPoints = document.getElementById('dealerPoints').value;
         const sPoints = document.getElementById('salesmanPoints').value;
+        const unlockDays = document.getElementById('unlockDaysCount').value;
         const submitBtn = document.querySelector('button[onclick="submitPoints()"]');
 
         if (!orderId || (!dPoints && !sPoints)) {
@@ -812,6 +818,7 @@
             order_id: orderId,
             dealer_points: dPoints || 0,
             salesman_points: sPoints || 0,
+            unlock_days: unlockDays || null,
             _token: '{{ csrf_token() }}'
         };
 
