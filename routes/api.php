@@ -73,6 +73,7 @@ Route::middleware(JwtAuthMiddleware::class)->group(function () {
         Route::get('/my-points', [SalesmanController::class, 'myPoints'])->name('my-points');
         Route::post('/redeem-request', [SalesmanController::class, 'submitRedeemRequest'])->name('redeem-request');
         Route::get('/dealer/passbook', [SalesmanController::class, 'dealerPassbook'])->name('dealer-passbook');
+        Route::get('/my-passbook', [SalesmanController::class, 'dealerPassbook'])->name('my-passbook');
 
         // Attendance & Visits
         Route::get('/attendance-status', [SalesmanController::class, 'attendanceStatus'])->name('attendance-status');
@@ -96,6 +97,12 @@ Route::middleware(JwtAuthMiddleware::class)->group(function () {
         Route::post('/order/{id}/delivery', [DistributorController::class, 'updateDelivery'])->name('order.delivery');
         Route::post('/estimate', [DistributorController::class, 'submitEstimate'])->name('estimate');
         Route::post('/order-request', [DistributorController::class, 'placeOrderRequest'])->name('order-request');
+        Route::get('/redeem-requests', [DistributorController::class, 'redeemRequests'])->name('redeem-requests');
+        Route::get('/redeem-request', [DistributorController::class, 'redeemRequests'])->name('redeem-request');
+        Route::get('/dealer-redeem-requests', [DistributorController::class, 'redeemRequests'])->name('dealer-redeem-requests');
+        Route::post('/redeem-request/{id}/status', [DistributorController::class, 'updateRedeemRequestStatus'])->name('redeem-request.status');
+        Route::post('/redeem-request/{id}/approve', [DistributorController::class, 'updateRedeemRequestStatus'])->name('redeem-request.approve');
+        Route::post('/redeem-request/{id}/reject', [DistributorController::class, 'updateRedeemRequestStatus'])->name('redeem-request.reject');
     });
 
 });

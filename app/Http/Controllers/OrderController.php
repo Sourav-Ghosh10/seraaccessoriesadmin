@@ -575,13 +575,17 @@ class OrderController extends Controller
         }
 
         if ($request->hasFile('dealer_file')) {
-            $path = $request->file('dealer_file')->store('redeem_requests/dealer', 'public');
-            $redeem->dealer_file_path = $path;
+            $file = $request->file('dealer_file');
+            $filename = time() . '_dealer_' . preg_replace('/[^a-zA-Z0-9_.-]/', '', $file->getClientOriginalName());
+            $file->move(public_path('uploads/redeem_requests/dealer'), $filename);
+            $redeem->dealer_file_path = 'redeem_requests/dealer/' . $filename;
         }
 
         if ($request->hasFile('distributor_file')) {
-            $path = $request->file('distributor_file')->store('redeem_requests/distributor', 'public');
-            $redeem->distributor_file_path = $path;
+            $file = $request->file('distributor_file');
+            $filename = time() . '_dist_' . preg_replace('/[^a-zA-Z0-9_.-]/', '', $file->getClientOriginalName());
+            $file->move(public_path('uploads/redeem_requests/distributor'), $filename);
+            $redeem->distributor_file_path = 'redeem_requests/distributor/' . $filename;
         }
 
         $redeem->save();
