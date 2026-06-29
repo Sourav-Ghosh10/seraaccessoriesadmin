@@ -145,7 +145,7 @@ class SalesmanController extends Controller
         $dealersQuery = Member::where('salesman_id', $salesman->id)
             ->where('role', 'dealer')
             ->with('distributor')
-            ->withCount('orders')
+            ->withCount(['orders', 'orderRequests', 'estimates'])
             ->when($search, function ($query) use ($search) {
                 return $query->where(function ($q) use ($search) {
                     $q->where('name', 'like', "%{$search}%")
@@ -169,7 +169,7 @@ class SalesmanController extends Controller
                 'status' => $dealer->status,
                 'distributor_name' => $dealer->distributor ? $dealer->distributor->name : null,
                 'points_balance' => (int) $dealer->points_balance,
-                'total_orders' => (int) $dealer->orders_count,
+                'total_orders' => (int) ($dealer->orders_count ?? 0) + (int) ($dealer->order_requests_count ?? 0) + (int) ($dealer->estimates_count ?? 0),
                 'created_at' => $dealer->created_at,
             ];
         });
@@ -406,7 +406,7 @@ class SalesmanController extends Controller
             ->pluck('id');
             
         if ($dealerIdParam) {
-            $dealerIds = $dealerIds->filter(fn($id) => $id == $dealerIdParam);
+            $dealerIds = collect([ (int) $dealerIdParam ]);
         }
 
         $merged = collect();
@@ -541,7 +541,7 @@ class SalesmanController extends Controller
         // Manual Pagination
         $perPage = (int) $request->query('per_page', 10);
         $page = (int) $request->query('page', 1);
-        $paginatedData = $sorted->forPage($page, $perPage);
+        $paginatedData = $sorted->forPage($page, $perPage)->values();
 
         $paginator = new \Illuminate\Pagination\LengthAwarePaginator(
             $paginatedData,
@@ -553,7 +553,7 @@ class SalesmanController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $paginator->items(),
+            'data' => array_values($paginator->items()),
             'meta' => [
                 'current_page' => $paginator->currentPage(),
                 'last_page' => $paginator->lastPage(),

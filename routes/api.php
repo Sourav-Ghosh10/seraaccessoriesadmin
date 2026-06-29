@@ -73,6 +73,7 @@ Route::middleware(JwtAuthMiddleware::class)->group(function () {
         Route::get('/my-points', [SalesmanController::class, 'myPoints'])->name('my-points');
         Route::post('/redeem-request', [SalesmanController::class, 'submitRedeemRequest'])->name('redeem-request');
         Route::get('/dealer/passbook', [SalesmanController::class, 'dealerPassbook'])->name('dealer-passbook');
+        Route::get('/my-passbook', [SalesmanController::class, 'dealerPassbook'])->name('my-passbook');
 
         // Attendance & Visits
         Route::get('/attendance-status', [SalesmanController::class, 'attendanceStatus'])->name('attendance-status');

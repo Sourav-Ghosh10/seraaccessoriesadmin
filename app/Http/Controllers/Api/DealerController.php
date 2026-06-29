@@ -982,8 +982,9 @@ class DealerController extends Controller
             'fcm_token' => 'required|string',
         ]);
 
-        $dealer->devices()->updateOrCreate(
-            ['fcm_token' => $request->fcm_token]
+        \App\Models\MemberDevice::updateOrCreate(
+            ['fcm_token' => $request->fcm_token],
+            ['member_id' => $dealer->id]
         );
 
         return response()->json([

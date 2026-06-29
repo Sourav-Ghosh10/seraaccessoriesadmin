@@ -49,6 +49,11 @@ class Member extends Authenticatable
         return $this->hasMany(Order::class, 'member_id');
     }
 
+    public function orderRequests()
+    {
+        return $this->hasMany(OrderRequest::class, 'member_id');
+    }
+
     public function estimates()
     {
         return $this->hasMany(Estimate::class, 'member_id');
