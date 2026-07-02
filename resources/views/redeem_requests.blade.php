@@ -432,11 +432,11 @@
                         <strong id="redeemReqPoints" style="color: #fbbf24; font-size: 16px;">-</strong>
                     </div>
                     <div>
-                        <label style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;">Notes</label>
+                        <label style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;">Redeem History Note</label>
                         <div id="redeemNotes" style="color: #e2e8f0; font-size: 13px; margin-top: 4px; background: rgba(0,0,0,0.25); padding: 12px; border-radius: 8px; line-height: 1.4;">-</div>
                     </div>
                     <div>
-                        <label style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;">Credit Note / Challan No.</label>
+                        <label style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;">Note</label>
                         <input type="text" id="redeemCreditInput" class="form-control" style="margin-top: 4px; background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1); color: #fff;" placeholder="Enter reference number...">
                     </div>
                     <div>
@@ -444,7 +444,7 @@
                         <select id="redeemStatusSelect" class="form-control" style="margin-top: 4px; background: #1e293b; border-color: rgba(255,255,255,0.1); color: #fff;">
                             <option value="Pending">Pending</option>
                             <option value="Approved">Approved</option>
-                            <option value="Processed">Processed</option>
+                            <!-- <option value="Processed">Processed</option> -->
                             <option value="Rejected">Rejected</option>
                         </select>
                     </div>
@@ -606,7 +606,7 @@
                 if (salesmanGroup) salesmanGroup.style.display = 'none';
             } else {
                 if (dealerGroup) dealerGroup.style.display = 'block';
-                if (distGroup) distGroup.style.display = 'none';
+                if (distGroup) distGroup.style.display = 'block';
                 if (salesmanGroup) salesmanGroup.style.display = 'none';
             }
 
