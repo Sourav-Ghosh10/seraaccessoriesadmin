@@ -412,6 +412,12 @@ class PageController extends Controller
                 $table->string('distributor_file_path')->nullable()->after('dealer_file_path');
             });
         }
+        
+        if (!\Illuminate\Support\Facades\Schema::hasColumn('redeem_request', 'salesman_file_path')) {
+            \Illuminate\Support\Facades\Schema::table('redeem_request', function (\Illuminate\Database\Schema\Blueprint $table) {
+                $table->string('salesman_file_path')->nullable()->after('distributor_file_path');
+            });
+        }
 
         $query = RedeemRequest::with(['member' => function($q) {
             $q->with(['salesman', 'distributor', 'city'])->withSum('rewardTransactions', 'points');

@@ -234,11 +234,8 @@ class OrderController extends Controller
                 $balance->due_amount = $balance->total_amount - $balance->paid_amount;
                 $balance->save();
 
-                // Record Passbook Transaction
-                $ref = 'INV-' . mt_rand(1000, 9999);
-                while (\App\Models\PassbookTransaction::where('ref', $ref)->exists()) {
-                    $ref = 'INV-' . mt_rand(1000, 9999);
-                }
+                // Record Passbook Transaction using actual Invoice Number
+                $ref = $validated['invoice_number'];
 
                 $managerName = auth()->user() ? auth()->user()->name : 'System Admin';
                 
@@ -567,6 +564,7 @@ class OrderController extends Controller
             'credit_note' => 'nullable|string|max:255',
             'dealer_file' => 'nullable|file|mimes:pdf,jpg,png|max:2048',
             'distributor_file' => 'nullable|file|mimes:pdf,jpg,png|max:2048',
+            'salesman_file' => 'nullable|file|mimes:pdf,jpg,png|max:2048',
         ]);
 
         $redeem->status = $request->status;
@@ -575,20 +573,33 @@ class OrderController extends Controller
         }
 
         if ($request->hasFile('dealer_file')) {
-            $file = $request->file('dealer_file');
-            $filename = time() . '_dealer_' . preg_replace('/[^a-zA-Z0-9_.-]/', '', $file->getClientOriginalName());
-            $file->move(public_path('uploads/redeem_requests/dealer'), $filename);
-            $redeem->dealer_file_path = 'redeem_requests/dealer/' . $filename;
+            $redeem->dealer_file_path = $request->file('dealer_file')->store('redeem_requests/dealer', 'public');
         }
 
         if ($request->hasFile('distributor_file')) {
-            $file = $request->file('distributor_file');
-            $filename = time() . '_dist_' . preg_replace('/[^a-zA-Z0-9_.-]/', '', $file->getClientOriginalName());
-            $file->move(public_path('uploads/redeem_requests/distributor'), $filename);
-            $redeem->distributor_file_path = 'redeem_requests/distributor/' . $filename;
+            $redeem->distributor_file_path = $request->file('distributor_file')->store('redeem_requests/distributor', 'public');
+        }
+
+        if ($request->hasFile('salesman_file')) {
+            $redeem->salesman_file_path = $request->file('salesman_file')->store('redeem_requests/salesman', 'public');
         }
 
         $redeem->save();
+
+        try {
+            if ($redeem->member) {
+                FcmService::sendPushNotification(
+                    $redeem->member,
+                    'Redeem Request ' . $redeem->status,
+                    "Your redeem request #RDM-" . str_pad($redeem->id, 4, '0', STR_PAD_LEFT) . " status has been updated to " . $redeem->status . ".",
+                    [
+                        'type' => 'redeem',
+                        'id' => $redeem->id,
+                        'status' => $redeem->status
+                    ]
+                );
+            }
+        } catch (\Exception $e) {}
 
         return response()->json([
             'success' => true,

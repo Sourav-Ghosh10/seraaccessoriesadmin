@@ -744,6 +744,9 @@ class DistributorController extends Controller
                     'credit_note' => $req->Credit_note ?? 'Pending',
                     'remarks' => $req->notes ?? '',
                     'note' => $req->notes ?? '',
+                    'dealer_document_url' => $req->dealer_file_path ? asset('uploads/' . $req->dealer_file_path) : null,
+                    'distributor_document_url' => $req->distributor_file_path ? asset('uploads/' . $req->distributor_file_path) : null,
+                    'salesman_document_url' => $req->salesman_file_path ? asset('uploads/' . $req->salesman_file_path) : null,
                 ];
             });
 

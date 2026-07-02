@@ -316,8 +316,6 @@
             }
         });
     </script>
-    @yield('scripts')
-    @stack('modals')
 
     <!-- Global AJAX Loader Script -->
     <script>
@@ -326,15 +324,20 @@
 
             function showLoader() {
                 loaderCount++;
-                document.getElementById('globalLoader').style.display = 'flex';
+                var loaderEl = document.getElementById('globalLoader');
+                if (loaderEl) loaderEl.style.display = 'flex';
             }
 
             function hideLoader() {
                 loaderCount = Math.max(0, loaderCount - 1);
-                if (loaderCount === 0) {
-                    document.getElementById('globalLoader').style.display = 'none';
+                var loaderEl = document.getElementById('globalLoader');
+                if (loaderCount === 0 && loaderEl) {
+                    loaderEl.style.display = 'none';
                 }
             }
+
+            window.showLoader = showLoader;
+            window.hideLoader = hideLoader;
 
             // jQuery global AJAX hooks (covers $.ajax, $.get, $.post)
             if (typeof $ !== 'undefined') {
@@ -363,6 +366,9 @@
             };
         })();
     </script>
+
+    @yield('scripts')
+    @stack('modals')
 
     @auth
     @php

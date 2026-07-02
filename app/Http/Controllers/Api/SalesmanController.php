@@ -681,6 +681,7 @@ class SalesmanController extends Controller
                     'note' => $req->notes ?? 'Redemption request submitted.',
                     'dealer_document_url' => $req->dealer_file_path ? asset('uploads/' . $req->dealer_file_path) : null,
                     'distributor_document_url' => $req->distributor_file_path ? asset('uploads/' . $req->distributor_file_path) : null,
+                    'salesman_document_url' => $req->salesman_file_path ? asset('uploads/' . $req->salesman_file_path) : null,
                 ];
             });
 
@@ -1616,10 +1617,7 @@ class SalesmanController extends Controller
 
         $photoPath = null;
         if ($request->hasFile('photo')) {
-            $file = $request->file('photo');
-            $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
-            $file->move(public_path('uploads/visits'), $filename);
-            $photoPath = 'visits/' . $filename;
+            $photoPath = $request->file('photo')->store('visits', 'public');
         }
 
         SalesmanVisit::create([
@@ -1865,10 +1863,7 @@ class SalesmanController extends Controller
 
         $photoPath = null;
         if ($request->hasFile('receipt_photo')) {
-            $file = $request->file('receipt_photo');
-            $fileName = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
-            $file->move(public_path('uploads/expenses'), $fileName);
-            $photoPath = 'expenses/' . $fileName;
+            $photoPath = $request->file('receipt_photo')->store('expenses', 'public');
         }
 
         Expense::create([
