@@ -900,6 +900,7 @@ input:-webkit-autofill:active{
 
     window.onclick = function(event) {
         if (event.target.id === 'dealerModal') closeDealerModal();
+        if (event.target.id === 'editPointsModal') closeEditPointsModal();
         // Close city dropdown on outside click
         const wrapper = document.getElementById('citySelectWrapper');
         if (wrapper && !wrapper.contains(event.target)) {
@@ -1067,8 +1068,11 @@ input:-webkit-autofill:active{
 
     function openEditPointsModal(dealer, pointsBalance) {
         currentEditPointsDealerId = dealer.id;
-        document.getElementById('quickEditPointsInput').value = pointsBalance !== undefined ? pointsBalance : '0';
-        document.getElementById('err-quick-points').innerText = '';
+        const input = document.getElementById('quickEditPointsInput');
+        input.value = pointsBalance !== undefined ? pointsBalance : '0';
+        input.classList.remove('input-error');
+        const err = document.getElementById('err-quick-points');
+        if (err) { err.innerText = ''; err.style.display = 'none'; }
         document.getElementById('editPointsModal').style.display = 'flex';
         closeAllActionMenus();
     }
@@ -1082,21 +1086,20 @@ input:-webkit-autofill:active{
         const points = document.getElementById('quickEditPointsInput').value;
         if (!currentEditPointsDealerId) return;
 
-        showLoader();
         fetch(`${window.BASE_PATH}/dealers/${currentEditPointsDealerId}/update-points`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Accept': 'application/json'
             },
             body: JSON.stringify({ points: points })
         })
         .then(response => response.json())
         .then(result => {
-            hideLoader();
             if (result.success) {
                 alert(result.message);
-                setTimeout(() => window.location.reload(), 500);
+                location.reload();
             } else {
                 if (result.errors && result.errors.points) {
                     showError('quickEditPointsInput', 'err-quick-points', result.errors.points[0]);
@@ -1106,7 +1109,6 @@ input:-webkit-autofill:active{
             }
         })
         .catch(error => {
-            hideLoader();
             console.error('Error:', error);
             alert('Server error occurred.');
         });

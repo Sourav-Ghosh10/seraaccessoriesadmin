@@ -310,8 +310,10 @@
                                             data-credit="{{ addslashes($req->Credit_note ?? '') }}"
                                             data-sender="{{ addslashes($req->member->shop ?? $req->member->name ?? 'Unknown') }}"
                                             data-status="{{ $req->status }}"
+                                            data-role="{{ strtolower($req->member->role ?? $tab) }}"
                                             data-dealer-doc="{{ $req->dealer_file_path ? asset('uploads/' . $req->dealer_file_path) : '' }}"
                                             data-distributor-doc="{{ $req->distributor_file_path ? asset('uploads/' . $req->distributor_file_path) : '' }}"
+                                            data-salesman-doc="{{ $req->salesman_file_path ? asset('uploads/' . $req->salesman_file_path) : '' }}"
                                             onclick="initViewRedeem(this)">
                                             <i class="fas fa-eye"></i> Manage / View
                                         </button>
@@ -430,11 +432,11 @@
                         <strong id="redeemReqPoints" style="color: #fbbf24; font-size: 16px;">-</strong>
                     </div>
                     <div>
-                        <label style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;">Notes</label>
+                        <label style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;">Redeem History Note</label>
                         <div id="redeemNotes" style="color: #e2e8f0; font-size: 13px; margin-top: 4px; background: rgba(0,0,0,0.25); padding: 12px; border-radius: 8px; line-height: 1.4;">-</div>
                     </div>
                     <div>
-                        <label style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;">Credit Note / Challan No.</label>
+                        <label style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;">Note</label>
                         <input type="text" id="redeemCreditInput" class="form-control" style="margin-top: 4px; background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1); color: #fff;" placeholder="Enter reference number...">
                     </div>
                     <div>
@@ -442,13 +444,13 @@
                         <select id="redeemStatusSelect" class="form-control" style="margin-top: 4px; background: #1e293b; border-color: rgba(255,255,255,0.1); color: #fff;">
                             <option value="Pending">Pending</option>
                             <option value="Approved">Approved</option>
-                            <option value="Processed">Processed</option>
+                            <!-- <option value="Processed">Processed</option> -->
                             <option value="Rejected">Rejected</option>
                         </select>
                     </div>
 
                     <!-- Dealer Document -->
-                    <div class="form-group" style="margin-top: 10px;">
+                    <div id="redeemDealerGroup" class="form-group" style="margin-top: 10px;">
                         <label class="form-label" style="color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 1px;">
                             <i class="fas fa-user" style="color: #ef4444; margin-right: 5px;"></i> Dealer Document (PDF/Image)
                         </label>
@@ -466,7 +468,7 @@
                     </div>
 
                     <!-- Distributor Document -->
-                    <div class="form-group" style="margin-top: 10px;">
+                    <div id="redeemDistributorGroup" class="form-group" style="margin-top: 10px;">
                         <label class="form-label" style="color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 1px;">
                             <i class="fas fa-truck" style="color: #f59e0b; margin-right: 5px;"></i> Distributor Document (PDF/Image)
                         </label>
@@ -480,6 +482,24 @@
                             <i class="fas fa-cloud-upload-alt" style="font-size: 22px; color: #f59e0b; margin-bottom: 6px;"></i>
                             <p id="redeemDistributorFileNameDisplay" style="margin: 0; font-size: 13px; color: #cbd5e1;">Click to browse distributor credit note</p>
                             <input type="file" id="redeemDistributorFile" style="display: none;" accept=".pdf,.jpg,.png" onchange="updateRedeemDistributorFileName(this)">
+                        </div>
+                    </div>
+
+                    <!-- Salesman Document -->
+                    <div id="redeemSalesmanGroup" class="form-group" style="margin-top: 10px; display: none;">
+                        <label class="form-label" style="color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 1px;">
+                            <i class="fas fa-user-tie" style="color: #3b82f6; margin-right: 5px;"></i> Salesman Document (PDF/Image)
+                        </label>
+                        <div id="existingRedeemSalesmanDoc" style="display: none; margin-bottom: 8px;">
+                            <a id="redeemSalesmanDocLink" href="#" target="_blank" style="display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: #3b82f6; text-decoration: none; background: rgba(59,130,246,0.1); padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(59,130,246,0.2);">
+                                <i class="fas fa-file-download"></i> View Uploaded Salesman Document
+                            </a>
+                        </div>
+                        <div style="border: 2px dashed rgba(59,130,246,0.3); border-radius: 12px; padding: 18px; text-align: center; background: rgba(59,130,246,0.03); cursor: pointer;"
+                            onclick="document.getElementById('redeemSalesmanFile').click()">
+                            <i class="fas fa-cloud-upload-alt" style="font-size: 22px; color: #3b82f6; margin-bottom: 6px;"></i>
+                            <p id="redeemSalesmanFileNameDisplay" style="margin: 0; font-size: 13px; color: #cbd5e1;">Click to browse salesman document</p>
+                            <input type="file" id="redeemSalesmanFile" style="display: none;" accept=".pdf,.jpg,.png" onchange="updateRedeemSalesmanFileName(this)">
                         </div>
                     </div>
                 </div>
@@ -550,6 +570,8 @@
 
         function initViewRedeem(btn) {
             activeRedeemId = btn.getAttribute('data-id');
+            const role = btn.getAttribute('data-role') || '{{ $tab }}';
+            
             document.getElementById('redeemSenderName').innerText = btn.getAttribute('data-sender');
             document.getElementById('redeemTotalPoints').innerText = btn.getAttribute('data-total') + ' pts';
             document.getElementById('redeemReqPoints').innerText = btn.getAttribute('data-points') + ' pts';
@@ -559,13 +581,38 @@
             
             document.getElementById('redeemDealerFile').value = '';
             document.getElementById('redeemDistributorFile').value = '';
+            if (document.getElementById('redeemSalesmanFile')) document.getElementById('redeemSalesmanFile').value = '';
+            
             document.getElementById('redeemDealerFileNameDisplay').innerText = 'Click to browse dealer credit note';
             document.getElementById('redeemDealerFileNameDisplay').style.color = '#cbd5e1';
             document.getElementById('redeemDistributorFileNameDisplay').innerText = 'Click to browse distributor credit note';
             document.getElementById('redeemDistributorFileNameDisplay').style.color = '#cbd5e1';
+            if (document.getElementById('redeemSalesmanFileNameDisplay')) {
+                document.getElementById('redeemSalesmanFileNameDisplay').innerText = 'Click to browse salesman document';
+                document.getElementById('redeemSalesmanFileNameDisplay').style.color = '#cbd5e1';
+            }
+
+            const dealerGroup = document.getElementById('redeemDealerGroup');
+            const distGroup = document.getElementById('redeemDistributorGroup');
+            const salesmanGroup = document.getElementById('redeemSalesmanGroup');
+            
+            if (role === 'salesman') {
+                if (dealerGroup) dealerGroup.style.display = 'none';
+                if (distGroup) distGroup.style.display = 'none';
+                if (salesmanGroup) salesmanGroup.style.display = 'block';
+            } else if (role === 'distributor') {
+                if (dealerGroup) dealerGroup.style.display = 'none';
+                if (distGroup) distGroup.style.display = 'block';
+                if (salesmanGroup) salesmanGroup.style.display = 'none';
+            } else {
+                if (dealerGroup) dealerGroup.style.display = 'block';
+                if (distGroup) distGroup.style.display = 'block';
+                if (salesmanGroup) salesmanGroup.style.display = 'none';
+            }
 
             const dealerDoc = btn.getAttribute('data-dealer-doc');
             const distDoc = btn.getAttribute('data-distributor-doc');
+            const salesmanDoc = btn.getAttribute('data-salesman-doc');
             
             if (dealerDoc) {
                 document.getElementById('existingRedeemDealerDoc').style.display = 'block';
@@ -579,6 +626,15 @@
                 document.getElementById('redeemDistributorDocLink').href = distDoc;
             } else {
                 document.getElementById('existingRedeemDistributorDoc').style.display = 'none';
+            }
+            
+            if (salesmanDoc) {
+                if (document.getElementById('existingRedeemSalesmanDoc')) {
+                    document.getElementById('existingRedeemSalesmanDoc').style.display = 'block';
+                    document.getElementById('redeemSalesmanDocLink').href = salesmanDoc;
+                }
+            } else {
+                if (document.getElementById('existingRedeemSalesmanDoc')) document.getElementById('existingRedeemSalesmanDoc').style.display = 'none';
             }
 
             document.getElementById('viewRedeemModal').style.display = 'flex';
@@ -601,6 +657,13 @@
                 document.getElementById('redeemDistributorFileNameDisplay').style.color = '#f59e0b';
             }
         }
+        
+        function updateRedeemSalesmanFileName(input) {
+            if (input.files && input.files[0]) {
+                document.getElementById('redeemSalesmanFileNameDisplay').innerText = input.files[0].name;
+                document.getElementById('redeemSalesmanFileNameDisplay').style.color = '#3b82f6';
+            }
+        }
 
         function saveRedeemChanges() {
             if (!activeRedeemId) return;
@@ -614,9 +677,11 @@
             
             const dealerFile = document.getElementById('redeemDealerFile').files[0];
             const distFile = document.getElementById('redeemDistributorFile').files[0];
+            const salesmanFile = document.getElementById('redeemSalesmanFile') ? document.getElementById('redeemSalesmanFile').files[0] : null;
             
             if (dealerFile) formData.append('dealer_file', dealerFile);
             if (distFile) formData.append('distributor_file', distFile);
+            if (salesmanFile) formData.append('salesman_file', salesmanFile);
 
             fetch(`${window.BASE_PATH}/redeem-requests/${activeRedeemId}/status`, {
                 method: 'POST',

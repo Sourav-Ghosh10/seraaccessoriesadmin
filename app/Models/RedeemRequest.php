@@ -16,6 +16,7 @@ class RedeemRequest extends Model
         'status',
         'dealer_file_path',
         'distributor_file_path',
+        'salesman_file_path',
     ];
 
     public function member()

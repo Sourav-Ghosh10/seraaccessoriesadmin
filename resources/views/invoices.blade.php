@@ -181,11 +181,12 @@
                style="padding: 8px 20px;">Distributor Requests</a>
         </div>
 
-        <form id="filterForm" method="GET" action="" style="background: rgba(255,255,255,0.02); padding: 20px; border-radius: 12px; margin-bottom: 25px; border: 1px solid rgba(255,255,255,0.05);">
+        <form id="filterForm" method="GET" action="{{ route('invoices') }}" style="background: rgba(255,255,255,0.02); padding: 20px; border-radius: 12px; margin-bottom: 25px; border: 1px solid rgba(255,255,255,0.05);">
+            <input type="hidden" name="tab" value="{{ request('tab', 'dealer') }}">
             <div class="grid-4" style="gap: 15px; align-items: end;">
                 <div>
                     <label class="form-label" style="font-size: 11px; text-transform: uppercase; color: var(--text-muted);">Search</label>
-                    <input type="text" name="search" id="searchInput" class="form-control" placeholder="ID, Dealer or Shop Name" value="{{ request('search') }}" style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1);">
+                    <input type="text" name="search" id="searchInput" class="form-control" placeholder="{{ request('tab') === 'distributor' ? 'ID or Distributor Name' : 'ID, Dealer or Shop Name' }}" value="{{ request('search') }}" style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1);">
                 </div>
                 <div>
                     <label class="form-label" style="font-size: 11px; text-transform: uppercase; color: var(--text-muted);">City</label>
@@ -221,9 +222,19 @@
                     <label class="form-label" style="font-size: 11px; text-transform: uppercase; color: var(--text-muted);">Invoice Status</label>
                     <select name="invoice_status" id="filterInvoiceStatus" class="form-control" style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1); color: #fff;">
                         <option value="">All Invoices</option>
-                        <option value="pending" {{ request('invoice_status') == 'pending' ? 'selected' : '' }}>Pending</option>
-                        <option value="complete" {{ request('invoice_status') == 'complete' ? 'selected' : '' }}>Complete</option>
-                        <option value="pending_credit_note" {{ request('invoice_status') == 'pending_credit_note' ? 'selected' : '' }}>Pending Credit Note</option>
+                        <optgroup label="Order Status">
+                            <option value="confirmed" {{ request('invoice_status') == 'confirmed' ? 'selected' : '' }}>Confirmed</option>
+                            <option value="order_pending" {{ request('invoice_status') == 'order_pending' ? 'selected' : '' }}>Pending</option>
+                            <option value="out_for_delivery" {{ request('invoice_status') == 'out_for_delivery' ? 'selected' : '' }}>Out for Delivery</option>
+                            <option value="delivered" {{ request('invoice_status') == 'delivered' ? 'selected' : '' }}>Delivered</option>
+                            <option value="cancelled" {{ request('invoice_status') == 'cancelled' ? 'selected' : '' }}>Canceled</option>
+                            <option value="returned" {{ request('invoice_status') == 'returned' ? 'selected' : '' }}>Returned</option>
+                        </optgroup>
+                        <optgroup label="Invoice Status">
+                            <option value="invoice_pending" {{ in_array(request('invoice_status'), ['invoice_pending', 'pending']) ? 'selected' : '' }}>Invoice Pending</option>
+                            <option value="complete" {{ request('invoice_status') == 'complete' ? 'selected' : '' }}>Complete</option>
+                            <option value="pending_credit_note" {{ request('invoice_status') == 'pending_credit_note' ? 'selected' : '' }}>Pending Credit Note</option>
+                        </optgroup>
                     </select>
                 </div>
                 <div>
@@ -290,7 +301,11 @@
                             </td>
                             @endif
                             <td>
-                                @if(isset($order->member->distributor))
+                                @if(request('tab', 'dealer') === 'distributor')
+                                    <a href="javascript:void(0)" onclick="viewMemberDetails('{{ addslashes($order->member->name) }}', '{{ addslashes($order->member->email) }}', '{{ addslashes($order->member->mobile) }}', '{{ addslashes($order->member->dist_id ?? '') }}', 'Distributor', '{{ addslashes(preg_replace('/\r|\n/', ' ', $order->member->address ?? '')) }}', '', '{{ addslashes($order->member->city->city ?? '') }}', '', '', '', '')" style="font-weight: 500; color: #3b82f6; text-decoration: none;">
+                                        {{ $order->member->name }}
+                                    </a>
+                                @elseif(isset($order->member->distributor))
                                     <a href="javascript:void(0)" onclick="viewMemberDetails('{{ addslashes($order->member->distributor->name) }}', '{{ addslashes($order->member->distributor->email) }}', '{{ addslashes($order->member->distributor->mobile) }}', '{{ addslashes($order->member->distributor->dist_id) }}', 'Distributor', '{{ addslashes(preg_replace('/\r|\n/', ' ', $order->member->distributor->address ?? '')) }}', '', '{{ addslashes($order->member->distributor->city->city ?? '') }}', '', '', '', '')" style="font-weight: 500; color: #3b82f6; text-decoration: none;">
                                         {{ $order->member->distributor->name }}
                                     </a>
@@ -822,7 +837,7 @@
                 filterTimeout = setTimeout(function() {
                     var form = $('#filterForm');
                     $.ajax({
-                        url: form.attr('action') || window.location.href,
+                        url: form.attr('action'),
                         data: form.serialize(),
                         success: function(response) {
                             var newTable = $(response).find('.table-container').html();

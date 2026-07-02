@@ -479,6 +479,12 @@ class PageController extends Controller
                 $table->string('distributor_file_path')->nullable()->after('dealer_file_path');
             });
         }
+        
+        if (!\Illuminate\Support\Facades\Schema::hasColumn('redeem_request', 'salesman_file_path')) {
+            \Illuminate\Support\Facades\Schema::table('redeem_request', function (\Illuminate\Database\Schema\Blueprint $table) {
+                $table->string('salesman_file_path')->nullable()->after('distributor_file_path');
+            });
+        }
 
         $query = RedeemRequest::with(['member' => function($q) {
             $q->with(['salesman', 'distributor', 'city'])->withSum('rewardTransactions', 'points');
@@ -706,8 +712,38 @@ class PageController extends Controller
 
     public function invoices(Request $request)
     {
-        $query = Order::with(['member.salesman', 'member.distributor', 'invoice', 'creditNote'])
-            ->where('status', '!=', 'Cancelled');
+        $query = Order::with(['member.salesman', 'member.distributor', 'invoice', 'creditNote']);
+
+        if ($request->filled('order_status')) {
+            $statusFilter = $request->order_status === 'pending' ? 'order_pending' : $request->order_status;
+        } elseif ($request->filled('invoice_status')) {
+            $statusFilter = $request->invoice_status;
+        } else {
+            $statusFilter = null;
+        }
+
+        if ($statusFilter) {
+            $orderStatusMap = [
+                'confirmed' => 'Confirmed',
+                'order_pending' => 'Pending',
+                'out_for_delivery' => 'Out for Delivery',
+                'delivered' => 'Delivered',
+                'cancelled' => 'Cancelled',
+                'returned' => 'Returned',
+            ];
+
+            if (isset($orderStatusMap[$statusFilter])) {
+                $query->where('status', $orderStatusMap[$statusFilter]);
+            } elseif (in_array($statusFilter, ['invoice_pending', 'pending'], true)) {
+                $query->whereDoesntHave('invoice');
+            } elseif ($statusFilter === 'complete') {
+                $query->whereHas('invoice');
+            } elseif ($statusFilter === 'pending_credit_note') {
+                $query->where('status', 'Returned')->whereDoesntHave('creditNote');
+            }
+        } else {
+            $query->where('status', '!=', 'Cancelled');
+        }
 
         $tab = $request->query('tab', 'dealer');
         $query->whereHas('member', function($q) use ($tab) {
@@ -757,16 +793,6 @@ class PageController extends Controller
             }
         }
 
-        if ($request->filled('invoice_status')) {
-            $invStatus = $request->invoice_status;
-            if ($invStatus === 'pending') {
-                $query->whereDoesntHave('invoice');
-            } elseif ($invStatus === 'complete') {
-                $query->whereHas('invoice');
-            } elseif ($invStatus === 'pending_credit_note') {
-                $query->where('status', 'Returned')->whereDoesntHave('creditNote');
-            }
-        }
 
         $orders = $query->orderBy('id', 'desc')->paginate(10);
         $cities = \App\Models\City::where('status', 1)->orderBy('city')->get();
