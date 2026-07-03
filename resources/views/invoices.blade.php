@@ -222,19 +222,13 @@
                     <label class="form-label" style="font-size: 11px; text-transform: uppercase; color: var(--text-muted);">Invoice Status</label>
                     <select name="invoice_status" id="filterInvoiceStatus" class="form-control" style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1); color: #fff;">
                         <option value="">All Invoices</option>
-                        <optgroup label="Order Status">
-                            <option value="confirmed" {{ request('invoice_status') == 'confirmed' ? 'selected' : '' }}>Confirmed</option>
-                            <option value="order_pending" {{ request('invoice_status') == 'order_pending' ? 'selected' : '' }}>Pending</option>
-                            <option value="out_for_delivery" {{ request('invoice_status') == 'out_for_delivery' ? 'selected' : '' }}>Out for Delivery</option>
-                            <option value="delivered" {{ request('invoice_status') == 'delivered' ? 'selected' : '' }}>Delivered</option>
-                            <option value="cancelled" {{ request('invoice_status') == 'cancelled' ? 'selected' : '' }}>Canceled</option>
-                            <option value="returned" {{ request('invoice_status') == 'returned' ? 'selected' : '' }}>Returned</option>
-                        </optgroup>
-                        <optgroup label="Invoice Status">
-                            <option value="invoice_pending" {{ in_array(request('invoice_status'), ['invoice_pending', 'pending']) ? 'selected' : '' }}>Invoice Pending</option>
-                            <option value="complete" {{ request('invoice_status') == 'complete' ? 'selected' : '' }}>Complete</option>
-                            <option value="pending_credit_note" {{ request('invoice_status') == 'pending_credit_note' ? 'selected' : '' }}>Pending Credit Note</option>
-                        </optgroup>
+                        <option value="confirmed" {{ request('invoice_status') == 'confirmed' ? 'selected' : '' }}>Confirmed</option>
+                        <option value="order_pending" {{ request('invoice_status') == 'order_pending' ? 'selected' : '' }}>Pending</option>
+                        <option value="out_for_delivery" {{ request('invoice_status') == 'out_for_delivery' ? 'selected' : '' }}>Out for Delivery</option>
+                        <option value="delivered" {{ request('invoice_status') == 'delivered' ? 'selected' : '' }}>Delivered</option>
+                        <option value="complete" {{ request('invoice_status') == 'complete' ? 'selected' : '' }}>Complete</option>
+                        <option value="canceled" {{ in_array(request('invoice_status'), ['canceled', 'cancelled']) ? 'selected' : '' }}>Canceled</option>
+                        <option value="returned" {{ request('invoice_status') == 'returned' ? 'selected' : '' }}>Returned</option>
                     </select>
                 </div>
                 <div>

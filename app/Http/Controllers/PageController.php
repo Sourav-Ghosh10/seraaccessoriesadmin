@@ -729,6 +729,7 @@ class PageController extends Controller
                 'out_for_delivery' => 'Out for Delivery',
                 'delivered' => 'Delivered',
                 'cancelled' => 'Cancelled',
+                'canceled' => 'Cancelled',
                 'returned' => 'Returned',
             ];
 

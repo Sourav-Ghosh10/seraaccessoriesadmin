@@ -1676,7 +1676,7 @@ class DealerController extends Controller
         $dealer = $request->user();
 
         // Dealer-only guard
-        if (strtolower($dealer->role) !== 'dealer') {
+        if (!in_array(strtolower($dealer->role), ['dealer', 'distributor'])) {
             return response()->json([
                 'success' => false,
                 'message' => 'Unauthorized.',
