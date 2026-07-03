@@ -90,6 +90,7 @@ class AuthController extends Controller
                                         ),
                                         new OA\Property(property: "emp_id",      type: "string",  nullable: true, example: null),
                                         new OA\Property(property: "ref_code",    type: "string",  nullable: true, example: "REF001"),
+                                        new OA\Property(property: "is_passbook_visible", type: "boolean", example: true),
                                     ]
                                 )
                             ]
@@ -151,8 +152,8 @@ class AuthController extends Controller
             ], 422);
         }
 
-        // Only dealers, salesmen, and distributors may use the API
-        $allowedRoles = ['dealer', 'salesman', 'distributor'];
+        // Only allowed roles may use the API
+        $allowedRoles = ['dealer', 'salesman', 'distributor', 'distributor_staff'];
         if (! in_array(strtolower($member->role), $allowedRoles)) {
             return response()->json([
                 'success' => false,
@@ -241,6 +242,7 @@ class AuthController extends Controller
                                 ),
                                 new OA\Property(property: "emp_id",      type: "string",  nullable: true, example: null),
                                 new OA\Property(property: "ref_code",    type: "string",  nullable: true, example: "REF001"),
+                                new OA\Property(property: "is_passbook_visible", type: "boolean", example: true),
                             ]
                         )
                     ]
@@ -437,19 +439,32 @@ class AuthController extends Controller
             $member->load('salesman');
         }
 
+        // For distributor_staff: find the distributor linked by dist_id
+        $distributorId = null;
+        if (strtolower($member->role) === 'distributor_staff' && $member->dist_id) {
+            $distributor = Member::where('dist_id', $member->dist_id)
+                ->where('role', 'distributor')
+                ->first();
+            if ($distributor) {
+                $distributorId = $distributor->id;
+            }
+        }
+
         return [
-            'id'          => $member->id,
-            'name'        => $member->name,
-            'email'       => $member->email,
-            'mobile'      => $member->mobile,
-            'role'        => $member->role,
-            'status'      => $member->status,
-            'shop'        => $member->shop,
-            'address'     => $member->address,
-            'salesman_id' => $member->salesman_id,
-            'emp_id'      => $member->emp_id,
-            'ref_code'    => $member->ref_code,
-            'salesman'    => $member->salesman ? [
+            'id'             => $member->id,
+            'name'           => $member->name,
+            'email'          => $member->email,
+            'mobile'         => $member->mobile,
+            'role'           => $member->role,
+            'status'         => $member->status,
+            'shop'           => $member->shop,
+            'address'        => $member->address,
+            'salesman_id'    => $member->salesman_id,
+            'emp_id'         => $member->emp_id,
+            'ref_code'       => $member->ref_code,
+            'distributor_id' => $distributorId,
+            'is_passbook_visible' => (bool) ($member->is_passbook_visible ?? true),
+            'salesman'       => $member->salesman ? [
                 'id'     => $member->salesman->id,
                 'name'   => $member->salesman->name,
                 'mobile' => $member->salesman->mobile,

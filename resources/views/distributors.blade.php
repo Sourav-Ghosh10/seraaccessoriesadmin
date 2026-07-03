@@ -359,36 +359,45 @@
 
         $('#filterCity').on('change select2:close', function() {
             updatePlaceholder();
-            filterTable();
+            applyFilters();
         });
 
         // Search and Filter logic
         $('#searchInput, #filterStatus').on('input change', function() {
-            filterTable();
+            applyFilters();
+        });
+
+        // AJAX Pagination
+        $(document).on('click', '#paginationContainer a', function(e) {
+            e.preventDefault();
+            var url = $(this).attr('href');
+            $.ajax({
+                url: url,
+                success: function(response) {
+                    var newTable = $(response).find('.table-container').html();
+                    $('.table-container').html(newTable);
+                }
+            });
         });
     });
 
-    function filterTable() {
-        const searchTerm = $('#searchInput').val().toLowerCase();
-        const cityFilter = $('#filterCity').val() || [];
-        const statusFilter = $('#filterStatus').val();
-
-        $('.distributor-row').each(function() {
-            const row = $(this);
-            const rowText = row.text().toLowerCase();
-            const rowCity = row.data('city');
-            const rowStatus = row.data('status');
-
-            const matchesSearch = rowText.includes(searchTerm);
-            const matchesCity = cityFilter.length === 0 || cityFilter.includes(rowCity);
-            const matchesStatus = statusFilter === '' || rowStatus === statusFilter;
-
-            if (matchesSearch && matchesCity && matchesStatus) {
-                row.show();
-            } else {
-                row.hide();
-            }
-        });
+    var filterTimeout;
+    function applyFilters() {
+        clearTimeout(filterTimeout);
+        filterTimeout = setTimeout(function() {
+            $.ajax({
+                url: window.location.pathname,
+                data: {
+                    search: $('#searchInput').val(),
+                    city: $('#filterCity').val() || [],
+                    status: $('#filterStatus').val()
+                },
+                success: function(response) {
+                    var newTable = $(response).find('.table-container').html();
+                    $('.table-container').html(newTable);
+                }
+            });
+        }, 300);
     }
 
     function clearErrors() {

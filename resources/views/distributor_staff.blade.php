@@ -136,25 +136,36 @@
         // Search and Filter logic
         document.getElementById('searchInput').addEventListener('input', filterTable);
         document.getElementById('filterStatus').addEventListener('change', filterTable);
+
+        $(document).on('click', '#paginationContainer a', function(e) {
+            e.preventDefault();
+            var url = $(this).attr('href');
+            $.ajax({
+                url: url,
+                success: function(response) {
+                    var newTable = $(response).find('.table-container').html();
+                    $('.table-container').html(newTable);
+                }
+            });
+        });
     });
 
+    var filterTimeout;
     function filterTable() {
-        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-        const statusFilter = document.getElementById('filterStatus').value;
-
-        document.querySelectorAll('.staff-row').forEach(row => {
-            const rowText = row.innerText.toLowerCase();
-            const rowStatus = row.getAttribute('data-status');
-
-            const matchesSearch = rowText.includes(searchTerm);
-            const matchesStatus = statusFilter === '' || rowStatus === statusFilter;
-
-            if (matchesSearch && matchesStatus) {
-                row.style.display = '';
-            } else {
-                row.style.display = 'none';
-            }
-        });
+        clearTimeout(filterTimeout);
+        filterTimeout = setTimeout(function() {
+            $.ajax({
+                url: window.location.pathname,
+                data: {
+                    search: $('#searchInput').val(),
+                    status: $('#filterStatus').val()
+                },
+                success: function(response) {
+                    var newTable = $(response).find('.table-container').html();
+                    $('.table-container').html(newTable);
+                }
+            });
+        }, 300);
     }
 
     function clearErrors() {
