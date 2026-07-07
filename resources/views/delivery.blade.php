@@ -201,6 +201,7 @@
                     @endif
                     <th>Distributor</th>
                     <th>Expected Delivery</th>
+                    <th>Actual Delivery</th>
                     <th>Transport Details</th>
                     <th>Status</th>
                     <th>Actions</th>
@@ -210,7 +211,7 @@
                 @foreach($orders as $order)
                 <tr>
                     <td>
-                        <a href="{{ route('orders.show', $order->id) }}" style="font-weight: 700; color: #3b82f6; text-decoration: none;">
+                        <a href="{{ route('orders.show', $order->id) }}" style="font-weight: 700; color: #f59e0b; text-decoration: none;">
                             {{ $order->order_number }}
                         </a>
                     </td>
@@ -250,6 +251,14 @@
                         @endif
                     </td>
                     <td>
+                        @if($order->received_at)
+                            {{ \Carbon\Carbon::parse($order->received_at)->format('d M, Y') }}
+                            <div style="font-size: 11px; color: var(--text-muted);">{{ \Carbon\Carbon::parse($order->received_at)->format('h:i A') }}</div>
+                        @else
+                            <span style="color: var(--text-muted);">-</span>
+                        @endif
+                    </td>
+                    <td>
                         @if($order->delivery)
                             <div style="font-size: 13px;">{{ $order->delivery->vehicle_no }} ({{ $order->delivery->vehicle_type }})</div>
                             <div style="font-size: 11px; color: var(--text-muted);">Driver: {{ $order->delivery->driver_phone }}</div>
@@ -274,7 +283,7 @@
                     </td>
                     <td>
                         <button class="btn glass" style="padding: 5px 12px; font-size: 11px;" 
-                            onclick="openDeliveryModal('{{ $order->id }}', '{{ $order->order_number }}', '{{ $order->delivery->vehicle_no ?? '' }}', '{{ $order->delivery->vehicle_type ?? '' }}', '{{ $order->delivery->driver_phone ?? '' }}', '{{ $order->delivery ? \Carbon\Carbon::parse($order->delivery->expected_delivery_at)->format('Y-m-d') : date('Y-m-d') }}', '{{ $order->delivery ? \Carbon\Carbon::parse($order->delivery->expected_delivery_at)->format('H:i') : date('H:i') }}', '{{ addslashes($order->delivery->remarks ?? '') }}')">
+                            onclick="openDeliveryModal('{{ $order->id }}', '{{ $order->order_number }}', '{{ $order->delivery->vehicle_no ?? '' }}', '{{ $order->delivery->vehicle_type ?? '' }}', '{{ $order->delivery->driver_phone ?? '' }}', '{{ $order->delivery ? \Carbon\Carbon::parse($order->delivery->expected_delivery_at)->format('Y-m-d') : date('Y-m-d') }}', '{{ $order->delivery ? \Carbon\Carbon::parse($order->delivery->expected_delivery_at)->format('H:i') : date('H:i') }}', '{{ addslashes($order->delivery->remarks ?? '') }}', '{{ addslashes($order->status) }}')">
                             <i class="fas fa-edit"></i> Update
                         </button>
                     </td>
@@ -373,6 +382,11 @@
             </div>
         </div>
         
+        <div id="deliveredNotice" style="display: none; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); color: #10b981; padding: 12px 15px; border-radius: 8px; font-size: 13px; margin-bottom: 20px; align-items: center; gap: 10px;">
+            <i class="fas fa-info-circle" style="font-size: 16px; flex-shrink: 0;"></i>
+            <span id="deliveredNoticeText">This order is marked as Delivered. Delivery details are view-only and cannot be edited.</span>
+        </div>
+
         <input type="hidden" id="realOrderId">
         <div class="form-group" style="margin-bottom: 20px;">
             <label class="form-label" style="color: var(--text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Order Reference</label>
@@ -595,7 +609,7 @@
         });
     });
 
-    function openDeliveryModal(id, orderNum, vNo, vType, phone, date, time, remarks) {
+    function openDeliveryModal(id, orderNum, vNo, vType, phone, date, time, remarks, status) {
         document.getElementById('modalOrderId').value = orderNum;
         document.getElementById('realOrderId').value = id;
         document.getElementById('vehicleNo').value = vNo || '';
@@ -605,6 +619,43 @@
         document.getElementById('deliveryTime').value = time;
         document.getElementById('deliveryRemarks').value = remarks || '';
         
+        const isDelivered = (status && (status.toLowerCase() === 'delivered' || status.toLowerCase() === 'returned'));
+        const submitBtn = document.getElementById('submitBtn');
+        const fields = ['vehicleNo', 'vehicleType', 'phoneNo', 'deliveryDate', 'deliveryTime', 'deliveryRemarks'];
+        
+        fields.forEach(fieldId => {
+            const el = document.getElementById(fieldId);
+            if (el) {
+                el.disabled = isDelivered;
+                if (isDelivered) {
+                    el.style.cursor = 'not-allowed';
+                    el.style.opacity = '0.6';
+                } else {
+                    el.style.cursor = '';
+                    el.style.opacity = '1';
+                }
+            }
+        });
+
+        const titleEl = document.querySelector('#deliveryModal h3');
+        const noticeEl = document.getElementById('deliveredNotice');
+        const noticeTextEl = document.getElementById('deliveredNoticeText');
+
+        if (isDelivered) {
+            if (titleEl) titleEl.innerText = 'Delivery Details (View Only)';
+            if (noticeTextEl) noticeTextEl.innerText = `This order is marked as ${status || 'Delivered'}. Delivery details are view-only and cannot be edited.`;
+            if (noticeEl) noticeEl.style.display = 'flex';
+            if (submitBtn) submitBtn.style.display = 'none';
+        } else {
+            if (titleEl) titleEl.innerText = 'Update Delivery Status';
+            if (noticeEl) noticeEl.style.display = 'none';
+            if (submitBtn) {
+                submitBtn.style.display = 'inline-block';
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = 'Submit Update';
+            }
+        }
+
         document.getElementById('deliveryModal').style.display = 'flex';
     }
 
@@ -714,17 +765,6 @@
     function closeMemberModal() {
         document.getElementById('memberDetailsModal').style.display = 'none';
     }
-
-    // Close modal on click outside
-    window.onclick = function(event) {
-        const modal = document.getElementById('deliveryModal');
-        const memberModal = document.getElementById('memberDetailsModal');
-        if (event.target == modal) {
-            closeModal();
-        }
-        if (event.target == memberModal) {
-            closeMemberModal();
-        }
-    }
+    // Modals do not close on outside click; user must click X icon or Close button
 </script>
 @endsection

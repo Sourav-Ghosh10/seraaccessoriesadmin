@@ -204,11 +204,6 @@
             submitBtn.innerHTML = 'Upload';
         });
     }
-
-    window.onclick = function(event) {
-        if (event.target.id == 'uploadModal') {
-            closeUploadModal();
-        }
-    }
+    // Modals do not close on outside click; user must click X icon or Close button
 </script>
 @endsection

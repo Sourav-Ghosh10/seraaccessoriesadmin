@@ -98,7 +98,7 @@
         <div class="form-group" style="margin-bottom: 20px;">
             <label class="form-label" style="color: var(--text-muted); font-size: 12px; text-transform: uppercase;">Password</label>
             <div style="position: relative;">
-                <input type="password" id="staffPassword" class="form-control" placeholder="Create secure password..." style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1); padding-right: 40px;">
+                <input type="password" id="staffPassword" class="form-control" placeholder="Create secure password..." autocomplete="new-password" style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1); padding-right: 40px;">
                 <i class="fas fa-eye" id="toggleStaffPassword" onclick="toggleStaffPasswordVisibility()" style="position: absolute; right: 15px; top: 50%; transform: translateY(-50%); color: var(--text-muted); cursor: pointer; font-size: 14px; z-index: 10;"></i>
             </div>
             <span class="text-danger" id="err-password" style="color: #ef4444; font-size: 11px; margin-top: 5px; display: block;"></span>
@@ -181,8 +181,14 @@
         document.getElementById('staffEmail').value = '';
         document.getElementById('staffPhone').value = '';
         document.getElementById('staffPassword').value = '';
+        document.getElementById('staffPassword').placeholder = 'Create secure password...';
         document.getElementById('staffStatus').value = 'Active';
         document.getElementById('staffModal').style.display = 'flex';
+        setTimeout(() => {
+            if (currentStaffId === null) {
+                document.getElementById('staffPassword').value = '';
+            }
+        }, 50);
     }
 
     function editStaff(id, name, email, phone, status) {
@@ -193,9 +199,15 @@
         document.getElementById('staffName').value = name;
         document.getElementById('staffEmail').value = email;
         document.getElementById('staffPhone').value = phone;
-        document.getElementById('staffPassword').value = ''; 
+        document.getElementById('staffPassword').value = '';
+        document.getElementById('staffPassword').placeholder = 'Leave blank to keep current password';
         document.getElementById('staffStatus').value = status;
         document.getElementById('staffModal').style.display = 'flex';
+        setTimeout(() => {
+            if (currentStaffId !== null) {
+                document.getElementById('staffPassword').value = '';
+            }
+        }, 50);
     }
 
     function closeStaffModal() {
@@ -271,11 +283,6 @@
             alert('An error occurred.');
         });
     }
-
-    window.onclick = function(event) {
-        if (event.target.id == 'staffModal') {
-            closeStaffModal();
-        }
-    }
+    // Modals do not close on outside click; user must click X icon or Close button
 </script>
 @endsection

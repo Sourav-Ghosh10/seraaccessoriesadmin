@@ -19,7 +19,7 @@ class Order extends Model
     }
 
     public function distributor() {
-        return $this->belongsTo(Member::class, 'distributor_id');
+        return $this->belongsTo(Member::class, 'distributor_id')->where('role', 'distributor');
     }
 
     public function delivery() {

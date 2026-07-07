@@ -281,11 +281,7 @@
                             <td>
                                 <span style="color: var(--text-muted);">{{ $req->Credit_note ? $req->Credit_note : '-' }}</span>
                             </td>
-                            <td>
-                                <div style="font-size: 12px; color: var(--text-muted);">
-                                    {{ $req->created_at ? $req->created_at->format('d M, Y') : '-' }}
-                                </div>
-                            </td>
+                            <td>{{ $req->created_at ? $req->created_at->format('d M, Y') : '-' }}</td>
                             <td>
                                 @if($req->status == 'Pending')
                                     <span class="badge badge-warning">Pending</span>
@@ -339,7 +335,7 @@
         <div id="memberDetailsModal"
             style="display: none; position: fixed; z-index: 10000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(2, 6, 23, 0.9); backdrop-filter: blur(15px); align-items: center; justify-content: center;">
             <div class="card modal-content"
-                style="padding: 30px; background: #0f172a; border: 1px solid var(--glass-border); width: 550px; animation: modalIn 0.3s ease-out;">
+                style="padding: 30px; background: #0f172a; border: 1px solid var(--glass-border); width: 550px; max-height: 88vh; overflow-y: auto; overflow-x: hidden; animation: modalIn 0.3s ease-out;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
                     <h3 id="memberModalTitle" style="margin: 0; font-size: 18px; display: flex; align-items: center; gap: 10px;">
                         <i class="fas fa-user-circle" style="color: var(--primary); font-size: 24px;"></i> 
@@ -409,7 +405,7 @@
         <div id="viewRedeemModal"
             style="display: none; position: fixed; z-index: 10000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(2, 6, 23, 0.9); backdrop-filter: blur(15px); align-items: center; justify-content: center;">
             <div class="card modal-content"
-                style="padding: 30px; background: #0f172a; border: 1px solid var(--glass-border); width: 500px; animation: modalIn 0.3s ease-out;">
+                style="padding: 30px; background: #0f172a; border: 1px solid var(--glass-border); width: 500px; max-height: 88vh; overflow-y: auto; overflow-x: hidden; animation: modalIn 0.3s ease-out;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
                     <h3 style="margin: 0; font-size: 18px; display: flex; align-items: center; gap: 10px;">
                         <i class="fas fa-coins" style="color: #fbbf24;"></i>

@@ -460,14 +460,6 @@
     function closeMemberModal() {
         document.getElementById('memberDetailsModal').style.display = 'none';
     }
-
-    window.onclick = function(event) {
-        if (event.target.id == 'balanceModal') {
-            closeBalanceModal();
-        }
-        if (event.target.id == 'memberDetailsModal') {
-            closeMemberModal();
-        }
-    }
+    // Modals do not close on outside click; user must click X icon or Close button
 </script>
 @endsection

@@ -241,7 +241,7 @@
         <div class="form-group" style="margin-bottom: 20px;">
             <label class="form-label" style="color: var(--text-muted); font-size: 12px; text-transform: uppercase;">Password</label>
             <div style="position: relative;">
-                <input type="password" id="distPassword" class="form-control" placeholder="Create secure password..." style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1); padding-right: 40px;">
+                <input type="password" id="distPassword" class="form-control" placeholder="Create secure password..." autocomplete="new-password" style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1); padding-right: 40px;">
                 <i class="fas fa-eye" id="toggleDistPassword" onclick="toggleDistPasswordVisibility()" style="position: absolute; right: 15px; top: 50%; transform: translateY(-50%); color: var(--text-muted); cursor: pointer; font-size: 14px; z-index: 10;"></i>
             </div>
             <span class="text-danger" id="err-password" style="color: #ef4444; font-size: 11px; margin-top: 5px; display: block;"></span>
@@ -417,8 +417,14 @@
         document.getElementById('distAddress').value = '';
         $('#distCity').val('').trigger('change');
         document.getElementById('distPassword').value = '';
+        document.getElementById('distPassword').placeholder = 'Create secure password...';
         document.getElementById('distStatus').value = 'Active';
         document.getElementById('distributorModal').style.display = 'flex';
+        setTimeout(() => {
+            if (currentDistributorId === null) {
+                document.getElementById('distPassword').value = '';
+            }
+        }, 50);
     }
 
     function editDistributor(id, name, email, phone, status, distId, address, gst, cityId) {
@@ -433,9 +439,15 @@
         document.getElementById('distGst').value = gst;
         document.getElementById('distAddress').value = address;
         $('#distCity').val(cityId ? cityId : '').trigger('change');
-        document.getElementById('distPassword').value = ''; 
+        document.getElementById('distPassword').value = '';
+        document.getElementById('distPassword').placeholder = 'Leave blank to keep current password';
         document.getElementById('distStatus').value = status;
         document.getElementById('distributorModal').style.display = 'flex';
+        setTimeout(() => {
+            if (currentDistributorId !== null) {
+                document.getElementById('distPassword').value = '';
+            }
+        }, 50);
     }
 
     function closeDistributorModal() {
@@ -514,11 +526,6 @@
             alert('An error occurred.');
         });
     }
-
-    window.onclick = function(event) {
-        if (event.target.id == 'distributorModal') {
-            closeDistributorModal();
-        }
-    }
+    // Modals do not close on outside click; user must click X icon or Close button
 </script>
 @endsection

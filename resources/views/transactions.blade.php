@@ -280,13 +280,6 @@
             renderTransactions();
         }
     });
-
-    // Close on overlay clicks
-    window.onclick = function (event) {
-        const modal = document.getElementById('memberDetailsModal');
-        if (event.target == modal) {
-            closeMemberModal();
-        }
-    }
+    // Modals do not close on outside click; user must click X icon or Close button
 </script>
 @endsection

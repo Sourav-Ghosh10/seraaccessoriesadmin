@@ -277,7 +277,11 @@
                 <tbody>
                     @forelse($orders as $order)
                         <tr>
-                            <td><strong>{{ $order->order_number }}</strong></td>
+                            <td>
+                                <a href="{{ route('orders.show', $order->id) }}" style="font-weight: 700; color: #f59e0b; text-decoration: none;">
+                                    {{ $order->order_number }}
+                                </a>
+                            </td>
                             @if(request('tab', 'dealer') !== 'distributor')
                             <td>
                                 <a href="javascript:void(0)" onclick="viewMemberDetails('{{ addslashes($order->member->name) }}', '{{ addslashes($order->member->email) }}', '{{ addslashes($order->member->mobile) }}', '{{ addslashes($order->member->ref_code ?? '') }}', 'Dealer', '{{ addslashes(preg_replace('/\r|\n/', ' ', $order->member->address ?? '')) }}', '{{ addslashes($order->member->shop ?? '') }}', '{{ addslashes($order->member->city->city ?? '') }}', '{{ addslashes($order->member->gst_no ?? '') }}', '{{ $order->member->discount_percent ?? '' }}', '{{ addslashes($order->member->salesman->name ?? '') }}', '{{ addslashes($distributors->firstWhere('dist_id', $order->member->dist_id)->name ?? $order->member->dist_id ?? '') }}')" style="font-weight: 500; color: #3b82f6; text-decoration: none;">
@@ -1153,16 +1157,7 @@
                     submitBtn.innerHTML = 'Upload & Save';
                 });
         }
-
-        window.onclick = function (event) {
-            const modal = document.getElementById('uploadModal');
-            const cnModal = document.getElementById('creditNoteModal');
-            if (event.target == modal) {
-                closeUploadModal();
-            } else if (event.target == cnModal) {
-                closeCreditNoteModal();
-            }
-        }
+        // Modals do not close on outside click; user must click X icon or Close button
 
         function viewCreditNote(number, note, dealerPath, distributorPath) {
             document.getElementById('vcnNumber').innerText = '#' + number;

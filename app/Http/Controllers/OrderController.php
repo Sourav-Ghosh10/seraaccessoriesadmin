@@ -159,6 +159,13 @@ class OrderController extends Controller
         ]);
 
         $order = Order::findOrFail($id);
+
+        if (in_array(strtolower($order->status), ['delivered', 'returned'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Cannot update delivery details for an order that is already delivered.'
+            ], 403);
+        }
         
         // Ensure time is in 24h format for database compatibility
         $time = date("H:i", strtotime($validated['expected_delivery_time']));

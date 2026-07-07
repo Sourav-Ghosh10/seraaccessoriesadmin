@@ -78,7 +78,7 @@
                                 </a>
                             </td>
                             <td style="font-weight: 600; color: var(--primary);">₹ {{ number_format($submission->amount, 2) }}</td>
-                            <td><span style="font-size: 12px; color: var(--text-muted);">{{ $submission->created_at->format('Y-m-d H:i A') }}</span></td>
+                            <td>{{ $submission->created_at->format('Y-m-d / h:i A') }}</td>
                             <td>
                                 <span class="badge {{ $submission->status == 'Approved' ? 'badge-success' : ($submission->status == 'Rejected' ? 'badge-danger' : 'badge-warning') }}">
                                     {{ $submission->status }}
@@ -346,18 +346,6 @@
         function closeMemberModal() {
             document.getElementById('memberDetailsModal').style.display = 'none';
         }
-
-        // Close on overlay clicks
-        window.onclick = function (event) {
-            if (event.target == document.getElementById('receiptModal')) {
-                closeReceiptModal();
-            }
-            if (event.target == document.getElementById('rejectModal')) {
-                closeRejectModal();
-            }
-            if (event.target == document.getElementById('memberDetailsModal')) {
-                closeMemberModal();
-            }
-        }
+        // Modals do not close on outside click; user must click X icon or Close button
     </script>
 @endsection
