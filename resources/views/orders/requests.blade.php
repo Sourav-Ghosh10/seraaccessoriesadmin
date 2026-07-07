@@ -213,6 +213,15 @@
                 </div>
 
                 <div>
+                    <label class="form-label" style="font-size: 11px; text-transform: uppercase; color: var(--text-muted);">Status</label>
+                    <select name="status" id="filterStatus" class="form-control select2" style="width: 100%;">
+                        <option value="">All Statuses</option>
+                        <option value="Pending" {{ request('status') == 'Pending' ? 'selected' : '' }}>Pending</option>
+                        <option value="Processed" {{ request('status') == 'Processed' ? 'selected' : '' }}>Processed</option>
+                    </select>
+                </div>
+
+                <div>
                     <label class="form-label" style="font-size: 11px; text-transform: uppercase; color: var(--text-muted);">Date Filter</label>
                     <select name="date_type" id="dateTypeSelect" class="form-control" style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1); color: #fff;" onchange="toggleDateInputs()">
                         <option value="">All Time</option>
@@ -310,7 +319,7 @@
                             </td>
                             <td>
                                 @if($order->order)
-                                    <a href="{{ route('orders.show', ['id' => $order->order->id, 'from' => 'requests']) }}" style="font-weight: 500; color: #3b82f6; text-decoration: none;">
+                                    <a href="{{ route('orders.show', ['id' => $order->order->id, 'from' => 'requests']) }}" style="font-weight: 700; color: #f59e0b; text-decoration: none;">
                                         {{ $order->order->order_number }}
                                     </a>
                                 @else
@@ -380,11 +389,7 @@
                                     </div>
                                 @endif
                             </td>
-                            <td>
-                                <div style="font-size: 12px; color: var(--text-muted);">
-                                    {{ $order->created_at->format('d M, Y') }}
-                                </div>
-                            </td>
+                            <td>{{ $order->created_at->format('d M, Y') }}</td>
                             <td>
                                 @if($order->status == 'Pending')
                                     <span class="badge badge-warning">Pending</span>
@@ -951,14 +956,7 @@
                 });
         }
 
-        window.onclick = function (event) {
-            const reqModal = document.getElementById('requestModal');
-            const viewModal = document.getElementById('viewContentModal');
-            const lightboxModal = document.getElementById('imageLightbox');
-            if (event.target == reqModal) closeRequestModal();
-            if (event.target == viewModal) closeViewModal();
-            if (event.target == lightboxModal) closeLightbox();
-        }
+        // Modals do not close on outside click; user must click X icon or Close button
 
         function toggleDateInputs() {
             const type = document.getElementById('dateTypeSelect').value;
@@ -1093,6 +1091,10 @@
                 placeholder: "All Distributors",
                 allowClear: true
             });
+            $('#filterStatus').select2({
+                allowClear: false,
+                minimumResultsForSearch: Infinity
+            });
             
             // Initial setup
             updatePlaceholder();
@@ -1122,7 +1124,7 @@
                 applyFilters();
             });
 
-            $('#filterSalesman, #filterDistributor').on('change', function() {
+            $('#filterSalesman, #filterDistributor, #filterStatus').on('change', function() {
                 applyFilters();
             });
 

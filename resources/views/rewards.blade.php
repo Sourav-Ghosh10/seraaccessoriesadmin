@@ -285,7 +285,7 @@
                 <tr>
                     <td>
                         <div style="font-weight: 600;">
-                            <a href="{{ route('orders.show', $order->id) }}" style="color: #3b82f6; text-decoration: none;">{{ $order->order_number }}</a>
+                            <a href="{{ route('orders.show', $order->id) }}" style="font-weight: 700; color: #f59e0b; text-decoration: none;">{{ $order->order_number }}</a>
                         </div>
                         <div style="font-size: 11px; color: var(--text-muted);">{{ $order->created_at->format('Y-m-d') }}</div>
                     </td>
@@ -852,14 +852,6 @@
             submitBtn.innerHTML = 'Add Points';
         });
     }
-
-    window.onclick = function(event) {
-        if (event.target.id == 'addPointsModal') {
-            closeAddPointsModal();
-        }
-        if (event.target.id == 'memberDetailsModal') {
-            closeMemberModal();
-        }
-    }
+    // Modals do not close on outside click; user must click X icon or Close button
 </script>
 @endsection

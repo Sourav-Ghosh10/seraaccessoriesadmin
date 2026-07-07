@@ -44,7 +44,7 @@
             <div class="widget-value">{{ number_format($totalOrders) }}</div>
             <div class="widget-label">Total Orders</div>
         </a>
-        <a href="{{ route('order-requests') }}" class="card" style="text-decoration: none; color: inherit;">
+        <a href="{{ route('order-requests', ['status' => 'Pending']) }}" class="card" style="text-decoration: none; color: inherit;">
             <div class="widget-icon" style="background: rgba(245, 158, 11, 0.1); color: var(--warning);">
                 <i class="fas fa-clock"></i>
             </div>

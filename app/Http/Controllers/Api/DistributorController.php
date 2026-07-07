@@ -505,6 +505,13 @@ class DistributorController extends Controller
             ], 404);
         }
 
+        if (in_array(strtolower($order->status), ['delivered', 'returned'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Cannot update delivery details for an order that is already delivered.',
+            ], 403);
+        }
+
         $request->validate([
             'vehicle_no'             => 'required|string|max:50',
             'vehicle_type'           => 'required|string|max:50',

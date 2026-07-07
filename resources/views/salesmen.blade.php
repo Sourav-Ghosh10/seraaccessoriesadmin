@@ -49,28 +49,28 @@
         
         <div class="form-group" style="margin-bottom: 20px;">
             <label class="form-label" style="color: var(--text-muted); font-size: 12px; text-transform: uppercase;">ID (6 Digit Alphanumeric)</label>
-            <input type="text" id="autoRefCode" class="form-control" placeholder="ABC123" maxlength="6" style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1); text-transform: uppercase;">
+            <input type="text" id="autoRefCode" class="form-control" placeholder="ABC123" maxlength="6" autocomplete="off" style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1); text-transform: uppercase;">
         </div>
 
         <div class="form-group" style="margin-bottom: 20px;">
             <label class="form-label" style="color: var(--text-muted); font-size: 12px; text-transform: uppercase;">Employee Name</label>
-            <input type="text" id="salesmanName" class="form-control" placeholder="Enter name..." style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1);">
+            <input type="text" id="salesmanName" class="form-control" placeholder="Enter name..." autocomplete="off" style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1);">
         </div>
 
         <div class="form-group" style="margin-bottom: 20px;">
             <label class="form-label" style="color: var(--text-muted); font-size: 12px; text-transform: uppercase;">Mobile Number</label>
-            <input type="tel" id="salesmanMobile" class="form-control" placeholder="10 digit number..." style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1);">
+            <input type="tel" id="salesmanMobile" class="form-control" placeholder="10 digit number..." autocomplete="off" style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1);">
         </div>
 
         <div class="form-group" style="margin-bottom: 20px;">
             <label class="form-label" style="color: var(--text-muted); font-size: 12px; text-transform: uppercase;">Email Address</label>
-            <input type="email" id="salesmanEmail" class="form-control" placeholder="email@example.com" style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1);">
+            <input type="email" id="salesmanEmail" class="form-control" placeholder="email@example.com" autocomplete="off" style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1);">
         </div>
 
         <div class="form-group" style="margin-bottom: 20px;">
             <label class="form-label" style="color: var(--text-muted); font-size: 12px; text-transform: uppercase;">Password</label>
             <div style="position: relative;">
-                <input type="password" id="salesmanPassword" class="form-control" placeholder="Create password..." style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1); padding-right: 40px;">
+                <input type="password" id="salesmanPassword" class="form-control" placeholder="Create password..." autocomplete="new-password" style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1); padding-right: 40px;">
                 <i class="fas fa-eye" id="togglePassword" onclick="toggleSalesmanPassword()" style="position: absolute; right: 15px; top: 50%; transform: translateY(-50%); color: var(--text-muted); cursor: pointer; font-size: 14px;"></i>
             </div>
         </div>
@@ -302,7 +302,18 @@
     function openSalesmanModal() {
         currentSalesmanId = null;
         resetSalesmanForm();
+        const pwdInput = document.getElementById('salesmanPassword');
+        pwdInput.placeholder = 'Create password...';
+        if (pwdInput.type !== 'password') {
+            pwdInput.type = 'password';
+            document.getElementById('togglePassword').classList.replace('fa-eye-slash', 'fa-eye');
+        }
         document.getElementById('salesmanModal').style.display = 'flex';
+        setTimeout(() => {
+            if (currentSalesmanId === null) {
+                document.getElementById('salesmanPassword').value = '';
+            }
+        }, 50);
     }
 
     function openEditSalesmanModal(id, name, mobile, email, ref_code, status, target) {
@@ -313,7 +324,21 @@
         document.getElementById('autoRefCode').value = ref_code;
         document.getElementById('salesmanStatus').value = status;
         document.getElementById('salesmanMonthlyTarget').value = target || '';
+        
+        const pwdInput = document.getElementById('salesmanPassword');
+        pwdInput.value = '';
+        pwdInput.placeholder = 'Leave blank to keep current password';
+        if (pwdInput.type !== 'password') {
+            pwdInput.type = 'password';
+            document.getElementById('togglePassword').classList.replace('fa-eye-slash', 'fa-eye');
+        }
+
         document.getElementById('salesmanModal').style.display = 'flex';
+        setTimeout(() => {
+            if (currentSalesmanId !== null) {
+                document.getElementById('salesmanPassword').value = '';
+            }
+        }, 50);
     }
 
     function resetSalesmanForm() {
@@ -509,11 +534,7 @@
         });
     }
 
-    window.onclick = function(event) {
-        if (event.target.id == 'salesmanModal') closeSalesmanModal();
-        if (event.target.id == 'performanceModal') closePerformanceModal();
-        if (event.target.id == 'editPointsModal') closeEditPointsModal();
-    }
+    // Modals do not close on outside click; user must click X icon or Close button
 
     document.addEventListener('click', closeAllActionMenus);
     document.addEventListener('scroll', closeAllActionMenus, true);

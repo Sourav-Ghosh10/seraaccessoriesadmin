@@ -69,7 +69,7 @@
             <aside class="sidebar" id="sidebar">
                 <div class="logo">
                     <div style="display: flex; flex-direction: column; line-height: 1;">
-                        <img src="{{ asset('assets/images/logo.jpg') }}" alt="Logo" style="width: 100px;">
+                        <img src="{{ asset('assets/images/logo.png') }}" alt="Logo" style="width: 150px; height: auto;">
                     </div>
                     <button class="mobile-close" id="closeSidebar">
                         <i class="fas fa-times"></i>

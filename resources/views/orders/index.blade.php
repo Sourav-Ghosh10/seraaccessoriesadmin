@@ -36,6 +36,23 @@
 .select2-container--default .select2-selection--single .select2-selection__arrow {
     height: 40px;
 }
+.select2-container--default .select2-selection--single .select2-selection__clear,
+.select2-container--default .select2-selection--multiple .select2-selection__clear {
+    color: #f8fafc !important;
+    font-size: 18px !important;
+    font-weight: bold !important;
+    margin-right: 12px !important;
+    float: right !important;
+    line-height: 38px !important;
+    opacity: 0.9 !important;
+    transition: all 0.2s ease !important;
+    cursor: pointer !important;
+}
+.select2-container--default .select2-selection--single .select2-selection__clear:hover,
+.select2-container--default .select2-selection--multiple .select2-selection__clear:hover {
+    color: #ef4444 !important;
+    opacity: 1 !important;
+}
 .select2-dropdown {
     background-color: #0f172a;
     border: 1px solid rgba(255,255,255,0.1);
@@ -219,6 +236,20 @@
                 </div>
 
                 <div>
+                    <label class="form-label" style="font-size: 11px; text-transform: uppercase; color: var(--text-muted);">Status</label>
+                    <select name="status" id="filterStatus" class="form-control select2" style="width: 100%;">
+                        <option value="">All Statuses</option>
+                        <option value="Confirmed" {{ request('status') == 'Confirmed' ? 'selected' : '' }}>Confirmed</option>
+                        <option value="Processing" {{ request('status') == 'Processing' ? 'selected' : '' }}>Processing</option>
+                        <option value="Invoiced" {{ request('status') == 'Invoiced' ? 'selected' : '' }}>Invoiced</option>
+                        <option value="Out for Delivery" {{ request('status') == 'Out for Delivery' ? 'selected' : '' }}>Out for Delivery</option>
+                        <option value="Delivered" {{ request('status') == 'Delivered' ? 'selected' : '' }}>Delivered</option>
+                        <option value="Returned" {{ request('status') == 'Returned' ? 'selected' : '' }}>Returned</option>
+                        <option value="Cancelled" {{ request('status') == 'Cancelled' ? 'selected' : '' }}>Cancelled</option>
+                    </select>
+                </div>
+
+                <div>
                     <label class="form-label" style="font-size: 11px; text-transform: uppercase; color: var(--text-muted);">Date Filter</label>
                     <select name="date_type" id="dateTypeSelect" class="form-control" style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1); color: #fff;" onchange="toggleDateInputs()">
                         <option value="">All Time</option>
@@ -262,7 +293,11 @@
                 <tbody>
                     @foreach($finalOrders as $order)
                         <tr>
-                            <td><strong>{{ $order->order_number }}</strong></td>
+                            <td>
+                                <a href="{{ route('orders.show', $order->id) }}" style="font-weight: 700; color: #f59e0b; text-decoration: none;">
+                                    {{ $order->order_number }}
+                                </a>
+                            </td>
                             @if(request('tab', 'dealer') !== 'distributor')
                             <td>
                                 <a href="javascript:void(0)" onclick="viewMemberDetails('{{ addslashes($order->member->name) }}', '{{ addslashes($order->member->email) }}', '{{ addslashes($order->member->mobile) }}', '{{ addslashes($order->member->ref_code ?? '') }}', 'Dealer', '{{ addslashes(preg_replace('/\r|\n/', ' ', $order->member->address ?? '')) }}', '{{ addslashes($order->member->shop ?? '') }}', '{{ addslashes($order->member->city->city ?? '') }}', '{{ addslashes($order->member->gst_no ?? '') }}', '{{ $order->member->discount_percent ?? '' }}', '{{ addslashes($order->member->salesman->name ?? '') }}', '{{ addslashes($distributors->firstWhere('dist_id', $order->member->dist_id)->name ?? $order->member->dist_id ?? '') }}')" style="font-weight: 500; color: #3b82f6; text-decoration: none;">
@@ -323,7 +358,7 @@
                                         @endif
                                         @php $role = session('role', 'Admin'); @endphp
                                         @if($role == 'Admin' || $role == 'Operations')
-                                            <button onclick="openDeliveryModal('{{ $order->id }}', '{{ $order->order_number }}', '{{ $order->delivery->vehicle_no ?? '' }}', '{{ $order->delivery->vehicle_type ?? '' }}', '{{ $order->delivery->driver_phone ?? '' }}', '{{ $order->delivery ? \Carbon\Carbon::parse($order->delivery->expected_delivery_at)->format('Y-m-d') : date('Y-m-d') }}', '{{ $order->delivery ? \Carbon\Carbon::parse($order->delivery->expected_delivery_at)->format('H:i') : date('H:i') }}', '{{ addslashes($order->delivery->remarks ?? '') }}')">
+                                            <button onclick="openDeliveryModal('{{ $order->id }}', '{{ $order->order_number }}', '{{ $order->delivery->vehicle_no ?? '' }}', '{{ $order->delivery->vehicle_type ?? '' }}', '{{ $order->delivery->driver_phone ?? '' }}', '{{ $order->delivery ? \Carbon\Carbon::parse($order->delivery->expected_delivery_at)->format('Y-m-d') : date('Y-m-d') }}', '{{ $order->delivery ? \Carbon\Carbon::parse($order->delivery->expected_delivery_at)->format('H:i') : date('H:i') }}', '{{ addslashes($order->delivery->remarks ?? '') }}', '{{ addslashes($order->status) }}')">
                                                 <i class="fas fa-truck"></i> Update Delivery
                                             </button>
                                         @endif
@@ -579,6 +614,11 @@
                 </div>
             </div>
 
+            <div id="deliveredNotice" style="display: none; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); color: #10b981; padding: 12px 15px; border-radius: 8px; font-size: 13px; margin-bottom: 20px; align-items: center; gap: 10px;">
+                <i class="fas fa-info-circle" style="font-size: 16px; flex-shrink: 0;"></i>
+                <span id="deliveredNoticeText">This order is marked as Delivered. Delivery details are view-only and cannot be edited.</span>
+            </div>
+
             <input type="hidden" id="realOrderId">
             <div class="form-group" style="margin-bottom: 20px;">
                 <label class="form-label"
@@ -784,6 +824,10 @@
                 placeholder: "All Distributors",
                 allowClear: true
             });
+            $('#filterStatus').select2({
+                allowClear: false,
+                minimumResultsForSearch: Infinity
+            });
             
             // Initial setup
             updatePlaceholder();
@@ -813,7 +857,7 @@
                 applyFilters();
             });
 
-            $('#filterSalesman, #filterDistributor').on('change', function() {
+            $('#filterSalesman, #filterDistributor, #filterStatus').on('change', function() {
                 applyFilters();
             });
 
@@ -884,7 +928,7 @@
             document.getElementById('memberDetailsModal').style.display = 'none';
         }
 
-        function openDeliveryModal(id, orderNum, vNo, vType, phone, date, time, remarks) {
+        function openDeliveryModal(id, orderNum, vNo, vType, phone, date, time, remarks, status) {
             document.getElementById('modalOrderId').value = orderNum;
             document.getElementById('realOrderId').value = id;
             document.getElementById('vehicleNo').value = vNo || '';
@@ -893,6 +937,43 @@
             document.getElementById('deliveryDate').value = date;
             document.getElementById('deliveryTime').value = time;
             document.getElementById('deliveryRemarks').value = remarks || '';
+
+            const isDelivered = (status && (status.toLowerCase() === 'delivered' || status.toLowerCase() === 'returned'));
+            const submitBtn = document.getElementById('submitBtn');
+            const fields = ['vehicleNo', 'vehicleType', 'phoneNo', 'deliveryDate', 'deliveryTime', 'deliveryRemarks'];
+            
+            fields.forEach(fieldId => {
+                const el = document.getElementById(fieldId);
+                if (el) {
+                    el.disabled = isDelivered;
+                    if (isDelivered) {
+                        el.style.cursor = 'not-allowed';
+                        el.style.opacity = '0.6';
+                    } else {
+                        el.style.cursor = '';
+                        el.style.opacity = '1';
+                    }
+                }
+            });
+
+            const titleEl = document.querySelector('#deliveryModal h3');
+            const noticeEl = document.getElementById('deliveredNotice');
+            const noticeTextEl = document.getElementById('deliveredNoticeText');
+
+            if (isDelivered) {
+                if (titleEl) titleEl.innerText = 'Delivery Details (View Only)';
+                if (noticeTextEl) noticeTextEl.innerText = `This order is marked as ${status || 'Delivered'}. Delivery details are view-only and cannot be edited.`;
+                if (noticeEl) noticeEl.style.display = 'flex';
+                if (submitBtn) submitBtn.style.display = 'none';
+            } else {
+                if (titleEl) titleEl.innerText = 'Update Delivery Status';
+                if (noticeEl) noticeEl.style.display = 'none';
+                if (submitBtn) {
+                    submitBtn.style.display = 'inline-block';
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = 'Submit Update';
+                }
+            }
 
             document.getElementById('deliveryModal').style.display = 'flex';
         }
@@ -951,16 +1032,7 @@
                 });
         }
 
-        // Close modal on click outside
-        window.onclick = function (event) {
-            const deliveryModal = document.getElementById('deliveryModal');
-            const cnModal = document.getElementById('creditNoteModal');
-            if (event.target == deliveryModal) {
-                closeModal();
-            } else if (event.target == cnModal) {
-                closeCreditNoteModal();
-            }
-        }
+        // Modals do not close on outside click; user must click X icon or Close button
 
         // Action Menu Toggle Logic
         function toggleActionMenu(btn, event) {

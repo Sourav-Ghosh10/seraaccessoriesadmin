@@ -407,7 +407,7 @@
                 <div class="form-group">
                     <label class="form-label" style="color: var(--text-muted); font-size: 12px; text-transform: uppercase;">Password</label>
                     <div style="position: relative; display: flex; align-items: center;">
-                        <input type="password" id="dealerPassword" class="form-control" placeholder="Min. 6 characters" style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1); padding-right: 40px; width: 100%;">
+                        <input type="password" id="dealerPassword" class="form-control" placeholder="Min. 6 characters" autocomplete="new-password" style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1); padding-right: 40px; width: 100%;">
                         <button type="button" onclick="togglePasswordVisibility()" style="position: absolute; right: 10px; background: transparent; border: none; color: var(--text-muted); cursor: pointer; padding: 0 5px; outline: none;">
                             <i class="fas fa-eye" id="passwordEyeIcon"></i>
                         </button>
@@ -563,7 +563,13 @@ input:-webkit-autofill:active{
         document.getElementById('submitBtn').style.display = 'inline-block';
         document.getElementById('formFields').style.display = 'block';
         document.getElementById('viewContainer').style.display = 'none';
+        document.getElementById('dealerPassword').placeholder = 'Min. 6 characters';
         document.getElementById('dealerModal').style.display = 'flex';
+        setTimeout(() => {
+            if (currentDealerId === null) {
+                document.getElementById('dealerPassword').value = '';
+            }
+        }, 50);
     }
 
     function openEditModal(dealer) {
@@ -598,7 +604,13 @@ input:-webkit-autofill:active{
         document.getElementById('dealerPassbookVisible').checked = isVisible;
         document.getElementById('passbookVisibleLabel').innerText = isVisible ? 'Visible' : 'Hidden';
 
+        document.getElementById('dealerPassword').placeholder = 'Leave blank to keep current password';
         document.getElementById('dealerModal').style.display = 'flex';
+        setTimeout(() => {
+            if (currentDealerId !== null) {
+                document.getElementById('dealerPassword').value = '';
+            }
+        }, 50);
     }
 
     function openViewModal(dealer) {
@@ -899,8 +911,6 @@ input:-webkit-autofill:active{
     }
 
     window.onclick = function(event) {
-        if (event.target.id === 'dealerModal') closeDealerModal();
-        if (event.target.id === 'editPointsModal') closeEditPointsModal();
         // Close city dropdown on outside click
         const wrapper = document.getElementById('citySelectWrapper');
         if (wrapper && !wrapper.contains(event.target)) {

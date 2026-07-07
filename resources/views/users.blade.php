@@ -94,7 +94,7 @@
         <div class="form-group" style="margin-bottom: 20px;">
             <label class="form-label" style="color: var(--text-muted); font-size: 12px; text-transform: uppercase;">Password</label>
             <div style="position: relative;">
-                <input type="password" id="userPassword" class="form-control" placeholder="Create secure password..." style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1); padding-right: 40px;">
+                <input type="password" id="userPassword" class="form-control" placeholder="Create secure password..." autocomplete="new-password" style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1); padding-right: 40px;">
                 <i class="fas fa-eye" id="toggleUserPassword" onclick="toggleUserPasswordVisibility()" style="position: absolute; right: 15px; top: 50%; transform: translateY(-50%); color: var(--text-muted); cursor: pointer; font-size: 14px; z-index: 10;"></i>
             </div>
         </div>
@@ -128,7 +128,13 @@
         document.getElementById('userRole').value = 'Admin';
         document.getElementById('userStatus').value = 'Active';
         document.getElementById('userPassword').value = '';
+        document.getElementById('userPassword').placeholder = 'Create secure password...';
         document.getElementById('userModal').style.display = 'flex';
+        setTimeout(() => {
+            if (currentUserId === null) {
+                document.getElementById('userPassword').value = '';
+            }
+        }, 50);
     }
 
     function editUser(id, name, email, role, status) {
@@ -140,7 +146,13 @@
         document.getElementById('userRole').value = role;
         document.getElementById('userStatus').value = status;
         document.getElementById('userPassword').value = '';
+        document.getElementById('userPassword').placeholder = 'Leave blank to keep current password';
         document.getElementById('userModal').style.display = 'flex';
+        setTimeout(() => {
+            if (currentUserId !== null) {
+                document.getElementById('userPassword').value = '';
+            }
+        }, 50);
     }
 
     function closeUserModal() {
@@ -198,11 +210,6 @@
             alert('An error occurred.');
         });
     }
-
-    window.onclick = function(event) {
-        if (event.target.id == 'userModal') {
-            closeUserModal();
-        }
-    }
+    // Modals do not close on outside click; user must click X icon or Close button
 </script>
 @endsection

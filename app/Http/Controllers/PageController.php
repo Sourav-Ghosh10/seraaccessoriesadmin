@@ -23,7 +23,7 @@ class PageController extends Controller
         $totalDealers = \App\Models\Member::where('role', 'dealer')->count();
         $totalSalesmen = \App\Models\Member::where('role', 'salesman')->count();
         $totalOrders = \App\Models\Order::count();
-        $pendingOrders = \App\Models\Order::where('status', 'Pending')->count();
+        $pendingOrders = \App\Models\OrderRequest::where('status', 'Pending')->count();
 
         $deliveredOrders = \App\Models\Order::where('status', 'Delivered')->count();
         $invoicePending = \App\Models\Order::where('status', '!=', 'Cancelled')->whereDoesntHave('invoice')->count();
@@ -450,6 +450,10 @@ class PageController extends Controller
             });
         }
 
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
         if ($request->filled('date_type')) {
             if ($request->date_type === 'individual' && $request->filled('single_date')) {
                 $query->whereDate('created_at', $request->single_date);
@@ -586,6 +590,10 @@ class PageController extends Controller
                     $q->where('dist_id', $request->dist_id);
                 }
             });
+        }
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
         }
 
         if ($request->filled('date_type')) {

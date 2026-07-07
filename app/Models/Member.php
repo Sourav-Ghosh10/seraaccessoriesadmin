@@ -36,7 +36,7 @@ class Member extends Authenticatable
 
     public function distributor()
     {
-        return $this->belongsTo(Member::class, 'dist_id', 'dist_id');
+        return $this->belongsTo(Member::class, 'dist_id', 'dist_id')->where('role', 'distributor');
     }
 
     public function dealers()

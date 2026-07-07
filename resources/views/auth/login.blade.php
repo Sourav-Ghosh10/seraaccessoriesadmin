@@ -4,7 +4,7 @@
     <div class="auth-page">
         <div class="auth-card glass animate-fade">
             <div class="logo" style="justify-content: center; margin-bottom: 20px; flex-direction: column;">
-                <img src="{{ asset('assets/images/logo.jpg') }}" alt="Logo" style="width: 100px;">
+                <img src="{{ asset('assets/images/logo.png') }}" alt="Logo" style="width: 160px; height: auto;">
             </div>
             <h3 style="text-align: center; margin-bottom: 30px; font-weight: 600;">Welcome Back</h3>
 

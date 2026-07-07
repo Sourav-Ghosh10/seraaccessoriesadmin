@@ -245,11 +245,6 @@ input:checked + .slider:before { transform: translateX(14px); background-color: 
             checkbox.checked = !checkbox.checked; // Revert
         });
     }
-
-    window.onclick = function(event) {
-        if (event.target.id == 'cityModal') {
-            closeCityModal();
-        }
-    }
+    // Modals do not close on outside click; user must click X icon or Close button
 </script>
 @endsection

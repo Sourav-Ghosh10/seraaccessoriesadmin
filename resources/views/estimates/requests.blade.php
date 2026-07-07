@@ -252,9 +252,7 @@
                                     </div>
                                 @endif
                             </td>
-                            <td><span
-                                    style="font-size: 12px; color: var(--text-muted);">{{ $estimate->created_at->format('Y-m-d H:i A') }}</span>
-                            </td>
+                            <td>{{ $estimate->created_at->format('Y-m-d / h:i A') }}</td>
                             <td>
                                 <span class="badge {{ $estimate->status == 'Responded' ? 'badge-success' : 'badge-warning' }}">
                                     {{ $estimate->status }}
@@ -820,16 +818,7 @@
             document.getElementById('viewModal').style.display = 'none';
             closeLightbox();
         }
-
-        window.onclick = function (event) {
-            const lightboxModal = document.getElementById('imageLightbox');
-            if (event.target == document.getElementById('estimateModal') || event.target == document.getElementById('viewModal')) {
-                closeModal();
-            }
-            if (event.target == lightboxModal) {
-                closeLightbox();
-            }
-        }
+        // Modals do not close on outside click; user must click X icon or Close button
     </script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
