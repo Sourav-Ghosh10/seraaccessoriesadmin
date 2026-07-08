@@ -77,22 +77,32 @@
                 </div>
 
                 <ul class="nav-links">
-                    @php $role = session('role', 'Admin'); @endphp
+                    @php 
+                        $role = trim(session('role', Auth::check() ? Auth::user()->role : 'Admin'));
+                        $isAdmin = ($role === 'Admin');
+                        $isAccount = ($role === 'Account');
+                        $isOperation = in_array($role, ['Operation', 'Operations']);
+                    @endphp
 
-                    <li class="nav-item">
-                        <a href="{{ route('dashboard') }}" class="nav-link {{ Request::is('dashboard') ? 'active' : '' }}">
-                            <i class="fas fa-chart-line"></i>
-                            <span>Dashboard</span>
-                        </a>
-                    </li>
+                    @if($isAdmin || $isAccount)
+                        <li class="nav-item">
+                            <a href="{{ route('dashboard') }}" class="nav-link {{ Request::is('dashboard') ? 'active' : '' }}">
+                                <i class="fas fa-chart-line"></i>
+                                <span>Dashboard</span>
+                            </a>
+                        </li>
+                    @endif
 
-                    @if($role == 'Admin' || $role == 'Operations')
+                    @if($isAdmin || $isAccount)
                         <li class="nav-item">
                             <a href="{{ route('dealers') }}" class="nav-link {{ Request::is('dealers*') ? 'active' : '' }}">
                                 <i class="fas fa-users"></i>
                                 <span>Dealer Registration</span>
                             </a>
                         </li>
+                    @endif
+
+                    @if($isAdmin)
                         <li class="nav-item">
                             <a href="{{ route('salesmen') }}" class="nav-link {{ Request::is('salesmen*') && !Request::is('salesman-attendance*') ? 'active' : '' }}">
                                 <i class="fas fa-user-tie"></i>
@@ -118,6 +128,9 @@
                                 <span>Distributor Registration</span>
                             </a>
                         </li>
+                    @endif
+
+                    @if($isAdmin || $isAccount)
                         <li class="nav-item">
                             <a href="{{ route('cities') }}" class="nav-link {{ Request::is('cities*') ? 'active' : '' }}">
                                 <i class="fas fa-city"></i>
@@ -126,7 +139,7 @@
                         </li>
                     @endif
 
-                    @if($role == 'Admin' || $role == 'Operations')
+                    @if($isAdmin || $isAccount || $isOperation)
                         <li class="nav-item">
                             <a href="{{ route('estimate-requests') }}" class="nav-link {{ Request::is('estimate-requests*') ? 'active' : '' }}">
                                 <i class="fas fa-calculator"></i>
@@ -141,16 +154,14 @@
                                 <span>Order Requests</span>
                             </a>
                         </li>
-                    @endif
 
-                    <li class="nav-item">
-                        <a href="{{ route('orders.index') }}" class="nav-link {{ Request::is('orders*') ? 'active' : '' }}">
-                            <i class="fas fa-shopping-cart"></i>
-                            <span>Orders List</span>
-                        </a>
-                    </li>
+                        <li class="nav-item">
+                            <a href="{{ route('orders.index') }}" class="nav-link {{ Request::is('orders*') ? 'active' : '' }}">
+                                <i class="fas fa-shopping-cart"></i>
+                                <span>Orders List</span>
+                            </a>
+                        </li>
 
-                    @if($role == 'Admin' || $role == 'Operations')
                         <li class="nav-item">
                             <a href="{{ route('delivery') }}" class="nav-link {{ Request::is('delivery*') ? 'active' : '' }}">
                                 <i class="fas fa-box-open"></i>
@@ -159,31 +170,28 @@
                         </li>
                     @endif
 
-                    @if($role == 'Admin' || $role == 'Account')
+                    @if($isAdmin || $isAccount)
                         <li class="nav-item">
                             <a href="{{ route('invoices') }}" class="nav-link {{ Request::is('invoices*') ? 'active' : '' }}">
                                 <i class="fas fa-file-invoice-dollar"></i>
                                 <span>Invoice Management</span>
                             </a>
                         </li>
-                    @endif
-
-                    @if($role == 'Admin' || $role == 'Operations')
                         <li class="nav-item">
                             <a href="{{ route('rewards') }}" class="nav-link {{ Request::is('rewards*') ? 'active' : '' }}">
                                 <i class="fas fa-gift"></i>
                                 <span>Reward Points</span>
                             </a>
                         </li>
-
                         <li class="nav-item">
                             <a href="{{ route('redeem-requests') }}" class="nav-link {{ Request::is('redeem-requests*') ? 'active' : '' }}">
                                 <i class="fas fa-coins"></i>
                                 <span>Redeem Requests</span>
                             </a>
                         </li>
+                    @endif
 
-
+                    @if($isAdmin || $isAccount || $isOperation)
                         <li class="nav-item">
                             <a href="{{ route('price-list') }}"
                                 class="nav-link {{ Request::is('price-list*') ? 'active' : '' }}">
@@ -191,13 +199,18 @@
                                 <span>Price List PDF</span>
                             </a>
                         </li>
+                    @endif
 
+                    @if($isAdmin || $isAccount)
                         <li class="nav-item">
                             <a href="{{ route('passbook') }}" class="nav-link {{ Request::is('passbook*') ? 'active' : '' }}">
                                 <i class="fas fa-book"></i>
                                 <span>Dealer Passbook</span>
                             </a>
                         </li>
+                    @endif
+
+                    @if($isAdmin)
                         <li class="nav-item">
                             <a href="{{ route('app-popups.index') }}" class="nav-link {{ Request::is('app-popups*') ? 'active' : '' }}">
                                 <i class="fas fa-bullhorn"></i>
@@ -206,7 +219,7 @@
                         </li>
                     @endif
 
-                    @if($role == 'Admin' || $role == 'Account' || $role == 'Operations')
+                    @if($isAdmin || $isAccount)
                         <li class="nav-item">
                             <a href="{{ route('payments.verify') }}" class="nav-link {{ Request::is('payments/verify*') ? 'active' : '' }}">
                                 <i class="fas fa-file-invoice"></i>
@@ -215,7 +228,7 @@
                         </li>
                     @endif
 
-                    @if($role == 'Admin')
+                    @if($isAdmin)
                         <li class="nav-item">
                             <a href="{{ route('users') }}" class="nav-link {{ Request::is('users*') ? 'active' : '' }}">
                                 <i class="fas fa-user-shield"></i>

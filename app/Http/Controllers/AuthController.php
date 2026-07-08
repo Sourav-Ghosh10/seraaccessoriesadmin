@@ -20,7 +20,11 @@ class AuthController extends Controller
 
         if (Auth::attempt($credentials)) {
             $request->session()->regenerate();
-            session(['role' => Auth::user()->role]);
+            $userRole = Auth::user()->role;
+            session(['role' => $userRole]);
+            if (in_array(trim($userRole), ['Operation', 'Operations'])) {
+                return redirect()->intended('orders');
+            }
             return redirect()->intended('dashboard');
         }
 

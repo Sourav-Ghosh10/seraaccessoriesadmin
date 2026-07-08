@@ -24,9 +24,31 @@ class RoleMiddleware
         }
 
         $user = Auth::user();
+        $userRole = trim($user->role);
 
-        // Check if user's role matches any of the allowed roles
-        if (!in_array($user->role, $roles)) {
+        // Normalize roles list (support both separate arguments and comma-separated strings)
+        $allowedRoles = [];
+        foreach ($roles as $role) {
+            $split = explode(',', $role);
+            foreach ($split as $r) {
+                $allowedRoles[] = trim($r);
+            }
+        }
+
+        // Treat 'Operation' and 'Operations' as equivalent
+        $normalizedUserRoles = [$userRole];
+        if ($userRole === 'Operation') $normalizedUserRoles[] = 'Operations';
+        if ($userRole === 'Operations') $normalizedUserRoles[] = 'Operation';
+
+        $hasAccess = false;
+        foreach ($normalizedUserRoles as $ur) {
+            if (in_array($ur, $allowedRoles)) {
+                $hasAccess = true;
+                break;
+            }
+        }
+
+        if (!$hasAccess) {
             abort(403, 'Unauthorized access.');
         }
 
