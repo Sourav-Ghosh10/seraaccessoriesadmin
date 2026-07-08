@@ -29,11 +29,10 @@ Route::get('/uploads/{path}', function ($path) {
     return response()->file($fullPath, ['Content-Type' => $mimeType]);
 })->where('path', '.*');
 Route::middleware(['auth'])->group(function () {
-    // Shared Dashboard (Admin, Operations, Account)
-    Route::get('/dashboard', [PageController::class, 'dashboard'])->name('dashboard');
-    Route::get('/dashboard/chart-data', [PageController::class, 'chartData'])->name('dashboard.chart');
 
-    // Admin Only
+    // =========================================================================
+    // Group 1: Admin ONLY
+    // =========================================================================
     Route::middleware(['role:Admin'])->group(function () {
         Route::get('/users', [PageController::class, 'users'])->name('users');
         Route::post('/users', [UserController::class, 'store'])->name('users.store');
@@ -41,22 +40,13 @@ Route::middleware(['auth'])->group(function () {
 
         Route::get('/settings', [PageController::class, 'settings'])->name('settings');
         Route::post('/settings/update', [PageController::class, 'updateSettings'])->name('settings.update');
-    });
-
-    // Admin & Operations
-    Route::middleware(['role:Admin,Operations'])->group(function () {
-        Route::get('/dealers', [PageController::class, 'dealers'])->name('dealers');
-        Route::post('/dealers', [DealerController::class, 'store'])->name('dealers.store');
-        Route::put('/dealers/{id}', [DealerController::class, 'update'])->name('dealers.update');
-        Route::put('/dealers/{id}/update-points', [DealerController::class, 'updatePoints'])->name('dealers.update-points');
-        Route::patch('/dealers/{id}/toggle-passbook', [DealerController::class, 'togglePassbook'])->name('dealers.toggle-passbook');
-        Route::delete('/dealers/{id}', [DealerController::class, 'destroy'])->name('dealers.destroy');
 
         Route::get('/salesmen', [PageController::class, 'salesmen'])->name('salesmen');
         Route::post('/salesmen', [SalesmanController::class, 'store'])->name('salesmen.store');
         Route::put('/salesmen/{id}', [SalesmanController::class, 'update'])->name('salesmen.update');
         Route::put('/salesmen/{id}/update-points', [SalesmanController::class, 'updatePoints'])->name('salesmen.update-points');
         Route::get('/salesmen/{id}/performance', [SalesmanController::class, 'performance'])->name('salesmen.performance');
+
         Route::get('/salesman-attendance', [PageController::class, 'salesmanAttendance'])->name('salesman.attendance');
         Route::get('/salesman-attendance/{id}', [PageController::class, 'salesmanAttendanceDetails'])->name('salesman.attendance.details');
 
@@ -66,42 +56,13 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/distributors', [PageController::class, 'distributors'])->name('distributors');
         Route::post('/distributors', [DistributorController::class, 'store'])->name('distributors.store');
         Route::put('/distributors/{id}', [DistributorController::class, 'update'])->name('distributors.update');
-
         Route::get('/distributors/{id}/staff', [PageController::class, 'distributorStaff'])->name('distributors.staff');
         Route::post('/distributors/staff', [\App\Http\Controllers\DistributorStaffController::class, 'store'])->name('distributors.staff.store');
         Route::put('/distributors/staff/{id}', [\App\Http\Controllers\DistributorStaffController::class, 'update'])->name('distributors.staff.update');
 
-        Route::get('/cities', [\App\Http\Controllers\CityController::class, 'index'])->name('cities');
-        Route::post('/cities', [\App\Http\Controllers\CityController::class, 'store'])->name('cities.store');
-        Route::put('/cities/{id}', [\App\Http\Controllers\CityController::class, 'update'])->name('cities.update');
-        Route::patch('/cities/{id}/toggle-status', [\App\Http\Controllers\CityController::class, 'toggleStatus'])->name('cities.toggle-status');
-        Route::get('/estimate-requests', [PageController::class, 'estimateRequests'])->name('estimate-requests');
-        Route::post('/estimates/{id}/revert', [OrderController::class, 'revertEstimate'])->name('estimates.revert');
-
-        Route::get('/order-requests', [PageController::class, 'orderRequests'])->name('order-requests');
-        
-        Route::get('/delivery', [PageController::class, 'delivery'])->name('delivery');
-        Route::post('/orders/{id}/update-delivery', [OrderController::class, 'updateDeliveryStatus'])->name('orders.update-delivery');
-
-        Route::get('/rewards', [PageController::class, 'rewards'])->name('rewards');
-        Route::post('/rewards/store', [OrderController::class, 'storeRewardPoints'])->name('rewards.store');
-
-        Route::get('/redeem-requests', [PageController::class, 'redeemRequests'])->name('redeem-requests');
-        Route::post('/redeem-requests/{id}/status', [OrderController::class, 'updateRedeemStatus'])->name('redeem-requests.update-status');
-
-
-        Route::get('/price-list', [PriceListController::class, 'index'])->name('price-list');
-        Route::post('/price-list/upload', [PriceListController::class, 'upload'])->name('price-list.upload');
-
-        Route::get('/passbook', [PageController::class, 'passbook'])->name('passbook');
-        Route::post('/passbook/update', [PageController::class, 'updateBalance'])->name('passbook.update');
-        Route::get('/all-transactions', [PageController::class, 'allTransactions'])->name('transactions.index');
-
-        // App Popup Management Routes
         Route::resource('app-popups', AppPopupController::class)->except(['show']);
         Route::patch('app-popups/{id}/toggle-status', [AppPopupController::class, 'toggleStatus'])->name('app-popups.toggle-status');
 
-        // Compliance Routes
         Route::get('/compliance', [PageController::class, 'complianceDashboard'])->name('compliance.dashboard');
         Route::get('/compliance/sites', [PageController::class, 'siteCompliance'])->name('compliance.sites');
         Route::get('/compliance/expiring', [PageController::class, 'expiringCompliance'])->name('compliance.expiring');
@@ -109,32 +70,70 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/compliance/reports', [PageController::class, 'complianceReports'])->name('compliance.reports');
     });
 
-    // Admin & Account
+    // =========================================================================
+    // Group 2: Admin & Account ONLY
+    // =========================================================================
     Route::middleware(['role:Admin,Account'])->group(function () {
+        Route::get('/dashboard', [PageController::class, 'dashboard'])->name('dashboard');
+        Route::get('/dashboard/chart-data', [PageController::class, 'chartData'])->name('dashboard.chart');
+
+        Route::get('/dealers', [PageController::class, 'dealers'])->name('dealers');
+        Route::post('/dealers', [DealerController::class, 'store'])->name('dealers.store');
+        Route::put('/dealers/{id}', [DealerController::class, 'update'])->name('dealers.update');
+        Route::put('/dealers/{id}/update-points', [DealerController::class, 'updatePoints'])->name('dealers.update-points');
+        Route::patch('/dealers/{id}/toggle-passbook', [DealerController::class, 'togglePassbook'])->name('dealers.toggle-passbook');
+        Route::delete('/dealers/{id}', [DealerController::class, 'destroy'])->name('dealers.destroy');
+
+        Route::get('/cities', [\App\Http\Controllers\CityController::class, 'index'])->name('cities');
+        Route::post('/cities', [\App\Http\Controllers\CityController::class, 'store'])->name('cities.store');
+        Route::put('/cities/{id}', [\App\Http\Controllers\CityController::class, 'update'])->name('cities.update');
+        Route::patch('/cities/{id}/toggle-status', [\App\Http\Controllers\CityController::class, 'toggleStatus'])->name('cities.toggle-status');
+
         Route::get('/invoices', [PageController::class, 'invoices'])->name('invoices');
         Route::post('/invoices/store', [OrderController::class, 'storeInvoice'])->name('invoices.store');
         Route::post('/credit-notes/store', [OrderController::class, 'storeCreditNote'])->name('credit-notes.store');
         Route::post('/orders/{id}/mark-returned', [OrderController::class, 'markReturned'])->name('orders.mark-returned');
         Route::patch('/orders/{id}/cancel', [OrderController::class, 'cancelOrder'])->name('orders.cancel');
-    });
 
-    // Admin, Account & Operations
-    Route::middleware(['role:Admin,Account,Operations'])->group(function () {
         Route::get('/payments/verify', [PageController::class, 'verifyPayments'])->name('payments.verify');
         Route::post('/payments/{id}/approve', [PageController::class, 'approvePayment'])->name('payments.approve');
         Route::post('/payments/{id}/reject', [PageController::class, 'rejectPayment'])->name('payments.reject');
+
+        Route::get('/rewards', [PageController::class, 'rewards'])->name('rewards');
+        Route::post('/rewards/store', [OrderController::class, 'storeRewardPoints'])->name('rewards.store');
+
+        Route::get('/redeem-requests', [PageController::class, 'redeemRequests'])->name('redeem-requests');
+        Route::post('/redeem-requests/{id}/status', [OrderController::class, 'updateRedeemStatus'])->name('redeem-requests.update-status');
+
+        Route::get('/passbook', [PageController::class, 'passbook'])->name('passbook');
+        Route::post('/passbook/update', [PageController::class, 'updateBalance'])->name('passbook.update');
+        Route::get('/all-transactions', [PageController::class, 'allTransactions'])->name('transactions.index');
     });
 
-    // Shared by All Roles
-    Route::middleware(['role:Admin,Operations,Account'])->group(function () {
+    // =========================================================================
+    // Group 3: Shared by ALL THREE (Admin, Account & Operation/Operations)
+    // =========================================================================
+    Route::middleware(['role:Admin,Account,Operations'])->group(function () {
+        Route::get('/estimate-requests', [PageController::class, 'estimateRequests'])->name('estimate-requests');
+        Route::post('/estimates/{id}/revert', [OrderController::class, 'revertEstimate'])->name('estimates.revert');
+
+        Route::get('/order-requests', [PageController::class, 'orderRequests'])->name('order-requests');
+        Route::post('/order-requests', [OrderController::class, 'storeRequest'])->name('order-requests.store');
+        Route::post('/order-requests/store', [OrderController::class, 'storeRequest'])->name('order-requests.store');
+
         Route::get('/orders', [PageController::class, 'ordersList'])->name('orders.index');
         Route::get('/orders/create', [PageController::class, 'createOrder'])->name('orders.create');
         Route::get('/orders/{id}', [PageController::class, 'showOrder'])->name('orders.show');
-        Route::get('/api/check-new-requests', [PageController::class, 'checkNewRequests'])->name('check.new.requests');
-        Route::get('/api/dependent-members', [PageController::class, 'dependentMembers'])->name('api.dependent-members');
-        Route::post('/order-requests', [OrderController::class, 'storeRequest'])->name('order-requests.store');
         Route::post('/orders/store', [OrderController::class, 'storeOrder'])->name('orders.store');
         Route::post('/orders/{id}/upload-challan', [OrderController::class, 'uploadChallan'])->name('orders.upload-challan');
-        Route::post('/order-requests/store', [OrderController::class, 'storeRequest'])->name('order-requests.store');
+
+        Route::get('/delivery', [PageController::class, 'delivery'])->name('delivery');
+        Route::post('/orders/{id}/update-delivery', [OrderController::class, 'updateDeliveryStatus'])->name('orders.update-delivery');
+
+        Route::get('/price-list', [PriceListController::class, 'index'])->name('price-list');
+        Route::post('/price-list/upload', [PriceListController::class, 'upload'])->name('price-list.upload');
+
+        Route::get('/api/check-new-requests', [PageController::class, 'checkNewRequests'])->name('check.new.requests');
+        Route::get('/api/dependent-members', [PageController::class, 'dependentMembers'])->name('api.dependent-members');
     });
 });

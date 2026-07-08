@@ -78,6 +78,7 @@
                 <label class="form-label" style="color: var(--text-muted); font-size: 12px; text-transform: uppercase;">Assign Role</label>
                 <select id="userRole" class="form-control" style="background: #1e293b; border-color: rgba(255,255,255,0.1); color: #fff;">
                     <option value="Admin">Admin</option>
+                    <option value="Operation">Operation</option>
                     <option value="Operations">Operations</option>
                     <option value="Account">Account</option>
                 </select>
