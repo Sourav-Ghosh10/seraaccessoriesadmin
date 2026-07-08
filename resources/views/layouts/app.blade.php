@@ -198,6 +198,12 @@
                                 <span>Dealer Passbook</span>
                             </a>
                         </li>
+                        <li class="nav-item">
+                            <a href="{{ route('app-popups.index') }}" class="nav-link {{ Request::is('app-popups*') ? 'active' : '' }}">
+                                <i class="fas fa-bullhorn"></i>
+                                <span>App Popup Management</span>
+                            </a>
+                        </li>
                     @endif
 
                     @if($role == 'Admin' || $role == 'Account' || $role == 'Operations')

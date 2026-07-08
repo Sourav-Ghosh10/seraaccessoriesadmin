@@ -9,6 +9,7 @@ use App\Http\Controllers\DistributorController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\PriceListController;
+use App\Http\Controllers\AppPopupController;
 
 use App\Http\Controllers\AuthController;
 
@@ -95,6 +96,10 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/passbook', [PageController::class, 'passbook'])->name('passbook');
         Route::post('/passbook/update', [PageController::class, 'updateBalance'])->name('passbook.update');
         Route::get('/all-transactions', [PageController::class, 'allTransactions'])->name('transactions.index');
+
+        // App Popup Management Routes
+        Route::resource('app-popups', AppPopupController::class)->except(['show']);
+        Route::patch('app-popups/{id}/toggle-status', [AppPopupController::class, 'toggleStatus'])->name('app-popups.toggle-status');
 
         // Compliance Routes
         Route::get('/compliance', [PageController::class, 'complianceDashboard'])->name('compliance.dashboard');
