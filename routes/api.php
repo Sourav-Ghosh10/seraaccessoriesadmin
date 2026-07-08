@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\DealerController;
 use App\Http\Controllers\Api\SalesmanController;
 use App\Http\Controllers\Api\DistributorController;
 use App\Http\Controllers\Api\RewardTransactionController;
+use App\Http\Controllers\Api\AppPopupController;
 
 /*
 |--------------------------------------------------------------------------
@@ -33,6 +34,7 @@ Route::prefix('auth')->name('api.auth.')->group(function () {
 });
 
 Route::get('/reward-transactions', [RewardTransactionController::class, 'index']);
+Route::get('/app-popup', [AppPopupController::class, 'index']);
 
 use App\Http\Middleware\JwtAuthMiddleware;
 
