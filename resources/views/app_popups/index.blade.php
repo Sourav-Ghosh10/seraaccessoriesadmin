@@ -75,7 +75,7 @@ input:checked + .slider:before { transform: translateX(16px); background-color: 
         <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
             <div style="position: relative;">
                 <i class="fas fa-search" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 13px;"></i>
-                <input type="text" id="searchInput" class="search-input" placeholder="Search by title..." oninput="debounceSearch()">
+                <input type="text" id="searchInput" class="search-input" placeholder="Search by ID..." oninput="debounceSearch()">
             </div>
 
             <select id="statusFilter" class="filter-select" onchange="filterPopups()">
@@ -98,7 +98,7 @@ input:checked + .slider:before { transform: translateX(16px); background-color: 
             <thead>
                 <tr>
                     <th style="width: 60px;">ID</th>
-                    <th>Title & Description</th>
+                    <th>Announcement Image</th>
                     <th style="width: 100px;">Status</th>
                     <th style="width: 150px;">Created At</th>
                     <th style="width: 150px;">Actions</th>

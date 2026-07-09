@@ -12,8 +12,12 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('redeem_request', function (Blueprint $table) {
-            $table->string('dealer_file_path')->nullable()->after('status');
-            $table->string('distributor_file_path')->nullable()->after('dealer_file_path');
+            if (!Schema::hasColumn('redeem_request', 'dealer_file_path')) {
+                $table->string('dealer_file_path')->nullable()->after('status');
+            }
+            if (!Schema::hasColumn('redeem_request', 'distributor_file_path')) {
+                $table->string('distributor_file_path')->nullable()->after('dealer_file_path');
+            }
         });
     }
 

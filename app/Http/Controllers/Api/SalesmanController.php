@@ -1254,9 +1254,9 @@ class SalesmanController extends Controller
             } else {
                 // Currently clocked in
                 $isClockedIn = true;
-                $diffInMinutes = Carbon::now()->diffInMinutes($attendance->clock_in_time);
-                $hours = floor($diffInMinutes / 60);
-                $mins = $diffInMinutes % 60;
+                $diffInSeconds = abs(round(Carbon::now()->diffInSeconds($attendance->clock_in_time)));
+                $hours = floor($diffInSeconds / 3600);
+                $mins = floor(($diffInSeconds % 3600) / 60);
                 $todayTotalHours = sprintf('%02d:%02d', $hours, $mins);
             }
         }
@@ -1424,9 +1424,9 @@ class SalesmanController extends Controller
         $address = $fetchedAddress ?: $address;
 
         $now = Carbon::now();
-        $diffInMinutes = $now->diffInMinutes($attendance->clock_in_time);
-        $hours = floor($diffInMinutes / 60);
-        $mins = $diffInMinutes % 60;
+        $diffInSeconds = abs(round($now->diffInSeconds($attendance->clock_in_time)));
+        $hours = floor($diffInSeconds / 3600);
+        $mins = floor(($diffInSeconds % 3600) / 60);
         $totalHours = sprintf('%02d:%02d', $hours, $mins);
 
         $attendance->update([
