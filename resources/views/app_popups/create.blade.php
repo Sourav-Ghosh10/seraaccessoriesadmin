@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Edit App Popup')
+@section('title', 'Create App Popup')
 
 @section('styles')
 <style>
@@ -58,7 +58,6 @@
     color: var(--primary);
     opacity: 0.8;
 }
-/* Custom Select styling */
 select.form-control {
     background-color: #1e293b !important;
     color: #fff !important;
@@ -76,7 +75,8 @@ select.form-control option {
         <div style="display: flex; align-items: center; gap: 12px;">
             <div style="width: 4px; height: 28px; background: var(--primary); border-radius: 2px;"></div>
             <div>
-                <h3 style="margin: 0; font-size: 22px; font-weight: 700; color: #fff;">Edit Popup Announcement</h3>
+                <h3 style="margin: 0; font-size: 22px; font-weight: 700; color: #fff;">Create Popup Announcement</h3>
+                <p style="margin: 2px 0 0 0; font-size: 13px; color: var(--text-muted);">Create a new image announcement for the mobile application</p>
             </div>
         </div>
         <a href="{{ route('app-popups.index') }}" class="btn glass" style="padding: 8px 16px; font-size: 13px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; color: #fff;">
@@ -97,9 +97,8 @@ select.form-control option {
         </div>
     @endif
 
-    <form action="{{ route('app-popups.update', $popup->id) }}" method="POST" enctype="multipart/form-data">
+    <form action="{{ route('app-popups.store') }}" method="POST" enctype="multipart/form-data">
         @csrf
-        @method('PUT')
 
         {{-- Section 1: Upload Image --}}
         <div class="form-section-title">
@@ -111,34 +110,19 @@ select.form-control option {
                 Popup Announcement Image <span style="color: #ef4444;">*</span>
             </label>
             <div class="image-preview-container" onclick="document.getElementById('imageInput').click()">
-                <input type="file" name="banner_image" id="imageInput" accept="image/*" style="display: none;" onchange="previewImage(this)">
+                <input type="file" name="banner_image" id="imageInput" accept="image/*" required style="display: none;" onchange="previewImage(this)">
                 
-                @php
-                    $existingImage = $popup->banner_image ?? $popup->image;
-                    $existingImageUrl = null;
-                    if ($existingImage) {
-                        $existingImageUrl = str_starts_with($existingImage, 'http://') || str_starts_with($existingImage, 'https://')
-                            ? $existingImage
-                            : asset('uploads/' . ltrim($existingImage, '/'));
-                    }
-                @endphp
-
-                <div id="previewPlaceholder" class="preview-placeholder" style="{{ $existingImageUrl ? 'display: none;' : '' }}">
+                <div id="previewPlaceholder" class="preview-placeholder">
                     <i class="fas fa-cloud-upload-alt"></i>
                     <div style="font-weight: 600; font-size: 15px; color: #fff;">Click to upload popup banner image</div>
                     <div style="font-size: 12px; color: var(--text-muted);">Recommended: PNG, JPG, WEBP (Max 10MB)</div>
                 </div>
 
-                <img id="imagePreview" src="{{ $existingImageUrl ?? '#' }}" alt="Popup Preview" style="{{ $existingImageUrl ? 'display: block;' : 'display: none;' }}">
+                <img id="imagePreview" src="#" alt="Popup Preview" style="display: none;">
             </div>
             @error('banner_image')
                 <span style="color: #ef4444; font-size: 12px; margin-top: 5px; display: block;">{{ $message }}</span>
             @enderror
-            @if($existingImageUrl)
-                <div style="margin-top: 8px; font-size: 12px; color: var(--text-muted); display: flex; justify-content: space-between; align-items: center;">
-                    <span>Current image loaded. Click above to replace with a new image.</span>
-                </div>
-            @endif
         </div>
 
         {{-- Section 2: Status --}}
@@ -151,8 +135,8 @@ select.form-control option {
                 Active Status <span style="color: #ef4444;">*</span>
             </label>
             <select name="status" class="form-control" required style="background: #1e293b; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #fff; padding: 12px 15px; width: 100%;">
-                <option value="1" {{ old('status', $popup->status ? '1' : '0') == '1' ? 'selected' : '' }}>Active (On)</option>
-                <option value="0" {{ old('status', $popup->status ? '1' : '0') == '0' ? 'selected' : '' }}>Inactive (Off)</option>
+                <option value="1" selected>Active (On)</option>
+                <option value="0">Inactive (Off)</option>
             </select>
         </div>
 
@@ -161,7 +145,7 @@ select.form-control option {
                 Cancel
             </a>
             <button type="submit" class="btn btn-primary" style="padding: 12px 35px; font-weight: 600; box-shadow: 0 10px 15px -3px rgba(154, 90, 58, 0.3);">
-                <i class="fas fa-save" style="margin-right: 8px;"></i> Update & Publish Popup
+                <i class="fas fa-save" style="margin-right: 8px;"></i> Create & Publish Popup
             </button>
         </div>
     </form>

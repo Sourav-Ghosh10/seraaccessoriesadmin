@@ -14,10 +14,20 @@ class AppPopupResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $imagePath = $this->banner_image ?? $this->image;
+        $imageUrl = null;
+        if ($imagePath) {
+            $imageUrl = str_starts_with($imagePath, 'http://') || str_starts_with($imagePath, 'https://')
+                ? $imagePath
+                : asset('uploads/' . ltrim($imagePath, '/'));
+        }
+
         return [
             'id' => $this->id,
-            'title' => $this->title,
-            'description' => $this->description,
+            'title' => null,
+            'description' => null,
+            'banner_image' => $imageUrl,
+            'image' => $imageUrl,
             'status' => (bool) $this->status,
             'created_at' => $this->created_at ? $this->created_at->format('Y-m-d H:i:s') : null,
         ];

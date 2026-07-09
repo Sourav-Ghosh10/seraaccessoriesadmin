@@ -6,6 +6,7 @@ use App\Models\AppPopup;
 use App\Http\Requests\StoreAppPopupRequest;
 use App\Http\Requests\UpdateAppPopupRequest;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class AppPopupController extends Controller
 {
@@ -16,9 +17,9 @@ class AppPopupController extends Controller
     {
         $query = AppPopup::query();
 
-        // Search by Title
+        // Search by ID
         if ($request->filled('search')) {
-            $query->where('title', 'like', '%' . $request->search . '%');
+            $query->where('id', $request->search);
         }
 
         // Filter by Status (1 = Active, 0 = Inactive)
@@ -66,6 +67,15 @@ class AppPopupController extends Controller
         }
 
         $validated = $request->validated();
+        if ($request->hasFile('banner_image') && $request->file('banner_image')->isValid()) {
+            $path = $request->file('banner_image')->store('app_popups', 'public');
+            $validated['banner_image'] = $path;
+            $validated['image'] = $path;
+        } elseif ($request->hasFile('image') && $request->file('image')->isValid()) {
+            $path = $request->file('image')->store('app_popups', 'public');
+            $validated['banner_image'] = $path;
+            $validated['image'] = $path;
+        }
         AppPopup::create($validated);
 
         return redirect()->route('app-popups.index')
@@ -88,6 +98,29 @@ class AppPopupController extends Controller
     {
         $popup = AppPopup::findOrFail($id);
         $validated = $request->validated();
+
+        if ($request->hasFile('banner_image') && $request->file('banner_image')->isValid()) {
+            if ($popup->banner_image && Storage::disk('public')->exists($popup->banner_image)) {
+                Storage::disk('public')->delete($popup->banner_image);
+            }
+            if ($popup->image && $popup->image !== $popup->banner_image && Storage::disk('public')->exists($popup->image)) {
+                Storage::disk('public')->delete($popup->image);
+            }
+            $path = $request->file('banner_image')->store('app_popups', 'public');
+            $validated['banner_image'] = $path;
+            $validated['image'] = $path;
+        } elseif ($request->hasFile('image') && $request->file('image')->isValid()) {
+            if ($popup->banner_image && Storage::disk('public')->exists($popup->banner_image)) {
+                Storage::disk('public')->delete($popup->banner_image);
+            }
+            if ($popup->image && $popup->image !== $popup->banner_image && Storage::disk('public')->exists($popup->image)) {
+                Storage::disk('public')->delete($popup->image);
+            }
+            $path = $request->file('image')->store('app_popups', 'public');
+            $validated['banner_image'] = $path;
+            $validated['image'] = $path;
+        }
+
         $popup->update($validated);
 
         return redirect()->route('app-popups.index')
@@ -100,6 +133,12 @@ class AppPopupController extends Controller
     public function destroy($id)
     {
         $popup = AppPopup::findOrFail($id);
+        if ($popup->banner_image && Storage::disk('public')->exists($popup->banner_image)) {
+            Storage::disk('public')->delete($popup->banner_image);
+        }
+        if ($popup->image && $popup->image !== $popup->banner_image && Storage::disk('public')->exists($popup->image)) {
+            Storage::disk('public')->delete($popup->image);
+        }
         $popup->delete();
 
         return response()->json([

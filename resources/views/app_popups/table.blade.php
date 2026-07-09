@@ -2,12 +2,28 @@
 <tr>
     <td>#{{ $popup->id }}</td>
     <td>
-        <div style="font-weight: 600; color: #fff; font-size: 14px;">{{ $popup->title }}</div>
-        @if($popup->description)
-            <div style="color: var(--text-muted); font-size: 12px; max-width: 350px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px;">
-                {{ $popup->description }}
+        <div style="display: flex; align-items: center; gap: 12px;">
+            @php
+                $img = $popup->banner_image ?? $popup->image;
+                $imgUrl = null;
+                if ($img) {
+                    $imgUrl = str_starts_with($img, 'http://') || str_starts_with($img, 'https://')
+                        ? $img
+                        : asset('uploads/' . ltrim($img, '/'));
+                }
+            @endphp
+            @if($imgUrl)
+                <img src="{{ $imgUrl }}" alt="Banner" style="width: 50px; height: 50px; object-fit: cover; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1);">
+            @endif
+            <div>
+                <div style="font-weight: 600; color: #fff; font-size: 14px;">
+                    {{ $imgUrl ? 'Image Announcement #' . $popup->id : 'Popup Announcement #' . $popup->id }}
+                </div>
+                <div style="color: var(--text-muted); font-size: 12px; margin-top: 2px;">
+                    {{ $imgUrl ? 'Banner Image Uploaded' : 'No Banner Image' }}
+                </div>
             </div>
-        @endif
+        </div>
     </td>
     <td>
         <label class="switch" style="margin: 0;">

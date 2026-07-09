@@ -7,8 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 class AppPopup extends Model
 {
     protected $fillable = [
-        'title',
-        'description',
+        'banner_image',
+        'image',
         'status',
     ];
 

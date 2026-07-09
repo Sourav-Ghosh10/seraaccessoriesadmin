@@ -22,8 +22,7 @@ class UpdateAppPopupRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'title' => 'required|string|max:255',
-            'description' => 'required|string|max:300',
+            'banner_image' => 'nullable|image|mimes:jpeg,png,jpg,webp,gif|max:10240',
             'status' => 'required|boolean',
         ];
     }
@@ -34,9 +33,8 @@ class UpdateAppPopupRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'title.required' => 'The popup title is required.',
-            'description.required' => 'The announcement description is required.',
-            'description.max' => 'The description must not exceed 300 characters.',
+            'banner_image.image' => 'The uploaded file must be a valid image (jpeg, png, jpg, webp, gif).',
+            'banner_image.max' => 'The image size must not exceed 10 MB.',
         ];
     }
 }
