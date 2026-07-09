@@ -194,7 +194,7 @@ class PageController extends Controller
             $query->where('status', $request->status);
         }
 
-        $salesmen = $query->paginate(10);
+        $salesmen = $query->orderBy('id', 'desc')->paginate(10);
         
         if ($request->ajax()) {
             return view('salesmen_table', compact('salesmen'))->render();
@@ -210,7 +210,7 @@ class PageController extends Controller
             ->with(['attendances' => function($q) use ($date) {
                 $q->whereDate('date', $date);
             }])
-            ->orderBy('name', 'asc');
+            ->orderBy('id', 'desc');
 
         if ($request->filled('search')) {
             $search = $request->search;

@@ -33,4 +33,15 @@ class SalesmanAttendance extends Model
     {
         return $this->belongsTo(Member::class);
     }
+
+    public function getTotalHoursAttribute($value)
+    {
+        if ($this->clock_in_time && $this->clock_out_time) {
+            $diffInSeconds = abs(round($this->clock_out_time->diffInSeconds($this->clock_in_time)));
+            $hours = floor($diffInSeconds / 3600);
+            $mins = floor(($diffInSeconds % 3600) / 60);
+            return sprintf('%02d:%02d', $hours, $mins);
+        }
+        return $value;
+    }
 }
