@@ -178,7 +178,7 @@ class PageController extends Controller
     }
 
     public function salesmen(Request $request) {
-        $query = \App\Models\Member::where('role', 'salesman');
+        $query = \App\Models\Member::with('city')->where('role', 'salesman');
 
         if ($request->filled('search')) {
             $search = $request->search;
@@ -195,12 +195,13 @@ class PageController extends Controller
         }
 
         $salesmen = $query->orderBy('id', 'desc')->paginate(10);
+        $cities = \App\Models\City::where('status', 1)->orderBy('city')->get();
         
         if ($request->ajax()) {
-            return view('salesmen_table', compact('salesmen'))->render();
+            return view('salesmen_table', compact('salesmen', 'cities'))->render();
         }
 
-        return view('salesmen', compact('salesmen'));
+        return view('salesmen', compact('salesmen', 'cities'));
     }
 
     public function salesmanAttendance(Request $request) {
