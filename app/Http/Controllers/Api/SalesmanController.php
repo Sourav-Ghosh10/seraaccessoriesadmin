@@ -412,9 +412,12 @@ class SalesmanController extends Controller
         $merged = collect();
 
         // 1. Estimates
-        if (in_array($tab, ['All', 'Pending'])) {
+        if (in_array($tab, ['All', 'Estimate', 'Pending'])) {
             $estimates = Estimate::whereIn('member_id', $dealerIds)
                 ->with('member')
+                ->when($tab === 'Pending', function ($query) {
+                    return $query->where('status', 'Pending');
+                })
                 ->when($search, function ($query) use ($search) {
                     return $query->where(function ($q) use ($search) {
                         $q->where('request_number', 'like', "%$search%")
@@ -451,14 +454,11 @@ class SalesmanController extends Controller
         }
 
         // 2. Order Requests
-        if (in_array($tab, ['All', 'Pending', 'Confirmed'])) {
+        if (in_array($tab, ['All', 'Request', 'Pending'])) {
             $orderRequests = OrderRequest::whereIn('member_id', $dealerIds)
                 ->with('member')
                 ->when($tab === 'Pending', function ($query) {
                     return $query->where('status', 'Pending');
-                })
-                ->when($tab === 'Confirmed', function ($query) {
-                    return $query->where('status', 'Processed');
                 })
                 ->when($search, function ($query) use ($search) {
                     return $query->where(function ($q) use ($search) {
@@ -494,11 +494,14 @@ class SalesmanController extends Controller
         }
 
         // 3. Orders
-        if (in_array($tab, ['All', 'Order Placed', 'Delivered'])) {
+        if (in_array($tab, ['All', 'Confirmed', 'Order Placed', 'Delivered'])) {
             $orders = Order::whereIn('member_id', $dealerIds)
                 ->with('member')
                 ->when($tab === 'Order Placed', function ($query) {
                     return $query->where('status', '!=', 'Delivered');
+                })
+                ->when($tab === 'Confirmed', function ($query) {
+                    return $query->whereNotIn('status', ['Delivered', 'Cancelled']);
                 })
                 ->when($tab === 'Delivered', function ($query) {
                     return $query->where('status', 'Delivered');

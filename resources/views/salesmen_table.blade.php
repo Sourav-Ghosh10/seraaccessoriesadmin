@@ -13,7 +13,7 @@
                                 <i class="fas fa-ellipsis-v"></i>
                             </button>
                             <div class="action-dropdown">
-                                <button type="button" onclick="openEditSalesmanModal('{{ $salesman->id }}', '{{ addslashes($salesman->name) }}', '{{ addslashes($salesman->mobile) }}', '{{ addslashes($salesman->email) }}', '{{ $salesman->ref_code }}', '{{ $salesman->status }}', '{{ $salesman->monthly_target }}')">
+                                <button type="button" onclick="openEditSalesmanModal('{{ $salesman->id }}', '{{ addslashes($salesman->name) }}', '{{ addslashes($salesman->mobile) }}', '{{ addslashes($salesman->email) }}', '{{ $salesman->ref_code }}', '{{ $salesman->status }}', '{{ $salesman->monthly_target }}', '{{ $salesman->city_id }}', '{{ addslashes($salesman->city->city ?? '') }}')">
                                     <i class="fas fa-edit"></i> Edit
                                 </button>
                                 <button type="button" onclick="openEditPointsModal('{{ $salesman->id }}', '{{ $salesman->points_balance }}')">

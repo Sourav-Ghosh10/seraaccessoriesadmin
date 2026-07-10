@@ -438,6 +438,10 @@ class AuthController extends Controller
         if ($member->salesman_id && !$member->relationLoaded('salesman')) {
             $member->load('salesman');
         }
+        if (!$member->relationLoaded('city') && $member->city_id) {
+            $member->load('city');
+        }
+        $cityName = $member->city ? $member->city->city : ($member->city_id ? \App\Models\City::where('id', $member->city_id)->value('city') : null);
 
         // For distributor_staff: find the distributor linked by dist_id
         $distributorId = null;
@@ -464,6 +468,9 @@ class AuthController extends Controller
             'ref_code'       => $member->ref_code,
             'distributor_id' => $distributorId,
             'is_passbook_visible' => (bool) ($member->is_passbook_visible ?? true),
+            'city_id'        => $member->city_id,
+            'city'           => $cityName,
+            'city_name'      => $cityName,
             'salesman'       => $member->salesman ? [
                 'id'     => $member->salesman->id,
                 'name'   => $member->salesman->name,

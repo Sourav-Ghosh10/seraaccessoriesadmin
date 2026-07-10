@@ -21,6 +21,7 @@ class SalesmanController extends Controller
             'ref_code' => 'required|alpha_num|size:6|unique:members,ref_code',
             'status' => 'required|string',
             'monthly_target' => 'required|numeric|min:0',
+            'city_id' => 'nullable|exists:cities,id',
         ]);
 
         $validated['password'] = Hash::make($validated['password']);
@@ -41,6 +42,7 @@ class SalesmanController extends Controller
             'ref_code' => 'required|alpha_num|size:6|unique:members,ref_code,' . $id,
             'status' => 'required|string',
             'monthly_target' => 'required|numeric|min:0',
+            'city_id' => 'nullable|exists:cities,id',
         ]);
 
         if ($request->filled('password')) {
