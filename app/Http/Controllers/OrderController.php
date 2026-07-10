@@ -470,7 +470,10 @@ class OrderController extends Controller
             'note' => 'required|string|max:5000',
             'dealer_file' => 'nullable|file|mimes:pdf,jpg,png|max:2048',
             'distributor_file' => 'nullable|file|mimes:pdf,jpg,png|max:2048',
+            'amount' => 'nullable|numeric|min:0',
         ]);
+
+        $amount = (float) ($request->amount ?? 0);
 
         if (!$request->hasFile('dealer_file') && !$request->hasFile('distributor_file')) {
             return response()->json(['success' => false, 'message' => 'Please upload at least one document (Dealer or Distributor).']);
@@ -507,12 +510,42 @@ class OrderController extends Controller
         \App\Models\CreditNote::create([
             'credit_note_number' => $creditNoteNumber,
             'order_id' => $order->id,
-            'amount' => 0.00,
+            'amount' => $amount,
             'file_path' => $dealerPath ?? $distributorPath,
             'dealer_file_path' => $dealerPath,
             'distributor_file_path' => $distributorPath,
             'note' => $validated['note']
         ]);
+
+        if ($amount > 0) {
+            $member = $order->member;
+            if ($member) {
+                $balance = $member->dealerBalance;
+                if (!$balance) {
+                    $balance = \App\Models\DealerBalance::create([
+                        'member_id' => $member->id,
+                        'total_amount' => 0.00,
+                        'paid_amount' => 0.00,
+                        'due_amount' => 0.00,
+                    ]);
+                }
+
+                $balance->paid_amount += $amount;
+                $balance->due_amount = $balance->total_amount - $balance->paid_amount;
+                $balance->save();
+
+                $managerName = auth()->user() ? auth()->user()->name : 'System Admin';
+
+                \App\Models\PassbookTransaction::create([
+                    'member_id' => $member->id,
+                    'managed_by' => $managerName,
+                    'type' => 'Credit Note',
+                    'amount' => $amount,
+                    'ref' => $creditNoteNumber,
+                    'status' => 'Confirmed',
+                ]);
+            }
+        }
 
         // Send push notification to dealer
         try {
