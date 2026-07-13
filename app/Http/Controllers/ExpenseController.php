@@ -26,9 +26,24 @@ class ExpenseController extends Controller
     {
         $expense = Expense::findOrFail($id);
         
-        $request->validate([
+        $rules = [
             'status' => 'required|in:Pending,Approved,Rejected',
-        ]);
+        ];
+
+        if ($request->status == 'Approved') {
+            $rules['admin_receipt'] = 'required|file|mimes:pdf,png,jpg,jpeg|max:20480';
+        }
+
+        $request->validate($rules);
+
+        if ($request->status == 'Approved' && $request->hasFile('admin_receipt')) {
+            $path = $request->file('admin_receipt')->store('expenses/admin_receipts', 'public');
+            $expense->admin_receipt_path = $path;
+            
+            if (!$expense->receipt_photo_path) {
+                $expense->receipt_photo_path = $path;
+            }
+        }
 
         $expense->status = $request->status;
         $expense->save();

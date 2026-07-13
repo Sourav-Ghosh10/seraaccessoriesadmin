@@ -46,13 +46,20 @@
                     <td>{{ $expense->description ?? '—' }}</td>
                     <td style="font-weight: bold; color: var(--primary);">₹{{ number_format($expense->amount, 2) }}</td>
                     <td>
-                        @if($expense->receipt_photo_path)
-                            <a href="{{ asset('uploads/' . $expense->receipt_photo_path) }}" target="_blank" style="color: var(--secondary); text-decoration: none;">
-                                <i class="fas fa-image"></i> View Receipt
-                            </a>
-                        @else
-                            <span style="color: var(--text-muted);">No Receipt</span>
-                        @endif
+                        <div style="display: flex; flex-direction: column; gap: 6px;">
+                            @if($expense->receipt_photo_path)
+                                <a href="{{ asset('uploads/' . $expense->receipt_photo_path) }}" target="_blank" style="color: var(--secondary); text-decoration: none; display: inline-flex; align-items: center; gap: 5px; font-size: 13px;">
+                                    <i class="fas fa-image"></i> View Receipt
+                                </a>
+                            @endif
+                            @if($expense->admin_receipt_path && $expense->admin_receipt_path !== $expense->receipt_photo_path)
+                                <a href="{{ asset('uploads/' . $expense->admin_receipt_path) }}" target="_blank" style="color: #22c55e; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 600;">
+                                    <i class="fas fa-file-invoice-dollar"></i> View Approval Receipt
+                                </a>
+                            @elseif(!$expense->receipt_photo_path && !$expense->admin_receipt_path)
+                                <span style="color: var(--text-muted); font-size: 13px;">No Receipt</span>
+                            @endif
+                        </div>
                     </td>
                     <td>
                         <span class="badge {{ $expense->status == 'Approved' ? 'badge-success' : ($expense->status == 'Pending' ? 'badge-warning' : 'badge-danger') }}">
@@ -62,12 +69,7 @@
                     <td>
                         <div style="display: flex; gap: 5px;">
                             @if($expense->status == 'Pending')
-                                <form method="POST" action="{{ route('expenses.status.update', $expense->id) }}">
-                                    @csrf
-                                    @method('PATCH')
-                                    <input type="hidden" name="status" value="Approved">
-                                    <button type="submit" class="btn btn-primary" style="padding: 5px 10px; font-size: 12px; background: #22c55e; border-color: #22c55e;">Approve</button>
-                                </form>
+                                <button type="button" class="btn btn-primary" onclick="openApproveModal({{ $expense->id }}, '{{ addslashes($expense->salesman->name ?? '—') }}', '₹{{ number_format($expense->amount, 2) }}')" style="padding: 5px 10px; font-size: 12px; background: #22c55e; border-color: #22c55e;">Approve</button>
                                 <form method="POST" action="{{ route('expenses.status.update', $expense->id) }}">
                                     @csrf
                                     @method('PATCH')
@@ -89,4 +91,70 @@
         </table>
     </div>
 </div>
+
+@push('modals')
+    <!-- Approve Expense Modal -->
+    <div id="approveModal" style="display: none; position: fixed; z-index: 99999; left: 0; top: 0; width: 100%; height: 100%; background: rgba(2, 6, 23, 0.85); backdrop-filter: blur(10px); align-items: center; justify-content: center;">
+        <div class="card" style="width: 100%; max-width: 480px; padding: 30px; background: #0f172a; border: 1px solid var(--glass-border); border-radius: 16px; animation: modalIn 0.3s ease-out;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+                <h3 style="margin: 0; font-size: 18px; font-weight: 700; color: #22c55e; display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-check-circle"></i> Approve Expense
+                </h3>
+                <div onclick="closeApproveModal()" style="width: 30px; height: 30px; border-radius: 50%; background: var(--glass); display: flex; align-items: center; justify-content: center; cursor: pointer;">
+                    <i class="fas fa-times" style="color: var(--text-muted); font-size: 14px;"></i>
+                </div>
+            </div>
+
+            <form id="approveForm" action="" method="POST" enctype="multipart/form-data">
+                @csrf
+                @method('PATCH')
+                <input type="hidden" name="status" value="Approved">
+
+                <div style="margin-bottom: 20px;">
+                    <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); border-radius: 10px; padding: 15px; margin-bottom: 20px;">
+                        <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 5px;">Salesman: <span id="approveModalSalesman" style="color: #fff; font-weight: 600;">—</span></div>
+                        <div style="font-size: 13px; color: var(--text-muted);">Amount: <span id="approveModalAmount" style="color: var(--primary); font-weight: 700; font-size: 15px;">₹0.00</span></div>
+                    </div>
+
+                    <label class="form-label" style="font-size: 12px; text-transform: uppercase; color: var(--text-muted); font-weight: 600; display: block; margin-bottom: 8px;">
+                        Receipt Upload (PDF, PNG, JPG) <span style="color: #ef4444;">*</span>
+                    </label>
+                    <input type="file" name="admin_receipt" id="admin_receipt_input" class="form-control" accept=".pdf,.png,.jpg,.jpeg,image/png,image/jpeg,application/pdf" required style="width: 100%; background: rgba(255,255,255,0.03); border: 1px dashed var(--glass-border); border-radius: 8px; color: #fff; padding: 10px; font-size: 14px; cursor: pointer;">
+                    <small style="display: block; margin-top: 6px; color: var(--text-muted); font-size: 11px;">Mandatory file upload (pdf, png, jpg accepted).</small>
+                </div>
+
+                <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 25px;">
+                    <button type="button" class="btn glass" onclick="closeApproveModal()" style="padding: 10px 18px;">Cancel</button>
+                    <button type="submit" class="btn" style="background: #22c55e; border-color: #22c55e; color: #fff; padding: 10px 20px; font-weight: 600;">Confirm</button>
+                </div>
+            </form>
+        </div>
+    </div>
+@endpush
+
+@section('scripts')
+<script>
+    function openApproveModal(expenseId, salesmanName, amount) {
+        const form = document.getElementById('approveForm');
+        form.action = `{{ url('/expenses') }}/${expenseId}/status`;
+        document.getElementById('approveModalSalesman').innerText = salesmanName;
+        document.getElementById('approveModalAmount').innerText = amount;
+        document.getElementById('admin_receipt_input').value = '';
+        const modal = document.getElementById('approveModal');
+        modal.style.display = 'flex';
+    }
+
+    function closeApproveModal() {
+        const modal = document.getElementById('approveModal');
+        modal.style.display = 'none';
+    }
+
+    window.addEventListener('click', function(event) {
+        const modal = document.getElementById('approveModal');
+        if (event.target === modal) {
+            closeApproveModal();
+        }
+    });
+</script>
+@endsection
 @endsection
