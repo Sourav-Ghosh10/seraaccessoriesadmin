@@ -12,6 +12,7 @@ class Expense extends Model
         'amount',
         'description',
         'receipt_photo_path',
+        'admin_receipt_path',
         'status',
     ];
 

@@ -505,7 +505,10 @@ class DealerController extends Controller
                 ->when($tab === 'Order Placed', function ($query) {
                     return $query->where('status', '!=', 'Delivered');
                 })
-                ->when($tab === 'Confirmed', function ($query) {
+                ->when($tab === 'Confirmed', function ($query) use ($dealer) {
+                    if (strtolower($dealer->role) === 'distributor') {
+                        return $query->where('status', '!=', 'Delivered');
+                    }
                     return $query->whereNotIn('status', ['Delivered', 'Cancelled']);
                 })
                 ->when($tab === 'Delivered', function ($query) {
