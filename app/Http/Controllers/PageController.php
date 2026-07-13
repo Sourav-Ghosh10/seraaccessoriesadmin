@@ -619,7 +619,15 @@ class PageController extends Controller
     }
 
     public function showOrder($id) {
-        $order = \App\Models\Order::with(['member', 'items', 'distributor'])->findOrFail($id);
+        $num = intval(preg_replace('/^.*-(\d+)$/', '$1', $id));
+        $order = \App\Models\Order::with(['member', 'items', 'distributor', 'delivery'])
+            ->where(function($q) use ($id, $num) {
+                $q->where('id', $id)
+                  ->orWhere('id', $num)
+                  ->orWhere('order_number', $id)
+                  ->orWhere('order_number', 'ORD-' . str_pad($num, 4, '0', STR_PAD_LEFT));
+            })
+            ->firstOrFail();
         return view('orders.show', compact('order'));
     }
 

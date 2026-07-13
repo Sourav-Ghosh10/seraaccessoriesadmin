@@ -501,7 +501,7 @@ class DealerController extends Controller
         // 3. Orders
         if (in_array($tab, ['All', 'Confirmed', 'Order Placed', 'Delivered'])) {
             $orders = Order::where('member_id', $dealer->id)
-                ->with(['invoice', 'items'])
+                ->with(['invoice', 'items', 'creditNote', 'delivery'])
                 ->when($tab === 'Order Placed', function ($query) {
                     return $query->where('status', '!=', 'Delivered');
                 })
@@ -525,7 +525,23 @@ class DealerController extends Controller
                     return $query->whereDate('created_at', '<=', $endDate);
                 })
                 ->get()
-                ->map(function ($item) {
+                ->map(function ($item) use ($dealer) {
+                    $cnPath = null;
+                    if ($item->creditNote) {
+                        if (strtolower($dealer->role) === 'distributor') {
+                            $cnPath = $item->creditNote->distributor_file_path;
+                            if (!$cnPath && $item->creditNote->file_path && strpos($item->creditNote->file_path, 'dealer') === false && $item->creditNote->file_path !== $item->creditNote->dealer_file_path) {
+                                $cnPath = $item->creditNote->file_path;
+                            }
+                        } else {
+                            $cnPath = $item->creditNote->dealer_file_path;
+                            if (!$cnPath && $item->creditNote->file_path && strpos($item->creditNote->file_path, 'distributor') === false && $item->creditNote->file_path !== $item->creditNote->distributor_file_path) {
+                                $cnPath = $item->creditNote->file_path;
+                            }
+                        }
+                    }
+                    $creditNoteFile = $cnPath ? asset('uploads/' . $cnPath) : null;
+
                     return [
                         'id' => $item->id,
                         'order_id' => $item->order_number,
@@ -536,6 +552,29 @@ class DealerController extends Controller
                         'raw_date' => $item->created_at,
                         'amount' => $item->amount > 0 ? $item->amount : ($item->invoice && $item->invoice->amount > 0 ? $item->invoice->amount : $item->items->sum(function($i) { return $i->qty * $i->price; })),
                         'invoice_number' => $item->invoice ? $item->invoice->invoice_number : null,
+                        'challan_file' => $item->challan_file ? asset('uploads/' . $item->challan_file) : null,
+                        'invoice_file' => $item->invoice_file ? asset('uploads/' . $item->invoice_file) : ($item->invoice && $item->invoice->file_path ? asset('uploads/' . $item->invoice->file_path) : null),
+                        'credit_note_file' => $creditNoteFile,
+                        'credit_note_url' => $creditNoteFile,
+                        'credit_note' => $item->creditNote ? [
+                            'id' => $item->creditNote->id,
+                            'credit_note_number' => $item->creditNote->credit_note_number,
+                            'file_path' => $creditNoteFile,
+                        ] : null,
+                        'received_at' => $item->received_at ? $item->received_at->format('Y-m-d H:i:s') : null,
+                        'delivery' => $item->delivery ? [
+                            'id' => $item->delivery->id,
+                            'vehicle_no' => $item->delivery->vehicle_no,
+                            'vehicle_type' => $item->delivery->vehicle_type,
+                            'driver_phone' => $item->delivery->driver_phone,
+                            'expected_delivery_at' => $item->delivery->expected_delivery_at,
+                            'actual_delivery_at' => $item->received_at ? $item->received_at->format('Y-m-d H:i:s') : ($item->status === 'Delivered' ? $item->updated_at->format('Y-m-d H:i:s') : null),
+                            'received_at' => $item->received_at ? $item->received_at->format('Y-m-d H:i:s') : null,
+                            'remarks' => $item->delivery->remarks,
+                            'status' => $item->delivery->status,
+                            'document_url' => $item->delivery->document_path ? asset('uploads/' . $item->delivery->document_path) : null,
+                            'document_path' => $item->delivery->document_path,
+                        ] : null,
                         'has_invoice' => ($item->invoice_file || $item->challan_file || ($item->invoice && $item->invoice->file_path)) ? true : false,
                     ];
                 });
@@ -641,19 +680,24 @@ class DealerController extends Controller
 
         $request->validate([
             'order_id' => 'required',
-            'type' => 'required|string'
         ]);
 
         $orderId = $request->query('order_id');
-        $type = strtolower($request->query('type'));
+        $type = strtolower($request->query('type', 'order'));
+        if ($type === 'undefined' || empty($type)) {
+            $type = 'order';
+        }
 
         if ($type === 'order') {
+            $num = intval(preg_replace('/^.*-(\d+)$/', '$1', $orderId));
             $order = Order::where('member_id', $dealer->id)
-                ->where(function ($query) use ($orderId) {
+                ->where(function ($query) use ($orderId, $num) {
                     $query->where('order_number', $orderId)
-                        ->orWhere('id', $orderId);
+                        ->orWhere('id', $orderId)
+                        ->orWhere('id', $num)
+                        ->orWhere('order_number', 'ORD-' . str_pad($num, 4, '0', STR_PAD_LEFT));
                 })
-                ->with(['items', 'delivery', 'invoice'])
+                ->with(['items', 'delivery', 'invoice', 'creditNote'])
                 ->first();
 
             if (!$order) {
@@ -683,8 +727,12 @@ class DealerController extends Controller
                     'vehicle_type' => $order->delivery->vehicle_type,
                     'driver_phone' => $order->delivery->driver_phone,
                     'expected_delivery_at' => $order->delivery->expected_delivery_at,
+                    'actual_delivery_at' => $order->received_at ? $order->received_at->format('Y-m-d H:i:s') : ($order->status === 'Delivered' ? $order->updated_at->format('Y-m-d H:i:s') : null),
+                    'received_at' => $order->received_at ? $order->received_at->format('Y-m-d H:i:s') : null,
                     'remarks' => $order->delivery->remarks,
                     'status' => $order->delivery->status,
+                    'document_url' => $order->delivery->document_path ? asset('uploads/' . $order->delivery->document_path) : null,
+                    'document_path' => $order->delivery->document_path,
                 ];
             }
 
@@ -699,6 +747,22 @@ class DealerController extends Controller
                 ];
             }
 
+            $cnPath = null;
+            if ($order->creditNote) {
+                if (strtolower($dealer->role) === 'distributor') {
+                    $cnPath = $order->creditNote->distributor_file_path;
+                    if (!$cnPath && $order->creditNote->file_path && strpos($order->creditNote->file_path, 'dealer') === false && $order->creditNote->file_path !== $order->creditNote->dealer_file_path) {
+                        $cnPath = $order->creditNote->file_path;
+                    }
+                } else {
+                    $cnPath = $order->creditNote->dealer_file_path;
+                    if (!$cnPath && $order->creditNote->file_path && strpos($order->creditNote->file_path, 'distributor') === false && $order->creditNote->file_path !== $order->creditNote->distributor_file_path) {
+                        $cnPath = $order->creditNote->file_path;
+                    }
+                }
+            }
+            $creditNoteFile = $cnPath ? asset('uploads/' . $cnPath) : null;
+
             return response()->json([
                 'success' => true,
                 'data' => [
@@ -710,8 +774,15 @@ class DealerController extends Controller
                     'description' => $order->description,
                     'amount' => $order->amount,
                     'challan_file' => $order->challan_file ? asset('uploads/' . $order->challan_file) : null,
-                    'invoice_file' => $order->invoice_file ? asset('uploads/' . $order->invoice_file) : null,
-                    'received_at' => $order->received_at,
+                    'invoice_file' => $order->invoice_file ? asset('uploads/' . $order->invoice_file) : ($order->invoice && $order->invoice->file_path ? asset('uploads/' . $order->invoice->file_path) : null),
+                    'credit_note_file' => $creditNoteFile,
+                    'credit_note_url' => $creditNoteFile,
+                    'credit_note' => $order->creditNote ? [
+                        'id' => $order->creditNote->id,
+                        'credit_note_number' => $order->creditNote->credit_note_number,
+                        'file_path' => $creditNoteFile,
+                    ] : null,
+                    'received_at' => $order->received_at ? $order->received_at->format('Y-m-d H:i:s') : null,
                     'created_at' => $order->created_at,
                     'items' => $items,
                     'delivery' => $delivery,
@@ -1710,7 +1781,7 @@ class DealerController extends Controller
                 'id' => $order->id,
                 'order_number' => $order->order_number,
                 'status' => $order->status,
-                'received_at' => $order->received_at,
+                'received_at' => $order->received_at ? $order->received_at->format('Y-m-d H:i:s') : null,
             ],
         ], 200);
     }

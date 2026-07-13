@@ -156,9 +156,17 @@ class OrderController extends Controller
             'expected_delivery_date' => 'required|date',
             'expected_delivery_time' => 'required|string',
             'delivery_remarks' => 'nullable|string',
+            'upload_documents' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
+            'dispatch_document' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
         ]);
 
-        $order = Order::findOrFail($id);
+        $num = intval(preg_replace('/^.*-(\d+)$/', '$1', $id));
+        $order = Order::where(function($q) use ($id, $num) {
+            $q->where('id', $id)
+              ->orWhere('id', $num)
+              ->orWhere('order_number', $id)
+              ->orWhere('order_number', 'ORD-' . str_pad($num, 4, '0', STR_PAD_LEFT));
+        })->firstOrFail();
 
         if (in_array(strtolower($order->status), ['delivered', 'returned'])) {
             return response()->json([
@@ -171,16 +179,28 @@ class OrderController extends Controller
         $time = date("H:i", strtotime($validated['expected_delivery_time']));
         $expectedAt = $validated['expected_delivery_date'] . ' ' . $time . ':00';
 
+        $documentPath = null;
+        if ($request->hasFile('upload_documents') && $request->file('upload_documents')->isValid()) {
+            $documentPath = $request->file('upload_documents')->store('deliveries/documents', 'public');
+        } elseif ($request->hasFile('dispatch_document') && $request->file('dispatch_document')->isValid()) {
+            $documentPath = $request->file('dispatch_document')->store('deliveries/documents', 'public');
+        }
+
+        $deliveryData = [
+            'vehicle_no' => $validated['vehicle_no'],
+            'vehicle_type' => $validated['vehicle_type'],
+            'driver_phone' => $validated['driver_phone'],
+            'expected_delivery_at' => $expectedAt,
+            'remarks' => $validated['delivery_remarks'] ?? null,
+            'status' => 'Out for Delivery'
+        ];
+        if ($documentPath) {
+            $deliveryData['document_path'] = $documentPath;
+        }
+
         Delivery::updateOrCreate(
             ['order_id' => $order->id],
-            [
-                'vehicle_no' => $validated['vehicle_no'],
-                'vehicle_type' => $validated['vehicle_type'],
-                'driver_phone' => $validated['driver_phone'],
-                'expected_delivery_at' => $expectedAt,
-                'remarks' => $validated['delivery_remarks'],
-                'status' => 'Out for Delivery'
-            ]
+            $deliveryData
         );
 
         $order->update(['status' => 'Out for Delivery']);
@@ -465,16 +485,25 @@ class OrderController extends Controller
 
     public function storeCreditNote(Request $request)
     {
-        $validated = $request->validate([
+        $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
             'order_id' => 'required|exists:orders,id',
             'note' => 'required|string|max:5000',
-            'dealer_file' => 'nullable|file|mimes:pdf,jpg,png|max:2048',
-            'distributor_file' => 'nullable|file|mimes:pdf,jpg,png|max:2048',
+            'dealer_file' => 'required|file|mimes:pdf,jpg,png|max:2048',
+            'distributor_file' => 'required|file|mimes:pdf,jpg,png|max:2048',
+        ], [
+            'note.required' => 'Please enter credit notes/remarks.',
+            'dealer_file.required' => 'Please upload the Dealer Document (PDF/Image).',
+            'distributor_file.required' => 'Please upload the Distributor Document (PDF/Image).'
         ]);
 
-        if (!$request->hasFile('dealer_file') && !$request->hasFile('distributor_file')) {
-            return response()->json(['success' => false, 'message' => 'Please upload at least one document (Dealer or Distributor).']);
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => $validator->errors()->first()
+            ]);
         }
+
+        $validated = $validator->validated();
 
         $order = Order::findOrFail($validated['order_id']);
 
