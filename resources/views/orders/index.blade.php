@@ -389,7 +389,7 @@
                                             </button>
                                         @endif
                                         @if($order->status == 'Returned' && !$order->creditNote)
-                                            <button type="button" onclick="openUploadCreditNoteModal('{{ $order->id }}', '{{ $order->order_number }}')">
+                                            <button type="button" onclick="openUploadCreditNoteModal('{{ $order->id }}', '{{ $order->order_number }}', '{{ $order->member->role ?? request('tab', 'dealer') }}')">
                                                 <i class="fas fa-file-signature"></i> Upload Credit Note
                                             </button>
                                         @endif
@@ -398,7 +398,8 @@
                                                 '{{ $order->creditNote->credit_note_number }}',
                                                 '{{ addslashes($order->creditNote->note ?? '') }}',
                                                 '{{ $order->creditNote->dealer_file_path ? asset('uploads/' . $order->creditNote->dealer_file_path) : '' }}',
-                                                '{{ $order->creditNote->distributor_file_path ? asset('uploads/' . $order->creditNote->distributor_file_path) : '' }}'
+                                                '{{ $order->creditNote->distributor_file_path ? asset('uploads/' . $order->creditNote->distributor_file_path) : '' }}',
+                                                '{{ $order->creditNote->amount ?? 0 }}'
                                             )">
                                                 <i class="fas fa-eye" style="color: #ef4444;"></i> View Credit Note
                                             </button>
@@ -515,13 +516,23 @@
 
                 <div class="form-group" style="margin-bottom: 20px;">
                     <label class="form-label"
+                        style="color: var(--text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; display: flex; justify-content: space-between; align-items: center;">
+                        <span>Add Amount (₹)</span>
+                        <span style="font-size: 11px; color: #f87171; text-transform: none; font-weight: normal;">(This amount will be deducted from the passbook amount)</span>
+                    </label>
+                    <input type="number" id="cnAmount" class="form-control" placeholder="Enter amount..." min="0" step="0.01"
+                        style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1); color: #fff;">
+                </div>
+
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label class="form-label"
                         style="color: var(--text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Credit Note</label>
                     <textarea id="cnNote" class="form-control" placeholder="Enter notes/remarks..."
                         style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1); height: 90px; color: #fff; width: 100%; border-radius: 6px; padding: 10px; resize: vertical;" required></textarea>
                 </div>
 
                 <!-- Dealer Document -->
-                <div class="form-group" style="margin-bottom: 16px;">
+                <div id="cnDealerDocGroup" class="form-group" style="margin-bottom: 16px;">
                     <label class="form-label" style="color: var(--text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">
                         <i class="fas fa-user" style="color: #ef4444; margin-right: 5px;"></i> Dealer Document (PDF/Image)
                     </label>
@@ -534,7 +545,7 @@
                 </div>
 
                 <!-- Distributor Document -->
-                <div class="form-group" style="margin-bottom: 30px;">
+                <div id="cnDistributorDocGroup" class="form-group" style="margin-bottom: 30px;">
                     <label class="form-label" style="color: var(--text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">
                         <i class="fas fa-truck" style="color: #f59e0b; margin-right: 5px;"></i> Distributor Document (PDF/Image)
                     </label>
@@ -578,6 +589,12 @@
             <div style="margin-bottom: 24px;">
                 <label style="color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 8px;">Credit Note Remarks</label>
                 <div id="vcnNote" style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 14px 16px; color: #e2e8f0; font-size: 14px; line-height: 1.6; min-height: 60px; white-space: pre-wrap;"></div>
+            </div>
+
+            <!-- Amount -->
+            <div id="vcnAmountSection" style="margin-bottom: 20px; display: none;">
+                <label style="color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 6px;">Credit Note Amount</label>
+                <div id="vcnAmount" style="color: #34d399; font-size: 16px; font-weight: 700;">₹ 0.00</div>
             </div>
 
             <!-- Dealer Document -->
@@ -1206,16 +1223,29 @@
             }
         }
 
-        function openUploadCreditNoteModal(orderId, orderNumber) {
+        function openUploadCreditNoteModal(orderId, orderNumber, role = 'dealer') {
             document.getElementById('cnOrderId').value = orderId;
             document.getElementById('cnOrderNumberDisplay').value = orderNumber;
             document.getElementById('cnNote').value = '';
+            const cnAmountEl = document.getElementById('cnAmount');
+            if (cnAmountEl) cnAmountEl.value = '';
             document.getElementById('dealerFile').value = '';
             document.getElementById('distributorFile').value = '';
             document.getElementById('dealerFileNameDisplay').innerText = 'Click to browse dealer credit note';
             document.getElementById('dealerFileNameDisplay').style.color = '#cbd5e1';
             document.getElementById('distributorFileNameDisplay').innerText = 'Click to browse distributor credit note';
             document.getElementById('distributorFileNameDisplay').style.color = '#cbd5e1';
+
+            const dealerGroup = document.getElementById('cnDealerDocGroup');
+            const distGroup = document.getElementById('cnDistributorDocGroup');
+            if (role === 'distributor') {
+                if (dealerGroup) dealerGroup.style.display = 'none';
+                if (distGroup) distGroup.style.display = 'block';
+            } else {
+                if (dealerGroup) dealerGroup.style.display = 'block';
+                if (distGroup) distGroup.style.display = 'none';
+            }
+
             document.getElementById('creditNoteModal').style.display = 'flex';
         }
 
@@ -1237,6 +1267,8 @@
 
             formData.append('order_id', document.getElementById('cnOrderId').value);
             formData.append('note', document.getElementById('cnNote').value);
+            const cnAmountVal = document.getElementById('cnAmount') ? document.getElementById('cnAmount').value : '';
+            if (cnAmountVal) formData.append('amount', cnAmountVal);
             if (dealerFile) formData.append('dealer_file', dealerFile);
             if (distributorFile) formData.append('distributor_file', distributorFile);
             formData.append('_token', '{{ csrf_token() }}');
@@ -1270,9 +1302,17 @@
             });
         }
 
-        function viewCreditNote(number, note, dealerPath, distributorPath) {
+        function viewCreditNote(number, note, dealerPath, distributorPath, amount = 0) {
             document.getElementById('vcnNumber').innerText = '#' + number;
             document.getElementById('vcnNote').innerText = note || 'No remarks provided.';
+            
+            const amountSection = document.getElementById('vcnAmountSection');
+            if (amountSection && parseFloat(amount) > 0) {
+                amountSection.style.display = 'block';
+                document.getElementById('vcnAmount').innerText = '₹ ' + parseFloat(amount).toFixed(2);
+            } else if (amountSection) {
+                amountSection.style.display = 'none';
+            }
             
             const dealerSection = document.getElementById('vcnDealerSection');
             const dealerLink = document.getElementById('vcnDealerLink');

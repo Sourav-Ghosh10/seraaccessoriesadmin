@@ -602,7 +602,7 @@
                 if (salesmanGroup) salesmanGroup.style.display = 'none';
             } else {
                 if (dealerGroup) dealerGroup.style.display = 'block';
-                if (distGroup) distGroup.style.display = 'block';
+                if (distGroup) distGroup.style.display = 'none';
                 if (salesmanGroup) salesmanGroup.style.display = 'none';
             }
 
