@@ -341,6 +341,22 @@
                                 @else
                                     <span class="badge badge-danger">{{ $order->status }}</span>
                                 @endif
+                                @if($order->delivery)
+                                    <div style="font-size: 11px; color: #93c5fd; font-weight: 600; margin-top: 6px;">
+                                        <i class="fas fa-truck"></i> {{ $order->delivery->vehicle_no }} ({{ $order->delivery->vehicle_type }})
+                                    </div>
+                                    <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">
+                                        <i class="fas fa-phone"></i> {{ $order->delivery->driver_phone }}
+                                    </div>
+                                    <div style="font-size: 11px; color: #cbd5e1; margin-top: 2px;">
+                                        Exp: {{ \Carbon\Carbon::parse($order->delivery->expected_delivery_at)->format('d M, Y h:i A') }}
+                                    </div>
+                                    @if($order->delivery->document_path)
+                                        <a href="{{ asset('uploads/' . $order->delivery->document_path) }}" target="_blank" style="font-size: 11px; color: #38bdf8; font-weight: 600; text-decoration: underline; display: inline-block; margin-top: 3px;">
+                                            <i class="fas fa-file-download"></i> View Document
+                                        </a>
+                                    @endif
+                                @endif
                             </td>
                             <td>
                                 <div class="action-menu-container">
@@ -358,7 +374,7 @@
                                         @endif
                                         @php $role = session('role', 'Admin'); @endphp
                                         @if($role == 'Admin' || $role == 'Operations')
-                                            <button onclick="openDeliveryModal('{{ $order->id }}', '{{ $order->order_number }}', '{{ $order->delivery->vehicle_no ?? '' }}', '{{ $order->delivery->vehicle_type ?? '' }}', '{{ $order->delivery->driver_phone ?? '' }}', '{{ $order->delivery ? \Carbon\Carbon::parse($order->delivery->expected_delivery_at)->format('Y-m-d') : date('Y-m-d') }}', '{{ $order->delivery ? \Carbon\Carbon::parse($order->delivery->expected_delivery_at)->format('H:i') : date('H:i') }}', '{{ addslashes($order->delivery->remarks ?? '') }}', '{{ addslashes($order->status) }}')">
+                                            <button onclick="openDeliveryModal('{{ $order->id }}', '{{ $order->order_number }}', '{{ $order->delivery->vehicle_no ?? '' }}', '{{ $order->delivery->vehicle_type ?? '' }}', '{{ $order->delivery->driver_phone ?? '' }}', '{{ $order->delivery ? \Carbon\Carbon::parse($order->delivery->expected_delivery_at)->format('Y-m-d') : date('Y-m-d') }}', '{{ $order->delivery ? \Carbon\Carbon::parse($order->delivery->expected_delivery_at)->format('H:i') : date('H:i') }}', '{{ addslashes($order->delivery->remarks ?? '') }}', '{{ addslashes($order->status) }}', '{{ $order->delivery && $order->delivery->document_path ? asset('uploads/' . $order->delivery->document_path) : '' }}')">
                                                 <i class="fas fa-truck"></i> Update Delivery
                                             </button>
                                         @endif
@@ -696,6 +712,21 @@
                     placeholder="Enter any specific delivery instructions or current status..."></textarea>
             </div>
 
+            <div class="form-group" style="margin-bottom: 20px;">
+                <label class="form-label"
+                    style="color: var(--text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Upload
+                    Documents</label>
+                <input type="file" id="uploadDocuments" class="form-control" accept=".pdf,.jpg,.jpeg,.png"
+                    style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1); padding: 10px;">
+                <div id="currentDocContainer" style="margin-top: 8px; display: none;">
+                    <a id="currentDocLink" href="#" target="_blank"
+                        style="color: #38bdf8; font-size: 13px; text-decoration: underline; display: inline-flex; align-items: center; gap: 6px;">
+                        <i class="fas fa-file-alt"></i> View Current Uploaded Document
+                    </a>
+                </div>
+            </div>
+
+
             <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 10px;">
                 <button class="btn glass" onclick="closeModal()"
                     style="border: none; background: rgba(255,255,255,0.05);">Cancel</button>
@@ -945,7 +976,7 @@
             document.getElementById('memberDetailsModal').style.display = 'none';
         }
 
-        function openDeliveryModal(id, orderNum, vNo, vType, phone, date, time, remarks, status) {
+        function openDeliveryModal(id, orderNum, vNo, vType, phone, date, time, remarks, status, docUrl) {
             document.getElementById('modalOrderId').value = orderNum;
             document.getElementById('realOrderId').value = id;
             document.getElementById('vehicleNo').value = vNo || '';
@@ -955,9 +986,23 @@
             document.getElementById('deliveryTime').value = time;
             document.getElementById('deliveryRemarks').value = remarks || '';
 
+            const docInput = document.getElementById('uploadDocuments');
+            if (docInput) docInput.value = '';
+
+            const docContainer = document.getElementById('currentDocContainer');
+            const docLink = document.getElementById('currentDocLink');
+            if (docContainer && docLink) {
+                if (docUrl && docUrl.trim() !== '') {
+                    docLink.href = docUrl;
+                    docContainer.style.display = 'block';
+                } else {
+                    docContainer.style.display = 'none';
+                }
+            }
+
             const isDelivered = (status && (status.toLowerCase() === 'delivered' || status.toLowerCase() === 'returned'));
             const submitBtn = document.getElementById('submitBtn');
-            const fields = ['vehicleNo', 'vehicleType', 'phoneNo', 'deliveryDate', 'deliveryTime', 'deliveryRemarks'];
+            const fields = ['vehicleNo', 'vehicleType', 'phoneNo', 'deliveryDate', 'deliveryTime', 'deliveryRemarks', 'uploadDocuments'];
             
             fields.forEach(fieldId => {
                 const el = document.getElementById(fieldId);
@@ -1003,19 +1048,30 @@
             const id = document.getElementById('realOrderId').value;
             const submitBtn = document.getElementById('submitBtn');
 
-            const data = {
-                vehicle_no: document.getElementById('vehicleNo').value,
-                vehicle_type: document.getElementById('vehicleType').value,
-                driver_phone: document.getElementById('phoneNo').value,
-                expected_delivery_date: document.getElementById('deliveryDate').value,
-                expected_delivery_time: document.getElementById('deliveryTime').value,
-                delivery_remarks: document.getElementById('deliveryRemarks').value,
-                _token: '{{ csrf_token() }}'
-            };
+            const vehicle_no = document.getElementById('vehicleNo').value;
+            const vehicle_type = document.getElementById('vehicleType').value;
+            const driver_phone = document.getElementById('phoneNo').value;
+            const expected_delivery_date = document.getElementById('deliveryDate').value;
+            const expected_delivery_time = document.getElementById('deliveryTime').value;
+            const delivery_remarks = document.getElementById('deliveryRemarks').value;
 
-            if (!data.expected_delivery_date) {
+            if (!expected_delivery_date) {
                 alert('Please select an expected delivery date.');
                 return;
+            }
+
+            const formData = new FormData();
+            formData.append('vehicle_no', vehicle_no);
+            formData.append('vehicle_type', vehicle_type);
+            formData.append('driver_phone', driver_phone);
+            formData.append('expected_delivery_date', expected_delivery_date);
+            formData.append('expected_delivery_time', expected_delivery_time);
+            formData.append('delivery_remarks', delivery_remarks);
+            formData.append('_token', '{{ csrf_token() }}');
+
+            const docInput = document.getElementById('uploadDocuments');
+            if (docInput && docInput.files && docInput.files.length > 0) {
+                formData.append('upload_documents', docInput.files[0]);
             }
 
             submitBtn.disabled = true;
@@ -1024,11 +1080,10 @@
             fetch(`${window.BASE_PATH}/orders/${id}/update-delivery`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
                     'Accept': 'application/json',
                     'X-CSRF-TOKEN': '{{ csrf_token() }}'
                 },
-                body: JSON.stringify(data)
+                body: formData
             })
                 .then(response => response.json())
                 .then(result => {

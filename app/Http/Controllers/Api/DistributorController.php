@@ -137,7 +137,9 @@ class DistributorController extends Controller
             ], 403);
         }
 
-        $tab = $request->query('tab', $request->query('status', 'Estimate'));
+        // Distributor users only see fully confirmed Orders from their dealers.
+        // Estimate requests (EST-*) and Order requests (ORD-date-*) are NOT shown.
+        $tab = $request->query('tab', $request->query('status', 'All'));
         $search = $request->query('search');
         $perPage = (int) $request->query('per_page', 15);
         $page = (int) $request->query('page', 1);
@@ -152,185 +154,114 @@ class DistributorController extends Controller
         ->where('id', '!=', $distributorId)
         ->pluck('id');
 
-        $merged = collect();
+        // Statuses that are "confirmed or beyond" — pre-confirmed states are excluded.
+        // Pre-confirmed means: 'Order Placed', 'Pending', null/empty
+        $confirmedStatuses = ['Confirmed', 'Out for Delivery', 'Dispatched', 'Delivered', 'Returned'];
 
-        // 1. Estimates
-        if (in_array($tab, ['All', 'Estimate', 'Pending'])) {
-            $estimates = Estimate::whereIn('member_id', $dealerIds)
-                ->with('member')
-                ->when($search, function ($query) use ($search) {
-                    return $query->where(function ($q) use ($search) {
-                        $q->where('request_number', 'like', "%$search%")
-                            ->orWhere('created_at', 'like', "%$search%")
-                            ->orWhereHas('member', function ($mq) use ($search) {
-                                $mq->where('name', 'like', "%$search%")
-                                   ->orWhere('shop', 'like', "%$search%");
-                            });
-                    });
-                })
-                ->when($startDate, function ($query) use ($startDate) {
-                    return $query->whereDate('created_at', '>=', $startDate);
-                })
-                ->when($endDate, function ($query) use ($endDate) {
-                    return $query->whereDate('created_at', '<=', $endDate);
-                })
-                ->get()
-                ->map(function ($item) {
-                    $reqNo = $item->request_number ?? 'EST-' . str_pad($item->id, 4, '0', STR_PAD_LEFT);
-                    return [
-                        'id' => $item->id,
-                        'order_id' => $reqNo,
-                        'order_number' => $reqNo,
-                        'request_number' => $reqNo,
-                        'date' => $item->created_at->format('d M Y'),
-                        'status' => $item->status,
-                        'type' => 'Estimate',
-                        'raw_date' => $item->created_at,
-                        'amount' => 0,
-                        'dealer' => [
-                            'id' => $item->member->id ?? null,
-                            'name' => $item->member->name ?? null,
-                            'shop' => $item->member->shop ?? null,
-                            'mobile' => $item->member->mobile ?? null,
-                            'email' => $item->member->email ?? null,
-                        ],
-                    ];
-                });
-            $merged = $merged->concat($estimates);
-        }
-
-        // 2. Order Requests
-        if (in_array($tab, ['All', 'Request', 'Pending'])) {
-            $orderRequests = OrderRequest::whereIn('member_id', $dealerIds)
-                ->with('member')
-                ->when($search, function ($query) use ($search) {
-                    return $query->where(function ($q) use ($search) {
-                        $q->where('request_number', 'like', "%$search%")
-                            ->orWhere('created_at', 'like', "%$search%")
-                            ->orWhereHas('member', function ($mq) use ($search) {
-                                $mq->where('name', 'like', "%$search%")
-                                   ->orWhere('shop', 'like', "%$search%");
-                            });
-                    });
-                })
-                ->when($startDate, function ($query) use ($startDate) {
-                    return $query->whereDate('created_at', '>=', $startDate);
-                })
-                ->when($endDate, function ($query) use ($endDate) {
-                    return $query->whereDate('created_at', '<=', $endDate);
-                })
-                ->get()
-                ->map(function ($item) {
-                    $displayStatus = ($item->status === 'Processed') ? 'Confirmed' : $item->status;
-                    return [
-                        'id' => $item->id,
-                        'order_id' => $item->request_number,
-                        'order_number' => $item->request_number,
-                        'request_number' => $item->request_number,
-                        'date' => $item->created_at->format('d M Y'),
-                        'status' => ucfirst($displayStatus),
-                        'type' => 'Order Request',
-                        'raw_date' => $item->created_at,
-                        'amount' => 0,
-                        'dealer' => [
-                            'id' => $item->member->id ?? null,
-                            'name' => $item->member->name ?? null,
-                            'shop' => $item->member->shop ?? null,
-                            'mobile' => $item->member->mobile ?? null,
-                            'email' => $item->member->email ?? null,
-                        ],
-                    ];
-                });
-            $merged = $merged->concat($orderRequests);
-        }
-
-        // 3. Orders
-        $isOrderTab = in_array($tab, ['All', 'Confirmed', 'Order Placed', 'Delivered']) ||
-                      in_array(strtolower(trim($tab)), ['not yet dispatch', 'not yet dispatched', 'dispatched', 'to dispatch']);
-
-        if ($isOrderTab) {
-            $orders = Order::where(function ($q) use ($distributorId, $dealerIds) {
-                $q->where('distributor_id', $distributorId)
-                  ->orWhereIn('member_id', $dealerIds);
-            })
-            ->where('member_id', '!=', $distributorId)
-            ->with(['member', 'delivery', 'invoice', 'items'])
-            ->when($tab && $tab !== 'All', function ($query) use ($tab) {
-                $statusLower = strtolower(trim($tab));
-                if (in_array($statusLower, ['not yet dispatch', 'not yet dispatched', 'to dispatch'])) {
-                    return $query->whereDoesntHave('delivery');
-                }
-                if ($statusLower === 'dispatched') {
-                    return $query->whereHas('delivery');
-                }
-                if ($tab === 'Confirmed' || $tab === 'Order Placed') {
-                    return $query->where('status', '!=', 'Delivered');
-                }
-                if ($tab === 'Delivered') {
-                    return $query->where('status', 'Delivered');
-                }
-                return $query->where('status', $tab);
-            })
-            ->when($search, function ($query) use ($search) {
-                return $query->where(function ($q) use ($search) {
-                    $q->where('order_number', 'like', "%{$search}%")
-                      ->orWhereHas('member', function ($mq) use ($search) {
-                          $mq->where('name', 'like', "%{$search}%")
-                             ->orWhere('shop', 'like', "%{$search}%");
-                      });
-                });
-            })
-            ->when($startDate, function ($query) use ($startDate) {
-                return $query->whereDate('created_at', '>=', $startDate);
-            })
-            ->when($endDate, function ($query) use ($endDate) {
-                return $query->whereDate('created_at', '<=', $endDate);
-            })
-            ->get()
-            ->map(function ($order) {
-                $delivery = null;
-                if ($order->delivery) {
-                    $delivery = [
-                        'vehicle_no' => $order->delivery->vehicle_no,
-                        'vehicle_type' => $order->delivery->vehicle_type,
-                        'driver_phone' => $order->delivery->driver_phone,
-                        'expected_delivery_at' => $order->delivery->expected_delivery_at,
-                        'remarks' => $order->delivery->remarks,
-                        'status' => $order->delivery->status,
-                    ];
-                }
-
-                $calculatedAmount = $order->items->sum(function($i) { return $i->qty * $i->price; });
-                $finalAmount = $order->amount > 0 ? $order->amount : ($order->invoice && $order->invoice->amount > 0 ? $order->invoice->amount : $calculatedAmount);
-
-                return [
-                    'id' => $order->id,
-                    'order_id' => $order->order_number,
-                    'order_number' => $order->order_number,
-                    'request_number' => $order->order_number,
-                    'amount' => (float) $finalAmount,
-                    'status' => $order->status ?: 'Order Placed',
-                    'type' => 'Order',
-                    'date' => $order->created_at->format('d M Y'),
-                    'received_at' => $order->received_at,
-                    'created_at' => $order->created_at,
-                    'raw_date' => $order->created_at,
-                    'dealer' => [
-                        'id' => $order->member->id ?? null,
-                        'name' => $order->member->name ?? null,
-                        'shop' => $order->member->shop ?? null,
-                        'mobile' => $order->member->mobile ?? null,
-                        'email' => $order->member->email ?? null,
-                    ],
-                    'delivery' => $delivery,
-                    'invoice_number' => $order->invoice ? $order->invoice->invoice_number : null,
-                    'has_invoice' => ($order->invoice_file || $order->challan_file || ($order->invoice && $order->invoice->file_path)) ? true : false,
-                ];
+        $orders = Order::where(function ($q) use ($distributorId, $dealerIds) {
+            $q->where('distributor_id', $distributorId)
+              ->orWhereIn('member_id', $dealerIds);
+        })
+        ->where('member_id', '!=', $distributorId)
+        // Only show orders that have been confirmed or are in a later stage
+        ->whereIn('status', $confirmedStatuses)
+        ->with(['member', 'delivery', 'invoice', 'items', 'creditNote'])
+        ->when($tab && $tab !== 'All', function ($query) use ($tab) {
+            $statusLower = strtolower(trim($tab));
+            if (in_array($statusLower, ['not yet dispatch', 'not yet dispatched', 'to dispatch'])) {
+                return $query->whereDoesntHave('delivery');
+            }
+            if ($statusLower === 'dispatched') {
+                return $query->whereHas('delivery');
+            }
+            if ($tab === 'Delivered') {
+                return $query->where('status', 'Delivered');
+            }
+            if ($tab === 'Returned') {
+                return $query->where('status', 'Returned');
+            }
+            return $query->where('status', $tab);
+        })
+        ->when($search, function ($query) use ($search) {
+            return $query->where(function ($q) use ($search) {
+                $q->where('order_number', 'like', "%{$search}%")
+                  ->orWhereHas('member', function ($mq) use ($search) {
+                      $mq->where('name', 'like', "%{$search}%")
+                         ->orWhere('shop', 'like', "%{$search}%");
+                  });
             });
-            $merged = $merged->concat($orders);
-        }
+        })
+        ->when($startDate, function ($query) use ($startDate) {
+            return $query->whereDate('created_at', '>=', $startDate);
+        })
+        ->when($endDate, function ($query) use ($endDate) {
+            return $query->whereDate('created_at', '<=', $endDate);
+        })
+        ->get()
+        ->map(function ($order) {
+            $delivery = null;
+            if ($order->delivery) {
+                $delivery = [
+                    'vehicle_no' => $order->delivery->vehicle_no,
+                    'vehicle_type' => $order->delivery->vehicle_type,
+                    'driver_phone' => $order->delivery->driver_phone,
+                    'expected_delivery_at' => $order->delivery->expected_delivery_at,
+                    'actual_delivery_at' => $order->received_at ? $order->received_at->format('Y-m-d H:i:s') : ($order->status === 'Delivered' ? $order->updated_at->format('Y-m-d H:i:s') : null),
+                    'received_at' => $order->received_at ? $order->received_at->format('Y-m-d H:i:s') : null,
+                    'remarks' => $order->delivery->remarks,
+                    'status' => $order->delivery->status,
+                    'document_url' => $order->delivery->document_path ? asset('uploads/' . $order->delivery->document_path) : null,
+                    'document_path' => $order->delivery->document_path,
+                ];
+            }
 
-        $sorted = $merged->sortByDesc('raw_date')->values();
+            $calculatedAmount = $order->items->sum(function($i) { return $i->qty * $i->price; });
+            $finalAmount = $order->amount > 0 ? $order->amount : ($order->invoice && $order->invoice->amount > 0 ? $order->invoice->amount : $calculatedAmount);
+
+            $cnPath = null;
+            if ($order->creditNote) {
+                $cnPath = $order->creditNote->distributor_file_path;
+                if (!$cnPath && $order->creditNote->file_path && strpos($order->creditNote->file_path, 'dealer') === false && $order->creditNote->file_path !== $order->creditNote->dealer_file_path) {
+                    $cnPath = $order->creditNote->file_path;
+                }
+            }
+            $creditNoteFile = $cnPath ? asset('uploads/' . $cnPath) : null;
+
+            return [
+                'id' => $order->id,
+                'order_id' => $order->order_number,
+                'order_number' => $order->order_number,
+                'request_number' => $order->order_number,
+                'amount' => (float) $finalAmount,
+                'status' => $order->status ?: 'Confirmed',
+                'type' => 'Order',
+                'date' => $order->created_at->format('d M Y'),
+                'received_at' => $order->received_at ? $order->received_at->format('Y-m-d H:i:s') : null,
+                'created_at' => $order->created_at,
+                'raw_date' => $order->created_at,
+                'dealer' => [
+                    'id' => $order->member->id ?? null,
+                    'name' => $order->member->name ?? null,
+                    'shop' => $order->member->shop ?? null,
+                    'mobile' => $order->member->mobile ?? null,
+                    'email' => $order->member->email ?? null,
+                ],
+                'delivery' => $delivery,
+                'invoice_number' => $order->invoice ? $order->invoice->invoice_number : null,
+                'challan_file' => $order->challan_file ? asset('uploads/' . $order->challan_file) : null,
+                'invoice_file' => $order->invoice_file ? asset('uploads/' . $order->invoice_file) : ($order->invoice && $order->invoice->file_path ? asset('uploads/' . $order->invoice->file_path) : null),
+                'credit_note_file' => $creditNoteFile,
+                'credit_note_url' => $creditNoteFile,
+                'credit_note' => $order->creditNote ? [
+                    'id' => $order->creditNote->id,
+                    'credit_note_number' => $order->creditNote->credit_note_number,
+                    'file_path' => $creditNoteFile,
+                ] : null,
+                'has_invoice' => ($order->invoice_file || $order->challan_file || ($order->invoice && $order->invoice->file_path)) ? true : false,
+            ];
+        });
+
+        $sorted = $orders->sortByDesc('raw_date')->values();
         $paginatedData = $sorted->forPage($page, $perPage)->values();
 
         $paginator = new \Illuminate\Pagination\LengthAwarePaginator(
@@ -352,6 +283,7 @@ class DistributorController extends Controller
             ]
         ], 200);
     }
+
 
     #[OA\Get(
         path: "/distributor/my-orders/details",
@@ -432,11 +364,13 @@ class DistributorController extends Controller
 
         $request->validate([
             'order_id' => 'required',
-            'type'     => 'required|string',
         ]);
 
         $orderId = $request->query('order_id');
-        $type    = strtolower(trim($request->query('type')));
+        $type    = strtolower(trim($request->query('type', 'order')));
+        if ($type === 'undefined' || empty($type)) {
+            $type = 'order';
+        }
 
         if ($type !== 'order') {
             return response()->json([
@@ -446,12 +380,15 @@ class DistributorController extends Controller
         }
 
         $distributorId = $this->getDistributorId($distributor);
+        $num = intval(preg_replace('/^.*-(\d+)$/', '$1', $orderId));
         $order = Order::where('distributor_id', $distributorId)
-            ->where(function ($query) use ($orderId) {
+            ->where(function ($query) use ($orderId, $num) {
                 $query->where('order_number', $orderId)
-                    ->orWhere('id', $orderId);
+                    ->orWhere('id', $orderId)
+                    ->orWhere('id', $num)
+                    ->orWhere('order_number', 'ORD-' . str_pad($num, 4, '0', STR_PAD_LEFT));
             })
-            ->with(['member', 'items', 'delivery', 'invoice'])
+            ->with(['member', 'items', 'delivery', 'invoice', 'creditNote'])
             ->first();
 
         if (!$order) {
@@ -477,8 +414,12 @@ class DistributorController extends Controller
                 'vehicle_type'         => $order->delivery->vehicle_type,
                 'driver_phone'         => $order->delivery->driver_phone,
                 'expected_delivery_at' => $order->delivery->expected_delivery_at,
+                'actual_delivery_at'   => $order->received_at ? $order->received_at->format('Y-m-d H:i:s') : ($order->status === 'Delivered' ? $order->updated_at->format('Y-m-d H:i:s') : null),
+                'received_at'          => $order->received_at ? $order->received_at->format('Y-m-d H:i:s') : null,
                 'remarks'              => $order->delivery->remarks,
                 'status'               => $order->delivery->status,
+                'document_url'         => $order->delivery->document_path ? asset('uploads/' . $order->delivery->document_path) : null,
+                'document_path'        => $order->delivery->document_path,
             ];
         }
 
@@ -493,6 +434,15 @@ class DistributorController extends Controller
                     : null,
             ];
         }
+
+        $cnPath = null;
+        if ($order->creditNote) {
+            $cnPath = $order->creditNote->distributor_file_path;
+            if (!$cnPath && $order->creditNote->file_path && strpos($order->creditNote->file_path, 'dealer') === false && $order->creditNote->file_path !== $order->creditNote->dealer_file_path) {
+                $cnPath = $order->creditNote->file_path;
+            }
+        }
+        $creditNoteFile = $cnPath ? asset('uploads/' . $cnPath) : null;
 
         return response()->json([
             'success' => true,
@@ -509,8 +459,15 @@ class DistributorController extends Controller
                     : null,
                 'invoice_file' => $order->invoice_file
                     ? asset('uploads/' . $order->invoice_file)
-                    : null,
-                'received_at'  => $order->received_at,
+                    : ($order->invoice && $order->invoice->file_path ? asset('uploads/' . $order->invoice->file_path) : null),
+                'credit_note_file' => $creditNoteFile,
+                'credit_note_url'  => $creditNoteFile,
+                'credit_note' => $order->creditNote ? [
+                    'id' => $order->creditNote->id,
+                    'credit_note_number' => $order->creditNote->credit_note_number,
+                    'file_path' => $creditNoteFile,
+                ] : null,
+                'received_at'  => $order->received_at ? $order->received_at->format('Y-m-d H:i:s') : null,
                 'created_at'   => $order->created_at,
                 'dealer'       => [
                     'id'     => $order->member->id,
@@ -626,7 +583,16 @@ class DistributorController extends Controller
 
         // Ensure the order is assigned to this distributor
         $distributorId = $this->getDistributorId($distributor);
-        $order = Order::where('distributor_id', $distributorId)->with('member')->find($id);
+        $num = intval(preg_replace('/^.*-(\d+)$/', '$1', $id));
+        $order = Order::where('distributor_id', $distributorId)
+            ->where(function($q) use ($id, $num) {
+                $q->where('id', $id)
+                  ->orWhere('id', $num)
+                  ->orWhere('order_number', $id)
+                  ->orWhere('order_number', 'ORD-' . str_pad($num, 4, '0', STR_PAD_LEFT));
+            })
+            ->with('member')
+            ->first();
         if (!$order) {
             return response()->json([
                 'success' => false,
@@ -647,23 +613,37 @@ class DistributorController extends Controller
             'driver_phone'           => 'required|string|max:20',
             'expected_delivery_date' => 'required|date',
             'expected_delivery_time' => 'required|string',
-            'delivery_remarks'       => 'nullable|string|max:1000',
+            'delivery_remarks'       => 'required|string|max:1000',
+            'dispatch_document'      => 'required|file|mimes:pdf,jpg,jpeg,png|max:10240',
         ]);
 
         // Normalise time to HH:MM:SS
         $time        = date('H:i', strtotime($request->expected_delivery_time));
         $expectedAt  = $request->expected_delivery_date . ' ' . $time . ':00';
 
+        // Handle dispatch document upload
+        $documentPath = null;
+        if ($request->hasFile('dispatch_document') && $request->file('dispatch_document')->isValid()) {
+            $documentPath = $request->file('dispatch_document')->store('deliveries/documents', 'public');
+        } elseif ($request->hasFile('upload_documents') && $request->file('upload_documents')->isValid()) {
+            $documentPath = $request->file('upload_documents')->store('deliveries/documents', 'public');
+        }
+
+        $deliveryData = [
+            'vehicle_no'           => $request->vehicle_no,
+            'vehicle_type'         => $request->vehicle_type,
+            'driver_phone'         => $request->driver_phone,
+            'expected_delivery_at' => $expectedAt,
+            'remarks'              => $request->delivery_remarks,
+            'status'               => 'Out for Delivery',
+        ];
+        if ($documentPath) {
+            $deliveryData['document_path'] = $documentPath;
+        }
+
         $delivery = Delivery::updateOrCreate(
             ['order_id' => $order->id],
-            [
-                'vehicle_no'           => $request->vehicle_no,
-                'vehicle_type'         => $request->vehicle_type,
-                'driver_phone'         => $request->driver_phone,
-                'expected_delivery_at' => $expectedAt,
-                'remarks'              => $request->delivery_remarks,
-                'status'               => 'Out for Delivery',
-            ]
+            $deliveryData
         );
 
         // Update the order status
@@ -696,6 +676,7 @@ class DistributorController extends Controller
                 'driver_phone'         => $delivery->driver_phone,
                 'expected_delivery_at' => $delivery->expected_delivery_at,
                 'delivery_remarks'     => $delivery->remarks,
+                'document_url'         => $delivery->document_path ? asset('uploads/' . $delivery->document_path) : null,
             ],
         ], 200);
     }

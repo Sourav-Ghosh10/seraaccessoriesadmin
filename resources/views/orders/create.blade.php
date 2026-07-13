@@ -62,7 +62,7 @@
         @endif
         <div class="form-group">
             <label class="form-label">Expected Delivery Date</label>
-            <input type="date" id="deliveryDate" class="form-control" value="2024-05-12">
+            <input type="date" id="deliveryDate" class="form-control" value="{{ date('Y-m-d') }}">
         </div>
         <div class="form-group">
             <label class="form-label">Attach Challan (PDF)</label>

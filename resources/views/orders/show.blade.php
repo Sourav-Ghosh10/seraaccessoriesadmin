@@ -56,6 +56,18 @@
                         <span style="font-size: 12px; color: var(--text-muted); display: block;">Expected Delivery:</span>
                         <strong style="color: #fff; font-size: 15px;">{{ \Carbon\Carbon::parse($order->delivery->expected_delivery_at)->format('d M, Y \a\t h:i A') }}</strong>
                     </div>
+                    @if($order->received_at || strtolower($order->status) === 'delivered' || strtolower($order->delivery->status) === 'delivered')
+                        <div style="margin-bottom: 12px;">
+                            <span style="font-size: 12px; color: var(--text-muted); display: block;">Actual Delivery:</span>
+                            <strong style="color: #10b981; font-size: 15px;">
+                                @if($order->received_at)
+                                    {{ \Carbon\Carbon::parse($order->received_at)->format('d M, Y \a\t h:i A') }}
+                                @else
+                                    {{ \Carbon\Carbon::parse($order->updated_at)->format('d M, Y \a\t h:i A') }}
+                                @endif
+                            </strong>
+                        </div>
+                    @endif
                     <div style="margin-bottom: 12px;">
                         <span style="font-size: 12px; color: var(--text-muted); display: block;">Vehicle Details:</span>
                         <strong style="color: #fff; font-size: 14px;">{{ $order->delivery->vehicle_no }} ({{ $order->delivery->vehicle_type }})</strong>
@@ -64,11 +76,31 @@
                         <span style="font-size: 12px; color: var(--text-muted); display: block;">Driver Phone:</span>
                         <strong style="color: #fff; font-size: 14px;">{{ $order->delivery->driver_phone }}</strong>
                     </div>
+                    @if($order->delivery->document_path)
+                        <div style="margin-top: 12px;">
+                            <span style="font-size: 12px; color: var(--text-muted); display: block;">Delivery Document:</span>
+                            <a href="{{ asset('uploads/' . $order->delivery->document_path) }}" target="_blank" style="color: #38bdf8; font-size: 14px; font-weight: 600; text-decoration: underline; display: inline-flex; align-items: center; gap: 6px; margin-top: 2px;">
+                                <i class="fas fa-file-alt"></i> View / Download Document
+                            </a>
+                        </div>
+                    @endif
                 @else
                     <div style="margin-bottom: 12px;">
                         <span style="font-size: 12px; color: var(--text-muted); display: block;">Expected Delivery:</span>
                         <strong style="color: #fff; font-size: 15px;">{{ $order->created_at->addDays(3)->format('d M, Y') }}</strong>
                     </div>
+                    @if($order->received_at || strtolower($order->status) === 'delivered')
+                        <div style="margin-bottom: 12px;">
+                            <span style="font-size: 12px; color: var(--text-muted); display: block;">Actual Delivery:</span>
+                            <strong style="color: #10b981; font-size: 15px;">
+                                @if($order->received_at)
+                                    {{ \Carbon\Carbon::parse($order->received_at)->format('d M, Y \a\t h:i A') }}
+                                @else
+                                    {{ \Carbon\Carbon::parse($order->updated_at)->format('d M, Y \a\t h:i A') }}
+                                @endif
+                            </strong>
+                        </div>
+                    @endif
                     <div style="padding: 10px 15px; background: rgba(255,255,255,0.03); border: 1px dashed rgba(255,255,255,0.1); border-radius: 8px; color: var(--text-muted); font-size: 12px; margin-bottom: 12px;">
                         <i class="fas fa-shipping-fast" style="margin-right: 5px;"></i> Transport details not yet scheduled.
                     </div>
@@ -102,6 +134,14 @@
                         {{ $order->description ?? 'No specific delivery remarks provided.' }}
                     @endif
                 </p>
+                @if($order->delivery && $order->delivery->document_path)
+                    <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.08);">
+                        <span style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Uploaded Document:</span>
+                        <a href="{{ asset('uploads/' . $order->delivery->document_path) }}" target="_blank" class="btn glass" style="padding: 6px 14px; font-size: 13px; color: #38bdf8; display: inline-flex; align-items: center; gap: 8px; border-radius: 6px; text-decoration: none;">
+                            <i class="fas fa-file-download"></i> View / Download Document
+                        </a>
+                    </div>
+                @endif
             </div>
         </div>
 
