@@ -1205,4 +1205,78 @@ class PageController extends Controller
             'max_order_id' => $maxOrderId,
         ]);
     }
+
+    public function deleteProcessedRequests(Request $request) {
+        $estimatesQuery = \App\Models\Estimate::with(['member.salesman', 'member.distributor'])
+            ->where('status', '!=', 'Pending');
+        
+        $orderRequestsQuery = \App\Models\OrderRequest::with(['member.salesman', 'member.distributor', 'order'])
+            ->where('status', '!=', 'Pending');
+
+        if ($request->filled('days')) {
+            $days = (int) $request->days;
+            if ($days > 0) {
+                $estimatesQuery->where('updated_at', '>=', now()->subDays($days));
+                $orderRequestsQuery->where('updated_at', '>=', now()->subDays($days));
+            }
+        }
+
+        if ($request->filled('limit')) {
+            $limit = (int) $request->limit;
+            if ($limit > 0) {
+                $estimatesQuery->limit($limit);
+                $orderRequestsQuery->limit($limit);
+            }
+        }
+
+        $processedEstimates = $estimatesQuery->orderBy('updated_at', 'desc')->get();
+        $processedOrderRequests = $orderRequestsQuery->orderBy('updated_at', 'desc')->get();
+
+        $deletedEstimatesCount = 0;
+        foreach ($processedEstimates as $estimate) {
+            $this->deleteAssociatedCronFiles($estimate->file_path);
+            $this->deleteAssociatedCronFiles($estimate->response_file_path);
+            $estimate->delete();
+            $deletedEstimatesCount++;
+        }
+
+        $deletedOrdersCount = 0;
+        foreach ($processedOrderRequests as $orderReq) {
+            $this->deleteAssociatedCronFiles($orderReq->file_path);
+            $orderReq->delete();
+            $deletedOrdersCount++;
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Processed estimate requests and order requests deleted successfully.',
+            'counts' => [
+                'deleted_estimates_count' => $deletedEstimatesCount,
+                'deleted_order_requests_count' => $deletedOrdersCount,
+            ],
+            'data' => [
+                'deleted_estimate_requests' => $processedEstimates,
+                'deleted_order_requests' => $processedOrderRequests,
+            ],
+        ], 200);
+    }
+
+    private function deleteAssociatedCronFiles($paths)
+    {
+        if (empty($paths)) {
+            return;
+        }
+
+        $pathsArray = is_array($paths) ? $paths : [$paths];
+
+        foreach ($pathsArray as $path) {
+            if (!empty($path) && is_string($path)) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($path);
+                $fullUploadPath = base_path('uploads/' . ltrim(str_replace('\\', '/', $path), '/'));
+                if (file_exists($fullUploadPath) && is_file($fullUploadPath)) {
+                    @unlink($fullUploadPath);
+                }
+            }
+        }
+    }
 }

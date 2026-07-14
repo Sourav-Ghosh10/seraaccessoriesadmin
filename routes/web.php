@@ -28,6 +28,9 @@ Route::get('/uploads/{path}', function ($path) {
     $mimeType = mime_content_type($fullPath) ?: 'application/octet-stream';
     return response()->file($fullPath, ['Content-Type' => $mimeType]);
 })->where('path', '.*');
+
+Route::get('/cron/delete-processed-requests', [PageController::class, 'deleteProcessedRequests'])->name('cron.delete.processed.requests');
+
 Route::middleware(['auth'])->group(function () {
 
     // =========================================================================

@@ -10,3 +10,4 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('rewards:decrement-count-days')->daily();
+Schedule::command('requests:delete-processed')->hourly();
