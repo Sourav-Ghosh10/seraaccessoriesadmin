@@ -11,3 +11,4 @@ Artisan::command('inspire', function () {
 
 Schedule::command('rewards:decrement-count-days')->daily();
 Schedule::command('requests:delete-processed')->hourly();
+Schedule::command('requests:delete-stale-pending')->daily();

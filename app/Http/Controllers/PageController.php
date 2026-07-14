@@ -1261,6 +1261,53 @@ class PageController extends Controller
         ], 200);
     }
 
+    public function deleteStalePendingRequests(Request $request) {
+        $days = $request->filled('days') ? (int) $request->days : 7;
+        if ($days <= 0) {
+            $days = 7;
+        }
+
+        $cutoffDate = now()->subDays($days);
+
+        $staleEstimates = \App\Models\Estimate::with(['member.salesman', 'member.distributor'])
+            ->where('status', 'Pending')
+            ->where('created_at', '<=', $cutoffDate)
+            ->get();
+
+        $staleOrderRequests = \App\Models\OrderRequest::with(['member.salesman', 'member.distributor', 'order'])
+            ->where('status', 'Pending')
+            ->where('created_at', '<=', $cutoffDate)
+            ->get();
+
+        $deletedEstimatesCount = 0;
+        foreach ($staleEstimates as $estimate) {
+            $this->deleteAssociatedCronFiles($estimate->file_path);
+            $this->deleteAssociatedCronFiles($estimate->response_file_path);
+            $estimate->delete();
+            $deletedEstimatesCount++;
+        }
+
+        $deletedOrdersCount = 0;
+        foreach ($staleOrderRequests as $orderReq) {
+            $this->deleteAssociatedCronFiles($orderReq->file_path);
+            $orderReq->delete();
+            $deletedOrdersCount++;
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => "Pending estimate requests and order requests older than {$days} days deleted successfully.",
+            'counts' => [
+                'deleted_stale_estimates_count' => $deletedEstimatesCount,
+                'deleted_stale_order_requests_count' => $deletedOrdersCount,
+            ],
+            'data' => [
+                'deleted_estimate_requests' => $staleEstimates,
+                'deleted_order_requests' => $staleOrderRequests,
+            ],
+        ], 200);
+    }
+
     private function deleteAssociatedCronFiles($paths)
     {
         if (empty($paths)) {
