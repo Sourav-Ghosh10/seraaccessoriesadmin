@@ -276,9 +276,6 @@
                                         onclick="openEstimateModal('{{ $estimate->id }}', '{{ $estimate->request_number ?? 'EST-' . str_pad($estimate->id, 4, '0', STR_PAD_LEFT) }}', '{{ $estimate->response_description }}')">
                                         <i class="fas fa-reply"></i> Revert Estimate
                                     </button>
-                                    <button class="btn glass"
-                                        style="padding: 5px 12px; font-size: 11px; color: var(--accent);"><i
-                                            class="fas fa-trash"></i></button>
                                 </div>
                             </td>
                         </tr>

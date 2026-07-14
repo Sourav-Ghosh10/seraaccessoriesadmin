@@ -672,6 +672,17 @@ class OrderController extends Controller
             'message' => 'Redeem request updated successfully!'
         ]);
     }
+
+    public function destroyRequest($id)
+    {
+        $orderRequest = OrderRequest::findOrFail($id);
+        $orderRequest->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Order request deleted successfully!'
+        ]);
+    }
 }
 
 

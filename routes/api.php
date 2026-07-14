@@ -88,6 +88,7 @@ Route::middleware(JwtAuthMiddleware::class)->group(function () {
 
         // Expenses
         Route::get('/expense-categories', [SalesmanController::class, 'getExpenseCategories'])->name('expense-categories');
+        Route::get('/expenses/summary', [SalesmanController::class, 'getExpenseSummary'])->name('expenses.summary');
         Route::get('/expenses', [SalesmanController::class, 'getExpenses'])->name('expenses.index');
         Route::post('/expenses', [SalesmanController::class, 'storeExpense'])->name('expenses.store');
     });

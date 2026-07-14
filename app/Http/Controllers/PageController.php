@@ -380,7 +380,7 @@ class PageController extends Controller
             }
         }
 
-        $estimates = $query->orderBy('id', 'desc')->paginate(5);
+        $estimates = $query->orderBy('id', 'desc')->paginate(10);
 
         $cities = \App\Models\City::where('status', 1)->orderBy('city')->get();
         $salesmen = \App\Models\Member::where('role', 'salesman')->orderBy('name')->get();
@@ -468,7 +468,7 @@ class PageController extends Controller
             }
         }
 
-        $orders = $query->orderBy('id', 'desc')->paginate(5);
+        $orders = $query->orderBy('id', 'desc')->paginate(10);
         $dealers = Member::where('role', 'dealer')->get();
         $cities = \App\Models\City::where('status', 1)->orderBy('city')->get();
         $salesmen = \App\Models\Member::where('role', 'salesman')->orderBy('name')->get();
@@ -610,7 +610,7 @@ class PageController extends Controller
             }
         }
 
-        $finalOrders = $query->orderBy('id', 'desc')->paginate(5);
+        $finalOrders = $query->orderBy('id', 'desc')->paginate(10);
         $cities = \App\Models\City::where('status', 1)->orderBy('city')->get();
         $salesmen = \App\Models\Member::where('role', 'salesman')->orderBy('name')->get();
         $distributors = \App\Models\Member::where('role', 'distributor')->orderBy('name')->get();

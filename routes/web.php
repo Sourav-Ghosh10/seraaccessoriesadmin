@@ -120,6 +120,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/order-requests', [PageController::class, 'orderRequests'])->name('order-requests');
         Route::post('/order-requests', [OrderController::class, 'storeRequest'])->name('order-requests.store');
         Route::post('/order-requests/store', [OrderController::class, 'storeRequest'])->name('order-requests.store');
+        Route::delete('/order-requests/{id}', [OrderController::class, 'destroyRequest'])->name('order-requests.destroy');
 
         Route::get('/orders', [PageController::class, 'ordersList'])->name('orders.index');
         Route::get('/orders/create', [PageController::class, 'createOrder'])->name('orders.create');
