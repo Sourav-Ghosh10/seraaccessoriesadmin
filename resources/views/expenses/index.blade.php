@@ -44,7 +44,12 @@
                     <td>{{ $expense->salesman->name ?? '—' }}</td>
                     <td>{{ $expense->category->name ?? '—' }}</td>
                     <td>{{ $expense->description ?? '—' }}</td>
-                    <td style="font-weight: bold; color: var(--primary);">₹{{ number_format($expense->amount, 2) }}</td>
+                    <td style="font-weight: bold; color: var(--primary);">
+                        ₹{{ number_format($expense->amount, 2) }}
+                        @if($expense->status == 'Approved' && $expense->approved_amount !== null && $expense->approved_amount != $expense->amount)
+                            <div style="font-size: 11px; color: #22c55e; font-weight: normal;">Reimbursed: ₹{{ number_format($expense->approved_amount, 2) }}</div>
+                        @endif
+                    </td>
                     <td>
                         <div style="display: flex; flex-direction: column; gap: 6px;">
                             @if($expense->receipt_photo_path)
@@ -69,7 +74,7 @@
                     <td>
                         <div style="display: flex; gap: 5px;">
                             @if($expense->status == 'Pending')
-                                <button type="button" class="btn btn-primary" onclick="openApproveModal({{ $expense->id }}, '{{ addslashes($expense->salesman->name ?? '—') }}', '₹{{ number_format($expense->amount, 2) }}')" style="padding: 5px 10px; font-size: 12px; background: #22c55e; border-color: #22c55e;">Approve</button>
+                                <button type="button" class="btn btn-primary" onclick="openApproveModal({{ $expense->id }}, '{{ addslashes($expense->salesman->name ?? '—') }}', '₹{{ number_format($expense->amount, 2) }}', '{{ $expense->amount }}')" style="padding: 5px 10px; font-size: 12px; background: #22c55e; border-color: #22c55e;">Approve</button>
                                 <form method="POST" action="{{ route('expenses.status.update', $expense->id) }}">
                                     @csrf
                                     @method('PATCH')
@@ -116,6 +121,14 @@
                         <div style="font-size: 13px; color: var(--text-muted);">Amount: <span id="approveModalAmount" style="color: var(--primary); font-weight: 700; font-size: 15px;">₹0.00</span></div>
                     </div>
 
+                    <div style="margin-bottom: 15px;">
+                        <label class="form-label" style="font-size: 12px; text-transform: uppercase; color: var(--text-muted); font-weight: 600; display: block; margin-bottom: 8px;">
+                            Reimbursement Amount (₹)
+                        </label>
+                        <input type="number" step="0.01" name="approved_amount" id="approved_amount_input" class="form-control" style="width: 100%; background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: 8px; color: #fff; padding: 10px; font-size: 14px;">
+                        <small style="display: block; margin-top: 6px; color: var(--text-muted); font-size: 11px;">You can modify if reimbursement differs from applied amount.</small>
+                    </div>
+
                     <label class="form-label" style="font-size: 12px; text-transform: uppercase; color: var(--text-muted); font-weight: 600; display: block; margin-bottom: 8px;">
                         Receipt Upload (PDF, PNG, JPG) <span style="color: #ef4444;">*</span>
                     </label>
@@ -134,11 +147,14 @@
 
 @section('scripts')
 <script>
-    function openApproveModal(expenseId, salesmanName, amount) {
+    function openApproveModal(expenseId, salesmanName, amount, rawAmount) {
         const form = document.getElementById('approveForm');
         form.action = `{{ url('/expenses') }}/${expenseId}/status`;
         document.getElementById('approveModalSalesman').innerText = salesmanName;
         document.getElementById('approveModalAmount').innerText = amount;
+        if (document.getElementById('approved_amount_input')) {
+            document.getElementById('approved_amount_input').value = rawAmount || '';
+        }
         document.getElementById('admin_receipt_input').value = '';
         const modal = document.getElementById('approveModal');
         modal.style.display = 'flex';

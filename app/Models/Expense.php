@@ -10,6 +10,7 @@ class Expense extends Model
         'salesman_id',
         'expense_category_id',
         'amount',
+        'approved_amount',
         'description',
         'receipt_photo_path',
         'admin_receipt_path',

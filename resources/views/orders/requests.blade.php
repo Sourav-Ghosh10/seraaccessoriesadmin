@@ -420,6 +420,12 @@
                                                 <i class="fas fa-check"></i> Create Order
                                             </a>
                                         @endif
+
+                                        @if($order->type == 'Call')
+                                            <button style="color: #f87171;" onclick="deleteOrderRequest({{ $order->id }}, '{{ addslashes($order->request_number) }}')">
+                                                <i class="fas fa-trash" style="color: #f87171;"></i> Delete
+                                            </button>
+                                        @endif
                                     </div>
                                 </div>
                             </td>
@@ -722,6 +728,31 @@
                 menu.classList.remove('show');
             });
         });
+
+        function deleteOrderRequest(id, reqNumber) {
+            if (!confirm('Are you sure you want to delete order request "' + reqNumber + '"?')) return;
+            
+            fetch(`${window.BASE_PATH}/order-requests/${id}`, {
+                method: 'DELETE',
+                headers: {
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Accept': 'application/json'
+                }
+            })
+            .then(r => r.json())
+            .then(result => {
+                if (result.success) {
+                    alert(result.message);
+                    location.reload();
+                } else {
+                    alert('Error: ' + (result.message || 'Could not delete order request'));
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                alert('An error occurred. Please try again.');
+            });
+        }
 
         function viewMemberDetails(name, email, mobile, code, role, address, shop, city, gst, discount, salesman, distributor) {
             document.getElementById('memberModalTitle').innerHTML = '<i class="fas fa-user-circle" style="color: var(--primary); font-size: 24px;"></i> <span>' + role + ' Details</span>';

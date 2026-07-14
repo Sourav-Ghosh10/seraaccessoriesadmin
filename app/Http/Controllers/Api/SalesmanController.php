@@ -1867,9 +1867,45 @@ class SalesmanController extends Controller
 
         $categories = ExpenseCategory::where('status', 'active')->get(['id', 'name']);
 
+        $allExpenses = Expense::where('salesman_id', $salesman->id)->get();
+        $total = $allExpenses->sum('amount');
+        $reimbursement = $allExpenses->where('status', 'Approved')->sum(function ($e) {
+            return $e->approved_amount ?? $e->amount;
+        });
+        $pending = $allExpenses->where('status', 'Pending')->sum('amount');
+
         return response()->json([
             'success' => true,
-            'data' => $categories
+            'data' => $categories,
+            'summary' => [
+                'total' => (float) $total,
+                'reimbursement' => (float) $reimbursement,
+                'pending' => (float) $pending,
+            ]
+        ]);
+    }
+
+    public function getExpenseSummary(Request $request): JsonResponse
+    {
+        $salesman = $request->user();
+        if (!$this->verifySalesman($salesman)) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized.'], 403);
+        }
+
+        $allExpenses = Expense::where('salesman_id', $salesman->id)->get();
+        $total = $allExpenses->sum('amount');
+        $reimbursement = $allExpenses->where('status', 'Approved')->sum(function ($e) {
+            return $e->approved_amount ?? $e->amount;
+        });
+        $pending = $allExpenses->where('status', 'Pending')->sum('amount');
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'total' => (float) $total,
+                'reimbursement' => (float) $reimbursement,
+                'pending' => (float) $pending,
+            ]
         ]);
     }
 
@@ -2002,6 +2038,13 @@ class SalesmanController extends Controller
             ];
         });
 
+        $allExpenses = Expense::where('salesman_id', $salesman->id)->get();
+        $total = $allExpenses->sum('amount');
+        $reimbursement = $allExpenses->where('status', 'Approved')->sum(function ($e) {
+            return $e->approved_amount ?? $e->amount;
+        });
+        $pending = $allExpenses->where('status', 'Pending')->sum('amount');
+
         return response()->json([
             'success' => true,
             'data' => $data,
@@ -2010,6 +2053,11 @@ class SalesmanController extends Controller
                 'last_page' => $expenses->lastPage(),
                 'per_page' => $expenses->perPage(),
                 'total' => $expenses->total(),
+            ],
+            'summary' => [
+                'total' => (float) $total,
+                'reimbursement' => (float) $reimbursement,
+                'pending' => (float) $pending,
             ]
         ]);
     }

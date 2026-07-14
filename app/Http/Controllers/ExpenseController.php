@@ -32,16 +32,25 @@ class ExpenseController extends Controller
 
         if ($request->status == 'Approved') {
             $rules['admin_receipt'] = 'required|file|mimes:pdf,png,jpg,jpeg|max:20480';
+            $rules['approved_amount'] = 'nullable|numeric|min:0';
         }
 
         $request->validate($rules);
 
-        if ($request->status == 'Approved' && $request->hasFile('admin_receipt')) {
-            $path = $request->file('admin_receipt')->store('expenses/admin_receipts', 'public');
-            $expense->admin_receipt_path = $path;
-            
-            if (!$expense->receipt_photo_path) {
-                $expense->receipt_photo_path = $path;
+        if ($request->status == 'Approved') {
+            if ($request->hasFile('admin_receipt')) {
+                $path = $request->file('admin_receipt')->store('expenses/admin_receipts', 'public');
+                $expense->admin_receipt_path = $path;
+                
+                if (!$expense->receipt_photo_path) {
+                    $expense->receipt_photo_path = $path;
+                }
+            }
+
+            if ($request->has('approved_amount') && $request->approved_amount !== null && $request->approved_amount !== '') {
+                $expense->approved_amount = $request->approved_amount;
+            } else {
+                $expense->approved_amount = $expense->amount;
             }
         }
 
