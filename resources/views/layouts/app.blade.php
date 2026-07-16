@@ -257,6 +257,63 @@
                         <h2 id="page-title">@yield('title', 'Dashboard')</h2>
                     </div>
                     <div class="header-right">
+                        @php
+                            $lastReadEstId = \App\Models\Setting::get('last_read_estimate_id', 0);
+                            $lastReadOrdId = \App\Models\Setting::get('last_read_order_id', 0);
+
+                            $headerPendingEstimates = \App\Models\Estimate::where('id', '>', $lastReadEstId)->where('status', 'Pending')->count();
+                            $headerPendingOrders = \App\Models\OrderRequest::where('id', '>', $lastReadOrdId)->where('status', 'Pending')->count();
+                            $headerTotalPending = $headerPendingEstimates + $headerPendingOrders;
+                        @endphp
+                        <div class="notification-container" style="position: relative; margin-right: 5px;">
+                            <div class="notification-bell" id="notifBellBtn" style="width: 40px; height: 40px; border-radius: 50%; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: center; cursor: pointer; position: relative; transition: all 0.3s ease;">
+                                <i class="fas fa-bell" style="font-size: 16px; color: var(--text-muted); transition: color 0.3s ease;"></i>
+                                <span id="notifTotalBadge" style="position: absolute; top: -4px; right: -4px; background: #ef4444; color: #fff; font-size: 10px; font-weight: 700; padding: 2px 5px; border-radius: 10px; display: {{ $headerTotalPending > 0 ? 'inline-block' : 'none' }}; border: 2px solid #0f172a;">
+                                    {{ $headerTotalPending }}
+                                </span>
+                            </div>
+
+                            <!-- Notification Dropdown Menu -->
+                            <div class="notification-dropdown-menu" id="notifDropdownMenu" style="display: none; position: absolute; right: 0; top: 48px; width: 330px; background: #0f172a; border: 1px solid var(--glass-border); border-radius: 16px; box-shadow: 0 15px 35px rgba(0,0,0,0.6); z-index: 10000; overflow: hidden; animation: fadeIn 0.2s ease;">
+                                <div style="padding: 12px 20px; border-bottom: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.02);">
+                                    <div>
+                                        <h4 style="margin: 0; font-size: 15px; font-weight: 600; color: #fff;">Notifications</h4>
+                                        <span id="notifSubtitle" style="font-size: 11px; color: var(--text-muted);">{{ $headerTotalPending }} New</span>
+                                    </div>
+                                    <button onclick="markAllNotificationsAsRead(event)" style="background: rgba(255,255,255,0.06); border: 1px solid var(--glass-border); color: var(--primary); padding: 5px 10px; border-radius: 8px; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s ease;">
+                                        <i class="fas fa-check-double"></i> Mark as read
+                                    </button>
+                                </div>
+                                <div style="max-height: 300px; overflow-y: auto; padding: 6px 0;">
+                                    <a href="{{ route('estimate-requests') }}" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; text-decoration: none; color: #fff; border-bottom: 1px solid rgba(255,255,255,0.03); transition: background 0.2s ease;" onmouseover="this.style.background='rgba(255,255,255,0.04)'" onmouseout="this.style.background='transparent'">
+                                        <div style="display: flex; align-items: center; gap: 12px;">
+                                            <div style="width: 36px; height: 36px; border-radius: 10px; background: rgba(234, 179, 8, 0.1); display: flex; align-items: center; justify-content: center; color: #eab308; font-size: 16px;">
+                                                <i class="fas fa-file-invoice-dollar"></i>
+                                            </div>
+                                            <div>
+                                                <div style="font-size: 14px; font-weight: 600; color: #fff;">Get Estimate Requests</div>
+                                                <div id="notifEstimatesSub" style="font-size: 12px; color: var(--text-muted);">{{ $headerPendingEstimates }} New Request(s)</div>
+                                            </div>
+                                        </div>
+                                        <span id="notifEstimatesBadge" class="badge badge-warning" style="font-size: 12px; font-weight: 700;">{{ $headerPendingEstimates }}</span>
+                                    </a>
+
+                                    <a href="{{ route('order-requests') }}" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; text-decoration: none; color: #fff; transition: background 0.2s ease;" onmouseover="this.style.background='rgba(255,255,255,0.04)'" onmouseout="this.style.background='transparent'">
+                                        <div style="display: flex; align-items: center; gap: 12px;">
+                                            <div style="width: 36px; height: 36px; border-radius: 10px; background: rgba(59, 130, 246, 0.1); display: flex; align-items: center; justify-content: center; color: #3b82f6; font-size: 16px;">
+                                                <i class="fas fa-shopping-bag"></i>
+                                            </div>
+                                            <div>
+                                                <div style="font-size: 14px; font-weight: 600; color: #fff;">Order Requests</div>
+                                                <div id="notifOrdersSub" style="font-size: 12px; color: var(--text-muted);">{{ $headerPendingOrders }} New Request(s)</div>
+                                            </div>
+                                        </div>
+                                        <span id="notifOrdersBadge" class="badge badge-primary" style="font-size: 12px; font-weight: 700;">{{ $headerPendingOrders }}</span>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="user-profile" id="userProfileDropdown">
                             <div class="avatar">
                                 <i class="fas fa-user"></i>
@@ -333,7 +390,52 @@
                     }
                 });
             }
+
+            // Notification Dropdown Toggle
+            const notifBellBtn = document.getElementById('notifBellBtn');
+            const notifDropdownMenu = document.getElementById('notifDropdownMenu');
+
+            if (notifBellBtn && notifDropdownMenu) {
+                notifBellBtn.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    const isShown = notifDropdownMenu.style.display === 'block';
+                    if (dropdownMenu) dropdownMenu.classList.remove('show');
+                    notifDropdownMenu.style.display = isShown ? 'none' : 'block';
+                });
+
+                document.addEventListener('click', function (e) {
+                    if (!notifBellBtn.contains(e.target) && !notifDropdownMenu.contains(e.target)) {
+                        notifDropdownMenu.style.display = 'none';
+                    }
+                });
+            }
         });
+
+        function markAllNotificationsAsRead(e) {
+            if (e) e.stopPropagation();
+            fetch(`${window.BASE_PATH}/api/mark-notifications-read`)
+                .then(r => r.json())
+                .then(res => {
+                    if (res.success) {
+                        const badgeEl = document.getElementById('notifTotalBadge');
+                        if (badgeEl) {
+                            badgeEl.innerText = '0';
+                            badgeEl.style.display = 'none';
+                        }
+                        const subEl = document.getElementById('notifSubtitle');
+                        if (subEl) subEl.innerText = '0 New';
+                        const estSubEl = document.getElementById('notifEstimatesSub');
+                        if (estSubEl) estSubEl.innerText = '0 New Request(s)';
+                        const estBadgeEl = document.getElementById('notifEstimatesBadge');
+                        if (estBadgeEl) estBadgeEl.innerText = '0';
+                        const ordSubEl = document.getElementById('notifOrdersSub');
+                        if (ordSubEl) ordSubEl.innerText = '0 New Request(s)';
+                        const ordBadgeEl = document.getElementById('notifOrdersBadge');
+                        if (ordBadgeEl) ordBadgeEl.innerText = '0';
+                    }
+                })
+                .catch(err => console.error('Error marking notifications read:', err));
+        }
     </script>
 
     <!-- Global AJAX Loader Script -->
@@ -432,6 +534,25 @@
                         lastOrderId = data.max_order_id;
                     }
                     
+                    if (data.pending_estimates_count !== undefined && data.pending_orders_count !== undefined) {
+                        const totalPending = (parseInt(data.pending_estimates_count) || 0) + (parseInt(data.pending_orders_count) || 0);
+                        const badgeEl = document.getElementById('notifTotalBadge');
+                        if (badgeEl) {
+                            badgeEl.innerText = totalPending;
+                            badgeEl.style.display = totalPending > 0 ? 'inline-block' : 'none';
+                        }
+                        const subEl = document.getElementById('notifSubtitle');
+                        if (subEl) subEl.innerText = totalPending + ' New';
+                        const estSubEl = document.getElementById('notifEstimatesSub');
+                        if (estSubEl) estSubEl.innerText = data.pending_estimates_count + ' New Request(s)';
+                        const estBadgeEl = document.getElementById('notifEstimatesBadge');
+                        if (estBadgeEl) estBadgeEl.innerText = data.pending_estimates_count;
+                        const ordSubEl = document.getElementById('notifOrdersSub');
+                        if (ordSubEl) ordSubEl.innerText = data.pending_orders_count + ' New Request(s)';
+                        const ordBadgeEl = document.getElementById('notifOrdersBadge');
+                        if (ordBadgeEl) ordBadgeEl.innerText = data.pending_orders_count;
+                    }
+
                     if (showPopup) {
                         document.getElementById('newDataMessage').innerText = message;
                         document.getElementById('newDataRefreshBtn').onclick = function() {

@@ -1198,12 +1198,30 @@ class PageController extends Controller
         $maxEstimateId = \App\Models\Estimate::max('id') ?? 0;
         $maxOrderId = \App\Models\OrderRequest::max('id') ?? 0;
 
+        $lastReadEstId = \App\Models\Setting::get('last_read_estimate_id', 0);
+        $lastReadOrdId = \App\Models\Setting::get('last_read_order_id', 0);
+
+        $pendingEstimatesCount = \App\Models\Estimate::where('id', '>', $lastReadEstId)->where('status', 'Pending')->count();
+        $pendingOrdersCount = \App\Models\OrderRequest::where('id', '>', $lastReadOrdId)->where('status', 'Pending')->count();
+
         return response()->json([
             'new_estimates' => $newEstimates,
             'new_orders' => $newOrders,
             'max_estimate_id' => $maxEstimateId,
             'max_order_id' => $maxOrderId,
+            'pending_estimates_count' => $pendingEstimatesCount,
+            'pending_orders_count' => $pendingOrdersCount,
         ]);
+    }
+
+    public function markNotificationsRead(Request $request) {
+        $maxEstimateId = \App\Models\Estimate::max('id') ?? 0;
+        $maxOrderId = \App\Models\OrderRequest::max('id') ?? 0;
+
+        \App\Models\Setting::set('last_read_estimate_id', $maxEstimateId);
+        \App\Models\Setting::set('last_read_order_id', $maxOrderId);
+
+        return response()->json(['success' => true]);
     }
 
     public function deleteProcessedRequests(Request $request) {

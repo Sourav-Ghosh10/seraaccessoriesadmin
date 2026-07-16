@@ -15,6 +15,7 @@ use App\Models\SalesmanVisit;
 use App\Models\SalesmanLocationLog;
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
+use App\Models\Reimbursement;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -169,7 +170,7 @@ class SalesmanController extends Controller
                 'status' => $dealer->status,
                 'distributor_name' => $dealer->distributor ? $dealer->distributor->name : null,
                 'points_balance' => (int) $dealer->points_balance,
-                'total_orders' => (int) ($dealer->orders_count ?? 0) + (int) ($dealer->order_requests_count ?? 0) + (int) ($dealer->estimates_count ?? 0),
+                'total_orders' => (int) ($dealer->orders_count ?? 0),
                 'created_at' => $dealer->created_at,
             ];
         });
@@ -1869,10 +1870,11 @@ class SalesmanController extends Controller
 
         $allExpenses = Expense::where('salesman_id', $salesman->id)->get();
         $total = $allExpenses->sum('amount');
-        $reimbursement = $allExpenses->where('status', 'Approved')->sum(function ($e) {
+        $approvedExpensesSum = $allExpenses->where('status', 'Approved')->sum(function ($e) {
             return $e->approved_amount ?? $e->amount;
         });
-        $pending = $allExpenses->where('status', 'Pending')->sum('amount');
+        $reimbursement = Reimbursement::where('salesman_id', $salesman->id)->sum('amount');
+        $pending = $approvedExpensesSum - $reimbursement;
 
         return response()->json([
             'success' => true,
@@ -1894,10 +1896,11 @@ class SalesmanController extends Controller
 
         $allExpenses = Expense::where('salesman_id', $salesman->id)->get();
         $total = $allExpenses->sum('amount');
-        $reimbursement = $allExpenses->where('status', 'Approved')->sum(function ($e) {
+        $approvedExpensesSum = $allExpenses->where('status', 'Approved')->sum(function ($e) {
             return $e->approved_amount ?? $e->amount;
         });
-        $pending = $allExpenses->where('status', 'Pending')->sum('amount');
+        $reimbursement = Reimbursement::where('salesman_id', $salesman->id)->sum('amount');
+        $pending = $approvedExpensesSum - $reimbursement;
 
         return response()->json([
             'success' => true,
@@ -2018,41 +2021,69 @@ class SalesmanController extends Controller
             return response()->json(['success' => false, 'message' => 'Unauthorized.'], 403);
         }
 
+        $page = (int) $request->query('page', 1);
         $perPage = (int) $request->query('per_page', 15);
 
-        $expenses = Expense::where('salesman_id', $salesman->id)
+        $expensesList = Expense::where('salesman_id', $salesman->id)
             ->with('category')
-            ->orderBy('created_at', 'desc')
-            ->paginate($perPage);
+            ->get()
+            ->map(function ($expense) {
+                return [
+                    'id' => $expense->id,
+                    'type' => 'expense',
+                    'category' => $expense->category ? $expense->category->name : 'Unknown',
+                    'amount' => (float) $expense->amount,
+                    'description' => $expense->description,
+                    'receipt_photo_url' => $expense->receipt_photo_path ? asset('uploads/' . $expense->receipt_photo_path) : null,
+                    'status' => $expense->status,
+                    'date' => $expense->created_at->format('d M, Y h:i A'),
+                    'timestamp' => $expense->created_at->timestamp,
+                ];
+            });
 
-        $data = collect($expenses->items())->map(function ($expense) {
-            return [
-                'id' => $expense->id,
-                'category' => $expense->category ? $expense->category->name : 'Unknown',
-                'amount' => (float) $expense->amount,
-                'description' => $expense->description,
-                'receipt_photo_url' => $expense->receipt_photo_path ? asset('uploads/' . $expense->receipt_photo_path) : null,
-                'admin_receipt_url' => $expense->admin_receipt_path ? asset('uploads/' . $expense->admin_receipt_path) : null,
-                'status' => $expense->status,
-                'date' => $expense->created_at->format('d M, Y h:i A'),
-            ];
+        $reimbursementsList = Reimbursement::where('salesman_id', $salesman->id)
+            ->get()
+            ->map(function ($reimb) {
+                return [
+                    'id' => $reimb->id,
+                    'type' => 'reimbursement',
+                    'category' => 'Reimbursement',
+                    'amount' => (float) $reimb->amount,
+                    'description' => $reimb->description,
+                    'receipt_photo_url' => $reimb->document_path ? asset('uploads/' . $reimb->document_path) : null,
+                    'status' => $reimb->status,
+                    'date' => $reimb->created_at->format('d M, Y h:i A'),
+                    'timestamp' => $reimb->created_at->timestamp,
+                ];
+            });
+
+        $merged = $expensesList->concat($reimbursementsList)
+            ->sortByDesc('timestamp')
+            ->values();
+
+        $totalRecords = $merged->count();
+        $lastPage = max(1, (int) ceil($totalRecords / $perPage));
+        $paginatedData = $merged->forPage($page, $perPage)->values()->map(function ($item) {
+            unset($item['timestamp']);
+            return $item;
         });
 
         $allExpenses = Expense::where('salesman_id', $salesman->id)->get();
         $total = $allExpenses->sum('amount');
-        $reimbursement = $allExpenses->where('status', 'Approved')->sum(function ($e) {
+        $approvedExpensesSum = $allExpenses->where('status', 'Approved')->sum(function ($e) {
             return $e->approved_amount ?? $e->amount;
         });
-        $pending = $allExpenses->where('status', 'Pending')->sum('amount');
+        $reimbursement = Reimbursement::where('salesman_id', $salesman->id)->sum('amount');
+        $pending = $approvedExpensesSum - $reimbursement;
 
         return response()->json([
             'success' => true,
-            'data' => $data,
+            'data' => $paginatedData,
             'meta' => [
-                'current_page' => $expenses->currentPage(),
-                'last_page' => $expenses->lastPage(),
-                'per_page' => $expenses->perPage(),
-                'total' => $expenses->total(),
+                'current_page' => $page,
+                'last_page' => $lastPage,
+                'per_page' => $perPage,
+                'total' => $totalRecords,
             ],
             'summary' => [
                 'total' => (float) $total,

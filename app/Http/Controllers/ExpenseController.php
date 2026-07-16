@@ -12,14 +12,53 @@ class ExpenseController extends Controller
     {
         $query = Expense::with(['salesman', 'category']);
 
-        // Filter by status if provided
-        if ($request->has('status') && $request->status != '') {
-            $query->where('status', $request->status);
+        if ($request->tab != 'reimbursements') {
+            if ($request->has('salesman_id') && $request->salesman_id != '') {
+                $query->where('salesman_id', $request->salesman_id);
+            }
+            if ($request->has('status') && $request->status != '') {
+                $query->where('status', $request->status);
+            }
         }
 
         $expenses = $query->orderBy('created_at', 'desc')->get();
+        $salesmen = \App\Models\Member::where('role', 'salesman')->orderBy('name')->get();
+        $categories = \App\Models\ExpenseCategory::orderBy('name')->get();
 
-        return view('expenses.index', compact('expenses'));
+        $reimbQuery = \App\Models\Reimbursement::with('salesman');
+        $reimbSalesmanId = $request->reimb_salesman_id ?? ($request->tab == 'reimbursements' ? $request->salesman_id : null);
+
+        if ($reimbSalesmanId != '') {
+            $reimbQuery->where('salesman_id', $reimbSalesmanId);
+        }
+        $reimbursements = $reimbQuery->orderBy('created_at', 'desc')->get();
+
+        return view('expenses.index', compact('expenses', 'salesmen', 'categories', 'reimbursements'));
+    }
+
+    public function store(Request $request)
+    {
+        $request->validate([
+            'salesman_id' => 'required|exists:members,id',
+            'amount' => 'required|numeric|min:0.01',
+            'document' => 'nullable|file|mimes:pdf,png,jpg,jpeg|max:20480',
+            'description' => 'nullable|string|max:1000',
+        ]);
+
+        $photoPath = null;
+        if ($request->hasFile('document')) {
+            $photoPath = $request->file('document')->store('reimbursements', 'public');
+        }
+
+        \App\Models\Reimbursement::create([
+            'salesman_id' => $request->salesman_id,
+            'amount' => $request->amount,
+            'description' => $request->description ?: 'Reimbursement',
+            'document_path' => $photoPath,
+            'status' => 'Approved',
+        ]);
+
+        return redirect()->route('expenses.index', ['tab' => 'reimbursements'])->with('success', 'Reimbursement added successfully.');
     }
 
     public function updateStatus(Request $request, $id)
@@ -28,12 +67,9 @@ class ExpenseController extends Controller
         
         $rules = [
             'status' => 'required|in:Pending,Approved,Rejected',
+            'admin_receipt' => 'nullable|file|mimes:pdf,png,jpg,jpeg|max:20480',
+            'approved_amount' => 'nullable|numeric|min:0',
         ];
-
-        if ($request->status == 'Approved') {
-            $rules['admin_receipt'] = 'required|file|mimes:pdf,png,jpg,jpeg|max:20480';
-            $rules['approved_amount'] = 'nullable|numeric|min:0';
-        }
 
         $request->validate($rules);
 
@@ -47,10 +83,12 @@ class ExpenseController extends Controller
                 }
             }
 
-            if ($request->has('approved_amount') && $request->approved_amount !== null && $request->approved_amount !== '') {
-                $expense->approved_amount = $request->approved_amount;
-            } else {
-                $expense->approved_amount = $expense->amount;
+            if (\Illuminate\Support\Facades\Schema::hasColumn('expenses', 'approved_amount')) {
+                if ($request->has('approved_amount') && $request->approved_amount !== null && $request->approved_amount !== '') {
+                    $expense->approved_amount = $request->approved_amount;
+                } else {
+                    $expense->approved_amount = $expense->amount;
+                }
             }
         }
 

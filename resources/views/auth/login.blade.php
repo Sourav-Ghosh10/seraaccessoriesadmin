@@ -44,12 +44,7 @@
                 </button>
             </form>
 
-            <div style="margin-top: 30px; text-align: center; font-size: 13px; color: var(--text-muted);">
-                Demo Roles:
-                <span style="color: var(--primary); cursor: pointer;">Admin</span> •
-                <span style="color: var(--primary); cursor: pointer;">Operations</span> •
-                <span style="color: var(--primary); cursor: pointer;">Account</span>
-            </div>
+            
         </div>
     </div>
 @endsection

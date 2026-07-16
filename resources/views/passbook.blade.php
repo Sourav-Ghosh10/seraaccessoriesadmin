@@ -73,7 +73,7 @@
                 @endphp
                 <tr>
                     <td>
-                        <a href="javascript:void(0)" onclick="viewMemberDetails('{{ addslashes($dealer->name) }}', '{{ addslashes($dealer->email) }}', '{{ addslashes($dealer->mobile) }}', '{{ addslashes($dealer->ref_code ?? '') }}', '{{ ucfirst($dealer->role) }}', '{{ addslashes(preg_replace('/\r|\n/', ' ', $dealer->address ?? '')) }}', '{{ addslashes($dealer->shop ?? '') }}', '{{ addslashes($dealer->city->city ?? '') }}', '{{ addslashes($dealer->gst_no ?? '') }}', '{{ $dealer->discount_percent ?? '' }}', '{{ addslashes($dealer->salesman->name ?? '') }}', '{{ addslashes($distributorName) }}')" style="font-weight: 600; color: #3b82f6; text-decoration: none; border-bottom: 1px dashed rgba(59, 130, 246, 0.3);">
+                        <a href="javascript:void(0)" data-name="{{ $dealer->name }}" data-email="{{ $dealer->email }}" data-mobile="{{ $dealer->mobile }}" data-code="{{ $dealer->ref_code ?? '' }}" data-role="{{ ucfirst($dealer->role) }}" data-address="{{ preg_replace('/\r|\n/', ' ', $dealer->address ?? '') }}" data-shop="{{ $dealer->shop ?? '' }}" data-city="{{ $dealer->city->city ?? '' }}" data-gst="{{ $dealer->gst_no ?? '' }}" data-discount="{{ $dealer->discount_percent ?? '' }}" data-salesman="{{ $dealer->salesman->name ?? '' }}" data-distributor="{{ $distributorName }}" onclick="viewMemberDetailsFromElement(this)" style="font-weight: 600; color: #3b82f6; text-decoration: none; border-bottom: 1px dashed rgba(59, 130, 246, 0.3);">
                             {{ $dealer->shop ?? $dealer->name }}
                         </a>
                         <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">{{ $dealer->city->city ?? '' }}</div>
@@ -83,10 +83,10 @@
                     <td style="color: {{ $due > 0 ? 'var(--accent)' : 'var(--success)' }}; font-weight: 700;">₹ {{ number_format($due, 2) }}</td>
                     <td>
                         <div style="display: flex; gap: 8px;">
-                            <button class="btn glass" onclick="viewTransactions('{{ $dealer->shop ?? $dealer->name }}')" title="View Full Ledger">
+                            <button class="btn glass" data-dealer="{{ $dealer->shop ?? $dealer->name }}" onclick="viewTransactions(this.getAttribute('data-dealer'))" title="View Full Ledger">
                                 <i class="fas fa-list-alt" style="color: var(--primary);"></i>
                             </button>
-                            <button class="btn glass" onclick="editBalance({{ $dealer->id }}, '{{ $dealer->shop ?? $dealer->name }}', {{ $total }}, {{ $paid }}, {{ $due }})" title="Quick Adjustment">
+                            <button class="btn glass" data-id="{{ $dealer->id }}" data-dealer="{{ $dealer->shop ?? $dealer->name }}" data-total="{{ $total }}" data-paid="{{ $paid }}" data-due="{{ $due }}" onclick="editBalance(this.getAttribute('data-id'), this.getAttribute('data-dealer'), this.getAttribute('data-total'), this.getAttribute('data-paid'), this.getAttribute('data-due'))" title="Quick Adjustment">
                                 <i class="fas fa-edit" style="color: #fbbf24;"></i>
                             </button>
                         </div>
@@ -425,6 +425,23 @@
             saveBtn.disabled = false;
             saveBtn.innerHTML = originalText;
         });
+    }
+
+    function viewMemberDetailsFromElement(el) {
+        viewMemberDetails(
+            el.getAttribute('data-name'),
+            el.getAttribute('data-email'),
+            el.getAttribute('data-mobile'),
+            el.getAttribute('data-code'),
+            el.getAttribute('data-role'),
+            el.getAttribute('data-address'),
+            el.getAttribute('data-shop'),
+            el.getAttribute('data-city'),
+            el.getAttribute('data-gst'),
+            el.getAttribute('data-discount'),
+            el.getAttribute('data-salesman'),
+            el.getAttribute('data-distributor')
+        );
     }
 
     function viewMemberDetails(name, email, mobile, code, role, address, shop, city, gst, discount, salesman, distributor) {

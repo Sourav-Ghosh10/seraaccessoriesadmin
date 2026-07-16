@@ -158,8 +158,10 @@
 <script>
     // Live database serialized transactions
     const transactions = @json($transactions);
+    let currentRenderedTxns = [];
 
     function renderTransactions(data = transactions) {
+        currentRenderedTxns = data;
         const body = document.getElementById('transactionBody');
         let html = '';
 
@@ -175,23 +177,11 @@
             else if (t.type === 'Credit Note') typeClass = 'txn-type-credit';
             else typeClass = 'txn-type-adjustment';
 
-            const m = t.member_details || {};
-            const mName = (m.name || '').replace(/'/g, "\\'");
-            const mEmail = (m.email || '').replace(/'/g, "\\'");
-            const mMobile = (m.mobile || '').replace(/'/g, "\\'");
-            const mCode = (m.code || '').replace(/'/g, "\\'");
-            const mAddress = (m.address || '').replace(/'/g, "\\'");
-            const mShop = (m.shop || '').replace(/'/g, "\\'");
-            const mCity = (m.city || '').replace(/'/g, "\\'");
-            const mGst = (m.gst || '').replace(/'/g, "\\'");
-            const mSalesman = (m.salesman || '').replace(/'/g, "\\'");
-            const mDistributor = (m.distributor || '').replace(/'/g, "\\'");
-
             html += `
                 <tr class="animate-fade">
                     <td style="color: var(--text-muted); font-size: 13px;">${t.date}</td>
                     <td style="font-weight: 600;">
-                        <a href="javascript:void(0)" onclick="viewMemberDetails('${mName}', '${mEmail}', '${mMobile}', '${mCode}', 'Dealer', '${mAddress}', '${mShop}', '${mCity}', '${mGst}', '${m.discount || ''}', '${mSalesman}', '${mDistributor}')" style="color: #3b82f6; text-decoration: none; border-bottom: 1px dashed rgba(59, 130, 246, 0.3);">
+                        <a href="javascript:void(0)" data-txn-index="${index}" onclick="viewMemberDetailsFromTxn(this.getAttribute('data-txn-index'))" style="color: #3b82f6; text-decoration: none; border-bottom: 1px dashed rgba(59, 130, 246, 0.3);">
                             ${t.dealer}
                         </a>
                     </td>
@@ -233,6 +223,13 @@
         document.getElementById('userFilter').value = 'all';
         document.getElementById('typeFilter').value = 'all';
         renderTransactions();
+    }
+
+    function viewMemberDetailsFromTxn(index) {
+        const t = currentRenderedTxns[index];
+        if (!t) return;
+        const m = t.member_details || {};
+        viewMemberDetails(m.name, m.email, m.mobile, m.code, 'Dealer', m.address, m.shop, m.city, m.gst, m.discount, m.salesman, m.distributor);
     }
 
     function viewMemberDetails(name, email, mobile, code, role, address, shop, city, gst, discount, salesman, distributor) {
