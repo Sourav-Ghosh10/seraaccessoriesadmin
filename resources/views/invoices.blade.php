@@ -580,6 +580,16 @@
 
                     <div class="form-group" style="margin-bottom: 20px;">
                         <label class="form-label"
+                            style="color: var(--text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; display: flex; justify-content: space-between; align-items: center;">
+                            <span>Add Amount (₹)</span>
+                            <span style="font-size: 11px; color: #f87171; text-transform: none; font-weight: normal;">(This amount will be deducted from the passbook amount)</span>
+                        </label>
+                        <input type="number" id="cnAmount" class="form-control" placeholder="Enter amount..." min="0" step="0.01"
+                            style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1); color: #fff;">
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label class="form-label"
                             style="color: var(--text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Credit Note <span style="color: #ef4444;">*</span></label>
                         <textarea id="cnNote" class="form-control" placeholder="Enter notes/remarks..."
                             style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1); height: 90px; color: #fff; width: 100%; border-radius: 6px; padding: 10px; resize: vertical;" required></textarea>
@@ -588,26 +598,26 @@
                     <!-- Dealer Document -->
                     <div id="cnDealerDocGroup" class="form-group" style="margin-bottom: 16px;">
                         <label class="form-label" style="color: var(--text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">
-                            <i class="fas fa-user" style="color: #ef4444; margin-right: 5px;"></i> Dealer Document (PDF/Image) <span style="color: #ef4444;">*</span>
+                            <i class="fas fa-user" style="color: #ef4444; margin-right: 5px;"></i> Dealer Document (PDF/Image)
                         </label>
                         <div style="border: 2px dashed rgba(239,68,68,0.3); border-radius: 12px; padding: 20px; text-align: center; background: rgba(239,68,68,0.03); cursor: pointer;"
                             onclick="document.getElementById('dealerFile').click()">
                             <i class="fas fa-cloud-upload-alt" style="font-size: 24px; color: #ef4444; margin-bottom: 8px;"></i>
                             <p id="dealerFileNameDisplay" style="margin: 0; font-size: 13px; color: #cbd5e1;">Click to browse dealer credit note</p>
-                            <input type="file" id="dealerFile" style="display: none;" accept=".pdf,.jpg,.png" required onchange="updateDealerFileName(this)">
+                            <input type="file" id="dealerFile" style="display: none;" accept=".pdf,.jpg,.png" onchange="updateDealerFileName(this)">
                         </div>
                     </div>
 
                     <!-- Distributor Document -->
                     <div id="cnDistributorDocGroup" class="form-group" style="margin-bottom: 30px;">
                         <label class="form-label" style="color: var(--text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">
-                            <i class="fas fa-truck" style="color: #f59e0b; margin-right: 5px;"></i> Distributor Document (PDF/Image) <span style="color: #ef4444;">*</span>
+                            <i class="fas fa-truck" style="color: #f59e0b; margin-right: 5px;"></i> Distributor Document (PDF/Image)
                         </label>
                         <div style="border: 2px dashed rgba(245,158,11,0.3); border-radius: 12px; padding: 20px; text-align: center; background: rgba(245,158,11,0.03); cursor: pointer;"
                             onclick="document.getElementById('distributorFile').click()">
                             <i class="fas fa-cloud-upload-alt" style="font-size: 24px; color: #f59e0b; margin-bottom: 8px;"></i>
                             <p id="distributorFileNameDisplay" style="margin: 0; font-size: 13px; color: #cbd5e1;">Click to browse distributor credit note</p>
-                            <input type="file" id="distributorFile" style="display: none;" accept=".pdf,.jpg,.png" required onchange="updateDistributorFileName(this)">
+                            <input type="file" id="distributorFile" style="display: none;" accept=".pdf,.jpg,.png" onchange="updateDistributorFileName(this)">
                         </div>
                     </div>
 
@@ -1142,21 +1152,18 @@
                 return;
             }
 
-            if (!dealerFile) {
-                alert('Please upload the Dealer Document (PDF/Image).');
-                return;
-            }
-
-            if (!distributorFile) {
-                alert('Please upload the Distributor Document (PDF/Image).');
+            if (!dealerFile && !distributorFile) {
+                alert('Please upload at least one document (Dealer or Distributor).');
                 return;
             }
 
             const formData = new FormData();
             formData.append('order_id', document.getElementById('cnOrderId').value);
             formData.append('note', noteVal);
-            formData.append('dealer_file', dealerFile);
-            formData.append('distributor_file', distributorFile);
+            const cnAmountVal = document.getElementById('cnAmount') ? document.getElementById('cnAmount').value : '';
+            if (cnAmountVal) formData.append('amount', cnAmountVal);
+            if (dealerFile) formData.append('dealer_file', dealerFile);
+            if (distributorFile) formData.append('distributor_file', distributorFile);
             formData.append('_token', '{{ csrf_token() }}');
 
             submitBtn.disabled = true;

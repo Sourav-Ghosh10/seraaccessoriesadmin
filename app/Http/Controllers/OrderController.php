@@ -488,12 +488,13 @@ class OrderController extends Controller
         $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
             'order_id' => 'required|exists:orders,id',
             'note' => 'required|string|max:5000',
-            'dealer_file' => 'required|file|mimes:pdf,jpg,png|max:2048',
-            'distributor_file' => 'required|file|mimes:pdf,jpg,png|max:2048',
+            'amount' => 'nullable|numeric|min:0',
+            'dealer_file' => 'nullable|file|mimes:pdf,jpg,png|max:2048',
+            'distributor_file' => 'nullable|file|mimes:pdf,jpg,png|max:2048',
         ], [
             'note.required' => 'Please enter credit notes/remarks.',
-            'dealer_file.required' => 'Please upload the Dealer Document (PDF/Image).',
-            'distributor_file.required' => 'Please upload the Distributor Document (PDF/Image).'
+            'dealer_file.mimes' => 'Dealer Document must be a PDF or Image (JPG/PNG).',
+            'distributor_file.mimes' => 'Distributor Document must be a PDF or Image (JPG/PNG).'
         ]);
 
         if ($validator->fails()) {
@@ -503,9 +504,18 @@ class OrderController extends Controller
             ]);
         }
 
+        if (!$request->hasFile('dealer_file') && !$request->hasFile('distributor_file')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Please upload at least one document (Dealer or Distributor).'
+            ]);
+        }
+
         $validated = $validator->validated();
 
         $order = Order::findOrFail($validated['order_id']);
+
+        $amount = $request->has('amount') && is_numeric($request->amount) ? (float) $request->amount : 0.00;
 
         // Auto-generate unique credit note number
         $lastCN = \App\Models\CreditNote::orderBy('id', 'desc')->first();

@@ -55,6 +55,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/salesman-attendance/{id}', [PageController::class, 'salesmanAttendanceDetails'])->name('salesman.attendance.details');
 
         Route::get('/expenses', [\App\Http\Controllers\ExpenseController::class, 'index'])->name('expenses.index');
+        Route::post('/expenses', [\App\Http\Controllers\ExpenseController::class, 'store'])->name('expenses.store');
         Route::patch('/expenses/{id}/status', [\App\Http\Controllers\ExpenseController::class, 'updateStatus'])->name('expenses.status.update');
 
         Route::get('/distributors', [PageController::class, 'distributors'])->name('distributors');
@@ -139,6 +140,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/price-list/upload', [PriceListController::class, 'upload'])->name('price-list.upload');
 
         Route::get('/api/check-new-requests', [PageController::class, 'checkNewRequests'])->name('check.new.requests');
+        Route::get('/api/mark-notifications-read', [PageController::class, 'markNotificationsRead'])->name('mark.notifications.read');
         Route::get('/api/dependent-members', [PageController::class, 'dependentMembers'])->name('api.dependent-members');
     });
 });
