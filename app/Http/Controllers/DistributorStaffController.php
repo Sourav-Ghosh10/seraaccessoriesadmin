@@ -17,6 +17,7 @@ class DistributorStaffController extends Controller
             'password' => 'required|string|min:6',
             'status' => 'required|string',
             'dist_id' => 'required|string|max:6', // To link to distributor
+            'city_id' => 'required|exists:cities,id',
         ]);
 
         $validated['password'] = Hash::make($validated['password']);
@@ -36,6 +37,7 @@ class DistributorStaffController extends Controller
             'email' => 'required|email|unique:members,email,' . $id,
             'phone' => 'required|string|max:15',
             'status' => 'required|string',
+            'city_id' => 'required|exists:cities,id',
         ]);
 
         if ($request->filled('password')) {

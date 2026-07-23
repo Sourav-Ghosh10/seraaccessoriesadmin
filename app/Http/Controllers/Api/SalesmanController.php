@@ -499,13 +499,27 @@ class SalesmanController extends Controller
             $orders = Order::whereIn('member_id', $dealerIds)
                 ->with(['member', 'invoice', 'items', 'creditNote', 'delivery'])
                 ->when($tab === 'Order Placed', function ($query) {
-                    return $query->where('status', '!=', 'Delivered');
+                    return $query->where('status', '!=', 'Delivered')
+                                 ->where(function ($q) {
+                                     $q->whereNull('received_at')
+                                       ->orWhere('status', '!=', 'Invoiced');
+                                 });
                 })
                 ->when($tab === 'Confirmed', function ($query) {
-                    return $query->whereNotIn('status', ['Delivered', 'Cancelled']);
+                    return $query->whereNotIn('status', ['Delivered', 'Cancelled'])
+                                 ->where(function ($q) {
+                                     $q->whereNull('received_at')
+                                       ->orWhere('status', '!=', 'Invoiced');
+                                 });
                 })
                 ->when($tab === 'Delivered', function ($query) {
-                    return $query->where('status', 'Delivered');
+                    return $query->where(function ($q) {
+                        $q->where('status', 'Delivered')
+                          ->orWhere(function ($sq) {
+                              $sq->where('status', 'Invoiced')
+                                 ->whereNotNull('received_at');
+                          });
+                    });
                 })
                 ->when($search, function ($query) use ($search) {
                     return $query->where(function ($q) use ($search) {
@@ -1406,6 +1420,7 @@ class SalesmanController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Clocked in successfully',
+            'ping_interval_seconds' => 5,
             'data' => [
                 'clock_in_time' => $now->toIso8601String(),
             ]
@@ -1818,15 +1833,29 @@ class SalesmanController extends Controller
         $request->validate([
             'latitude' => 'required|numeric',
             'longitude' => 'required|numeric',
-            'timestamp' => 'required|date',
+            'timestamp' => 'nullable|date', // Optional — server uses Carbon::now() instead
             'battery_level' => 'nullable|integer|min:0|max:100',
         ]);
 
+        // Resolve today's open attendance record for this salesman
+        $today = Carbon::today()->format('Y-m-d');
+        $attendance = SalesmanAttendance::where('member_id', $salesman->id)
+            ->where('date', $today)
+            ->whereNull('clock_out_time')
+            ->first();
+
+        if (!$attendance) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No active clock-in session found. Please clock in first.',
+            ], 400);
+        }
+
         SalesmanLocationLog::create([
-            'salesman_id' => $salesman->id,
+            'attendance_id' => $attendance->id,
             'latitude' => $request->input('latitude'),
             'longitude' => $request->input('longitude'),
-            'timestamp' => Carbon::parse($request->input('timestamp')),
+            'timestamp' => Carbon::now(), // Use server time (IST) — app sends UTC which causes a 5:30h offset
             'battery_level' => $request->input('battery_level'),
         ]);
 

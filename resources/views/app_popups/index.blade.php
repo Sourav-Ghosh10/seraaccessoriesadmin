@@ -70,27 +70,6 @@ input:checked + .slider:before { transform: translateX(16px); background-color: 
         </div>
     @endif
 
-    {{-- Filters and Search Bar --}}
-    <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 16px; margin-bottom: 25px; display: flex; gap: 15px; align-items: center; flex-wrap: wrap; justify-content: space-between;">
-        <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
-            <div style="position: relative;">
-                <i class="fas fa-search" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 13px;"></i>
-                <input type="text" id="searchInput" class="search-input" placeholder="Search by ID..." oninput="debounceSearch()">
-            </div>
-
-            <select id="statusFilter" class="filter-select" onchange="filterPopups()">
-                <option value="all">All Statuses</option>
-                <option value="1">Active (On)</option>
-                <option value="0">Inactive (Off)</option>
-            </select>
-        </div>
-
-        <div>
-            <button type="button" onclick="resetFilters()" class="btn glass" style="padding: 8px 16px; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; color: var(--text-muted);">
-                <i class="fas fa-redo-alt"></i> Reset Filters
-            </button>
-        </div>
-    </div>
 
     {{-- Table --}}
     <div class="table-container" style="position: relative; min-height: 200px;">

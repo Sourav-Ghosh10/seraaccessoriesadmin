@@ -10,7 +10,7 @@ class SalesmanLocationLog extends Model
     use HasFactory;
 
     protected $fillable = [
-        'salesman_id',
+        'attendance_id',
         'latitude',
         'longitude',
         'timestamp',
@@ -21,8 +21,8 @@ class SalesmanLocationLog extends Model
         'timestamp' => 'datetime',
     ];
 
-    public function salesman()
+    public function attendance()
     {
-        return $this->belongsTo(Member::class, 'salesman_id');
+        return $this->belongsTo(SalesmanAttendance::class, 'attendance_id');
     }
 }
