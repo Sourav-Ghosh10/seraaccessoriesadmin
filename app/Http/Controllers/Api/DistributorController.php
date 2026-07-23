@@ -154,16 +154,17 @@ class DistributorController extends Controller
         ->where('id', '!=', $distributorId)
         ->pluck('id');
 
-        // Statuses that are "confirmed or beyond" — pre-confirmed states are excluded.
-        // Pre-confirmed means: 'Order Placed', 'Pending', null/empty
-        $confirmedStatuses = ['Confirmed', 'Out for Delivery', 'Dispatched', 'Delivered', 'Returned'];
+        // Only show orders that have been confirmed or are in a later stage
+        $confirmedStatuses = ['Confirmed', 'Out for Delivery', 'Dispatched', 'Delivered', 'Returned', 'Invoiced'];
 
         $orders = Order::where(function ($q) use ($distributorId, $dealerIds) {
             $q->where('distributor_id', $distributorId)
-              ->orWhereIn('member_id', $dealerIds);
+              ->orWhere(function ($sq) use ($dealerIds) {
+                  $sq->whereIn('member_id', $dealerIds)
+                     ->whereNull('distributor_id');
+              });
         })
         ->where('member_id', '!=', $distributorId)
-        // Only show orders that have been confirmed or are in a later stage
         ->whereIn('status', $confirmedStatuses)
         ->with(['member', 'delivery', 'invoice', 'items', 'creditNote'])
         ->when($tab && $tab !== 'All', function ($query) use ($tab) {
@@ -175,7 +176,13 @@ class DistributorController extends Controller
                 return $query->whereHas('delivery');
             }
             if ($tab === 'Delivered') {
-                return $query->where('status', 'Delivered');
+                return $query->where(function ($q) {
+                    $q->where('status', 'Delivered')
+                      ->orWhere(function ($sq) {
+                          $sq->where('status', 'Invoiced')
+                             ->whereNotNull('received_at');
+                      });
+                });
             }
             if ($tab === 'Returned') {
                 return $query->where('status', 'Returned');
@@ -380,8 +387,21 @@ class DistributorController extends Controller
         }
 
         $distributorId = $this->getDistributorId($distributor);
+        $dealerIds = Member::where(function ($q) use ($distributor, $distributorId) {
+            $q->where('dist_id', $distributor->dist_id ?: $distributorId)
+              ->orWhere('dist_id', $distributorId);
+        })
+        ->where('id', '!=', $distributorId)
+        ->pluck('id');
+
         $num = intval(preg_replace('/^.*-(\d+)$/', '$1', $orderId));
-        $order = Order::where('distributor_id', $distributorId)
+        $order = Order::where(function ($q) use ($distributorId, $dealerIds) {
+            $q->where('distributor_id', $distributorId)
+              ->orWhere(function ($sq) use ($dealerIds) {
+                  $sq->whereIn('member_id', $dealerIds)
+                     ->whereNull('distributor_id');
+              });
+        })
             ->where(function ($query) use ($orderId, $num) {
                 $query->where('order_number', $orderId)
                     ->orWhere('id', $orderId)
@@ -614,7 +634,9 @@ class DistributorController extends Controller
             'expected_delivery_date' => 'required|date',
             'expected_delivery_time' => 'required|string',
             'delivery_remarks'       => 'required|string|max:1000',
-            'dispatch_document'      => 'required|file|mimes:pdf,jpg,jpeg,png|max:10240',
+            'dispatch_documents'     => 'required_without:dispatch_document|array|max:3',
+            'dispatch_documents.*'   => 'file|mimes:pdf,jpg,jpeg,png|max:10240',
+            'dispatch_document'      => 'required_without:dispatch_documents|file|mimes:pdf,jpg,jpeg,png|max:10240',
         ]);
 
         // Normalise time to HH:MM:SS
@@ -622,12 +644,20 @@ class DistributorController extends Controller
         $expectedAt  = $request->expected_delivery_date . ' ' . $time . ':00';
 
         // Handle dispatch document upload
-        $documentPath = null;
-        if ($request->hasFile('dispatch_document') && $request->file('dispatch_document')->isValid()) {
-            $documentPath = $request->file('dispatch_document')->store('deliveries/documents', 'public');
+        $documentPaths = [];
+        if ($request->hasFile('dispatch_documents')) {
+            foreach ($request->file('dispatch_documents') as $file) {
+                if ($file->isValid()) {
+                    $documentPaths[] = $file->store('deliveries/documents', 'public');
+                }
+            }
+        } elseif ($request->hasFile('dispatch_document') && $request->file('dispatch_document')->isValid()) {
+            $documentPaths[] = $request->file('dispatch_document')->store('deliveries/documents', 'public');
         } elseif ($request->hasFile('upload_documents') && $request->file('upload_documents')->isValid()) {
-            $documentPath = $request->file('upload_documents')->store('deliveries/documents', 'public');
+            $documentPaths[] = $request->file('upload_documents')->store('deliveries/documents', 'public');
         }
+
+        $documentPath = !empty($documentPaths) ? json_encode($documentPaths) : null;
 
         $deliveryData = [
             'vehicle_no'           => $request->vehicle_no,

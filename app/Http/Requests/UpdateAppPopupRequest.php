@@ -23,7 +23,6 @@ class UpdateAppPopupRequest extends FormRequest
     {
         return [
             'banner_image' => 'nullable|image|mimes:jpeg,png,jpg,webp,gif|max:10240',
-            'status' => 'required|boolean',
         ];
     }
 

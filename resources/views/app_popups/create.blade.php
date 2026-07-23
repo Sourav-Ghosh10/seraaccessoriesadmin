@@ -125,20 +125,7 @@ select.form-control option {
             @enderror
         </div>
 
-        {{-- Section 2: Status --}}
-        <div class="form-section-title">
-            <i class="fas fa-toggle-on" style="color: var(--primary);"></i> Display Settings
-        </div>
 
-        <div class="form-group" style="margin-bottom: 35px; max-width: 300px;">
-            <label class="form-label" style="color: var(--text-muted); font-size: 12px; text-transform: uppercase; font-weight: 600; display: block; margin-bottom: 8px;">
-                Active Status <span style="color: #ef4444;">*</span>
-            </label>
-            <select name="status" class="form-control" required style="background: #1e293b; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #fff; padding: 12px 15px; width: 100%;">
-                <option value="1" selected>Active (On)</option>
-                <option value="0">Inactive (Off)</option>
-            </select>
-        </div>
 
         <div style="display: flex; justify-content: flex-end; gap: 15px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 25px;">
             <a href="{{ route('app-popups.index') }}" class="btn glass" style="padding: 12px 25px; text-decoration: none; color: #fff; font-weight: 500;">

@@ -503,16 +503,31 @@ class DealerController extends Controller
             $orders = Order::where('member_id', $dealer->id)
                 ->with(['invoice', 'items', 'creditNote', 'delivery'])
                 ->when($tab === 'Order Placed', function ($query) {
-                    return $query->where('status', '!=', 'Delivered');
+                    return $query->where('status', '!=', 'Delivered')
+                                 ->where(function ($q) {
+                                     $q->whereNull('received_at')
+                                       ->orWhere('status', '!=', 'Invoiced');
+                                 });
                 })
                 ->when($tab === 'Confirmed', function ($query) use ($dealer) {
                     if (strtolower($dealer->role) === 'distributor') {
-                        return $query->where('status', '!=', 'Delivered');
+                        $query->where('status', '!=', 'Delivered');
+                    } else {
+                        $query->whereNotIn('status', ['Delivered', 'Cancelled']);
                     }
-                    return $query->whereNotIn('status', ['Delivered', 'Cancelled']);
+                    return $query->where(function ($q) {
+                        $q->whereNull('received_at')
+                          ->orWhere('status', '!=', 'Invoiced');
+                    });
                 })
                 ->when($tab === 'Delivered', function ($query) {
-                    return $query->where('status', 'Delivered');
+                    return $query->where(function ($q) {
+                        $q->where('status', 'Delivered')
+                          ->orWhere(function ($sq) {
+                              $sq->where('status', 'Invoiced')
+                                 ->whereNotNull('received_at');
+                          });
+                    });
                 })
                 ->when($search, function ($query) use ($search) {
                     return $query->where('order_number', 'like', "%$search%")

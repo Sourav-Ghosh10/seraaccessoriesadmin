@@ -76,6 +76,7 @@ class AppPopupController extends Controller
             $validated['banner_image'] = $path;
             $validated['image'] = $path;
         }
+        $validated['status'] = 1;
         AppPopup::create($validated);
 
         return redirect()->route('app-popups.index')

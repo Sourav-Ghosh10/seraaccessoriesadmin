@@ -89,15 +89,15 @@
     </h3>
     
     @if($visits->count() > 0)
-        <div class="table-container">
+        <div class="table-container" style="max-height: 400px; overflow-y: auto;">
             <table>
-                <thead>
+                <thead style="position: sticky; top: 0; background: #1a2332; z-index: 10; box-shadow: 0 2px 0 rgba(255,255,255,0.08);">
                     <tr>
-                        <th>Time</th>
-                        <th>Dealer / Shop</th>
-                        <th>Location</th>
-                        <th>Notes</th>
-                        <th>Photo</th>
+                        <th style="padding: 12px 16px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: rgba(255,255,255,0.5); font-weight: 600; white-space: nowrap;">Time</th>
+                        <th style="padding: 12px 16px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: rgba(255,255,255,0.5); font-weight: 600; white-space: nowrap;">Dealer / Shop</th>
+                        <th style="padding: 12px 16px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: rgba(255,255,255,0.5); font-weight: 600; white-space: nowrap;">Location</th>
+                        <th style="padding: 12px 16px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: rgba(255,255,255,0.5); font-weight: 600; white-space: nowrap;">Notes</th>
+                        <th style="padding: 12px 16px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: rgba(255,255,255,0.5); font-weight: 600; white-space: nowrap;">Photo</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -119,8 +119,8 @@
                             </td>
                             <td>
                                 @if($visit->photo_path)
-                                    <a href="{{ url($visit->photo_path) }}" target="_blank">
-                                        <img src="{{ url($visit->photo_path) }}" alt="Visit Photo" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px; border: 1px solid rgba(255,255,255,0.1);">
+                                    <a href="{{ asset('uploads/' . $visit->photo_path) }}" target="_blank">
+                                        <img src="{{ asset('uploads/' . $visit->photo_path) }}" alt="Visit Photo" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px; border: 1px solid rgba(255,255,255,0.1);">
                                     </a>
                                 @else
                                     <span style="color: var(--text-muted); font-size: 12px;">No Photo</span>
@@ -168,17 +168,21 @@
         <div id="paneList" style="display: none;">
             <div class="table-container" style="max-height: 400px; overflow-y: auto;">
                 <table>
-                <thead style="position: sticky; top: 0; background: var(--card); z-index: 1;">
+                <thead style="position: sticky; top: 0; background: #1a2332; z-index: 10; box-shadow: 0 2px 0 rgba(255,255,255,0.08);">
                     <tr>
-                        <th>Timestamp</th>
-                        <th>Location</th>
-                        <th>Coordinates</th>
+                        <th style="padding: 12px 16px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: rgba(255,255,255,0.5); font-weight: 600; white-space: nowrap;">Timestamp</th>
+                        <th style="padding: 12px 16px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: rgba(255,255,255,0.5); font-weight: 600; white-space: nowrap;">Location</th>
+                        <th style="padding: 12px 16px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: rgba(255,255,255,0.5); font-weight: 600; white-space: nowrap;">Coordinates</th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach($locations as $log)
                         <tr>
-                            <td>{{ $log->timestamp->format('h:i A') }}</td>
+                            <td>
+                                <span class="badge" style="background: rgba(255,255,255,0.05); font-size: 13px;">
+                                    {{ $log->timestamp->format('h:i A') }}
+                                </span>
+                            </td>
                             <td>
                                 <div class="geo-coord" data-lat="{{ $log->latitude }}" data-lng="{{ $log->longitude }}" style="font-size: 13px; line-height: 1.4; max-width: 300px;">
                                     <i class="fas fa-spinner fa-spin" style="color: var(--text-muted); margin-right: 5px;"></i> <span style="color: var(--text-muted);">Fetching location...</span>

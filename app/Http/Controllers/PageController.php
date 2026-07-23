@@ -241,9 +241,8 @@ class PageController extends Controller
             ->orderBy('visit_time', 'asc')
             ->get();
             
-        $locations = \App\Models\SalesmanLocationLog::where('salesman_id', $attendance->member_id)
-            ->whereDate('timestamp', $attendance->date)
-            ->orderBy('timestamp', 'asc')
+        $locations = \App\Models\SalesmanLocationLog::where('attendance_id', $attendance->id)
+            ->orderBy('timestamp', 'desc')
             ->get();
             
         return view('salesman_attendance_details', compact('attendance', 'visits', 'locations'));
@@ -297,7 +296,8 @@ class PageController extends Controller
         }
 
         $staffMembers = $query->paginate(10);
-        return view('distributor_staff', compact('distributor', 'staffMembers'));
+        $cities = \App\Models\City::where('status', 1)->orderBy('city')->get();
+        return view('distributor_staff', compact('distributor', 'staffMembers', 'cities'));
     }
 
     public function complianceDashboard() {

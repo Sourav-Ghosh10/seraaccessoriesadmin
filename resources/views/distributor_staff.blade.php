@@ -47,7 +47,7 @@
                         </span>
                     </td>
                     <td>
-                        <button class="btn glass" onclick="editStaff('{{ $staff->id }}', '{{ addslashes($staff->name) }}', '{{ addslashes($staff->email) }}', '{{ addslashes($staff->mobile) }}', '{{ $staff->status }}')" style="padding: 5px 10px; font-size: 12px;" title="Edit Staff"><i class="fas fa-edit"></i></button>
+                        <button class="btn glass" onclick="editStaff('{{ $staff->id }}', '{{ addslashes($staff->name) }}', '{{ addslashes($staff->email) }}', '{{ addslashes($staff->mobile) }}', '{{ $staff->status }}', '{{ $staff->city_id }}', '{{ addslashes($staff->city->city ?? '') }}')" style="padding: 5px 10px; font-size: 12px;" title="Edit Staff"><i class="fas fa-edit"></i></button>
                     </td>
                 </tr>
                 @empty
@@ -96,6 +96,30 @@
         </div>
 
         <div class="form-group" style="margin-bottom: 20px;">
+            <label class="form-label" style="color: var(--text-muted); font-size: 12px; text-transform: uppercase;">Assign City</label>
+            <input type="hidden" id="staffCity" value="">
+            <div class="city-select-wrapper" id="citySelectWrapper">
+                <div class="city-select-trigger" id="citySelectTrigger" onclick="toggleCityDropdown()">
+                    <span id="citySelectText" style="color: rgba(255,255,255,0.4);">Select City</span>
+                    <i class="fas fa-chevron-down" id="cityChevron" style="font-size: 11px; color: rgba(255,255,255,0.5); transition: transform 0.2s;"></i>
+                </div>
+                <div class="city-select-dropdown" id="citySelectDropdown">
+                    <div class="city-search-box">
+                        <i class="fas fa-search" style="color: rgba(255,255,255,0.3); font-size: 12px;"></i>
+                        <input type="text" id="citySearchInput" placeholder="Search city..." oninput="filterCities()" onclick="event.stopPropagation()" autocomplete="off">
+                    </div>
+                    <div class="city-options-list" id="cityOptionsList">
+                        <div class="city-option" data-value="" onclick="selectCity('', 'Select City')" style="color: rgba(255,255,255,0.4);">Select City</div>
+                        @foreach($cities as $city)
+                        <div class="city-option" data-value="{{ $city->id }}" data-label="{{ $city->city }}" onclick="selectCity('{{ $city->id }}', '{{ $city->city }}')">{{ $city->city }}</div>
+                        @endforeach
+                    </div>
+                </div>
+            </div>
+            <span class="text-danger" id="err-city" style="color: #ef4444; font-size: 11px; margin-top: 5px; display: block;"></span>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 20px;">
             <label class="form-label" style="color: var(--text-muted); font-size: 12px; text-transform: uppercase;">Password</label>
             <div style="position: relative;">
                 <input type="password" id="staffPassword" class="form-control" placeholder="Create secure password..." autocomplete="new-password" style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1); padding-right: 40px;">
@@ -125,6 +149,41 @@
     to { opacity: 1; transform: translateY(0); }
 }
 .form-control:focus { outline: none; border-color: var(--primary); }
+
+.city-select-wrapper { position: relative; }
+.city-select-trigger {
+    display: flex; align-items: center; justify-content: space-between;
+    background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 6px; padding: 10px 14px; cursor: pointer; min-height: 42px;
+    transition: border-color 0.2s;
+}
+.city-select-trigger:hover { border-color: rgba(255,255,255,0.25); }
+.city-select-trigger.open { border-color: var(--primary); }
+.city-select-dropdown {
+    display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+    background: #1e293b; border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 8px; z-index: 10000; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    overflow: hidden;
+}
+.city-select-dropdown.open { display: block; }
+.city-search-box {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.city-search-box input {
+    background: transparent; border: none; outline: none;
+    color: #fff; font-size: 13px; width: 100%;
+}
+.city-search-box input::placeholder { color: rgba(255,255,255,0.3); }
+.city-options-list { max-height: 220px; overflow-y: auto; }
+.city-option {
+    padding: 9px 14px; font-size: 13px; color: #cbd5e1; cursor: pointer;
+    transition: background 0.15s;
+}
+.city-option:hover { background: rgba(255,255,255,0.07); }
+.city-option.selected { background: rgba(var(--primary-rgb, 154,90,58), 0.2); color: #fff; }
+.city-option.hidden { display: none; }
+.city-select-trigger.input-error { border-color: #f87171 !important; }
 </style>
 @endpush
 
@@ -183,6 +242,8 @@
         document.getElementById('staffPassword').value = '';
         document.getElementById('staffPassword').placeholder = 'Create secure password...';
         document.getElementById('staffStatus').value = 'Active';
+        document.getElementById('staffCity').value = '';
+        selectCity('', 'Select City');
         document.getElementById('staffModal').style.display = 'flex';
         setTimeout(() => {
             if (currentStaffId === null) {
@@ -191,7 +252,7 @@
         }, 50);
     }
 
-    function editStaff(id, name, email, phone, status) {
+    function editStaff(id, name, email, phone, status, cityId, cityName) {
         currentStaffId = id;
         clearErrors();
         document.getElementById('modalTitle').innerText = 'Edit Staff: ' + name;
@@ -202,6 +263,8 @@
         document.getElementById('staffPassword').value = '';
         document.getElementById('staffPassword').placeholder = 'Leave blank to keep current password';
         document.getElementById('staffStatus').value = status;
+        document.getElementById('staffCity').value = cityId || '';
+        selectCity(cityId || '', cityName || 'Select City');
         document.getElementById('staffModal').style.display = 'flex';
         setTimeout(() => {
             if (currentStaffId !== null) {
@@ -240,6 +303,7 @@
             phone: document.getElementById('staffPhone').value,
             password: document.getElementById('staffPassword').value,
             status: document.getElementById('staffStatus').value,
+            city_id: document.getElementById('staffCity').value,
             dist_id: document.getElementById('staffDistId').value,
             _token: '{{ csrf_token() }}'
         };
@@ -283,6 +347,69 @@
             alert('An error occurred.');
         });
     }
+    // City Dropdown Logic
+    function toggleCityDropdown() {
+        const dropdown = document.getElementById('citySelectDropdown');
+        const trigger  = document.getElementById('citySelectTrigger');
+        const chevron  = document.getElementById('cityChevron');
+        
+        const isOpen = dropdown.classList.contains('open');
+        
+        if (isOpen) {
+            dropdown.classList.remove('open');
+            trigger.classList.remove('open');
+            chevron.style.transform = 'rotate(0deg)';
+        } else {
+            dropdown.classList.add('open');
+            trigger.classList.add('open');
+            chevron.style.transform = 'rotate(180deg)';
+            document.getElementById('citySearchInput').focus();
+            
+            document.getElementById('citySearchInput').value = '';
+            filterCities();
+        }
+    }
+
+    function filterCities() {
+        const q = document.getElementById('citySearchInput').value.toLowerCase();
+        document.querySelectorAll('#cityOptionsList .city-option').forEach(opt => {
+            if (opt.getAttribute('data-value') === '') return;
+            const text = opt.innerText.toLowerCase();
+            if (text.includes(q)) {
+                opt.classList.remove('hidden');
+            } else {
+                opt.classList.add('hidden');
+            }
+        });
+    }
+
+    function selectCity(val, label) {
+        document.getElementById('staffCity').value = val;
+        document.getElementById('citySelectText').innerText = label;
+        document.getElementById('citySelectText').style.color = val ? '#fff' : 'rgba(255,255,255,0.4)';
+        
+        document.querySelectorAll('#cityOptionsList .city-option').forEach(opt => opt.classList.remove('selected'));
+        if (val) {
+            const selectedOpt = document.querySelector(`#cityOptionsList .city-option[data-value="${val}"]`);
+            if (selectedOpt) selectedOpt.classList.add('selected');
+        }
+        
+        const dropdown = document.getElementById('citySelectDropdown');
+        if (dropdown.classList.contains('open')) {
+            toggleCityDropdown();
+        }
+    }
+
+    // Close city dropdown on outside click
+    document.addEventListener('click', function(e) {
+        const wrapper = document.getElementById('citySelectWrapper');
+        if (wrapper && !wrapper.contains(e.target)) {
+            const dropdown = document.getElementById('citySelectDropdown');
+            if (dropdown && dropdown.classList.contains('open')) {
+                toggleCityDropdown();
+            }
+        }
+    });
     // Modals do not close on outside click; user must click X icon or Close button
 </script>
 @endsection
