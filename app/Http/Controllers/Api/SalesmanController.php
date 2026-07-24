@@ -1317,8 +1317,17 @@ class SalesmanController extends Controller
         $isClockedIn = false;
         $clockInTime = null;
         $todayTotalHours = '00:00';
+        $hasAutomaticClockout = false;
+        $isUnlocked = false;
 
         if ($attendance) {
+            if ($attendance->clockout_type === 'automatic') {
+                $hasAutomaticClockout = true;
+                if ($attendance->is_unlocked) {
+                    $isUnlocked = true;
+                }
+            }
+            
             $clockInTime = $attendance->clock_in_time->toIso8601String();
             if ($attendance->clock_out_time) {
                 // Already clocked out
@@ -1340,7 +1349,58 @@ class SalesmanController extends Controller
                 'is_clocked_in' => $isClockedIn,
                 'clock_in_time' => $clockInTime,
                 'today_total_hours' => $todayTotalHours,
+                'has_automatic_clockout' => $hasAutomaticClockout,
+                'is_unlocked' => $isUnlocked
             ]
+        ]);
+    }
+
+    #[OA\Post(
+        path: '/api/salesman/resume-clock-in',
+        summary: 'Resume clock-in after being auto-clocked out',
+        security: [['bearerAuth' => []]],
+        tags: ['Salesman Attendance'],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Resumed successfully'
+            )
+        ]
+    )]
+    public function resumeClockIn(Request $request): JsonResponse
+    {
+        $salesman = $request->user();
+        if (!$this->verifySalesman($salesman)) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized.'], 403);
+        }
+
+        $today = Carbon::today()->format('Y-m-d');
+        $attendance = SalesmanAttendance::where('member_id', $salesman->id)
+            ->where('date', $today)
+            ->first();
+
+        if (!$attendance) {
+            return response()->json(['success' => false, 'message' => 'No attendance record found for today.'], 404);
+        }
+
+        if ($attendance->clockout_type !== 'automatic') {
+            return response()->json(['success' => false, 'message' => 'Cannot resume. You were not automatically clocked out.'], 400);
+        }
+
+        // Resume the shift
+        $attendance->clock_out_time = null;
+        $attendance->clock_out_latitude = null;
+        $attendance->clock_out_longitude = null;
+        $attendance->clock_out_address = null;
+        $attendance->total_hours = null;
+        $attendance->clockout_type = null;
+        $attendance->is_unlocked = false; // Reset the unlock flag just in case
+        $attendance->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Shift resumed successfully.',
+            'data' => $attendance
         ]);
     }
 
@@ -1393,6 +1453,26 @@ class SalesmanController extends Controller
             ->first();
 
         if ($attendance) {
+            if ($attendance->clockout_type === 'automatic') {
+                // Resume the shift
+                $attendance->clock_out_time = null;
+                $attendance->clock_out_latitude = null;
+                $attendance->clock_out_longitude = null;
+                $attendance->clock_out_address = null;
+                $attendance->total_hours = null;
+                $attendance->clockout_type = null;
+                $attendance->is_unlocked = false;
+                $attendance->save();
+                
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Shift resumed successfully.',
+                    'data' => [
+                        'clock_in_time' => $attendance->clock_in_time->toIso8601String()
+                    ]
+                ]);
+            }
+
             return response()->json([
                 'success' => false,
                 'message' => 'Already clocked in today.'
@@ -1469,6 +1549,7 @@ class SalesmanController extends Controller
         $request->validate([
             'latitude' => 'required|numeric',
             'longitude' => 'required|numeric',
+            'clockout_type' => 'nullable|string|in:manually,automatic',
         ]);
 
         $today = Carbon::today()->format('Y-m-d');
@@ -1493,6 +1574,7 @@ class SalesmanController extends Controller
         $lat = $request->input('latitude');
         $lng = $request->input('longitude');
         $address = $request->input('address');
+        $clockoutType = $request->input('clockout_type', 'manually');
 
         $fetchedAddress = $this->getAddressFromCoordinates($lat, $lng);
         $address = $fetchedAddress ?: $address;
@@ -1509,6 +1591,7 @@ class SalesmanController extends Controller
             'clock_out_longitude' => $lng,
             'clock_out_address' => $address,
             'total_hours' => $totalHours,
+            'clockout_type' => $clockoutType,
         ]);
 
         return response()->json([

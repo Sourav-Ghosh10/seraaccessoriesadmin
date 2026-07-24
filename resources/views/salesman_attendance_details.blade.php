@@ -62,23 +62,42 @@
             </div>
         </div>
 
-        <div style="display: flex; gap: 15px; align-items: flex-start;">
-            <div style="width: 40px; height: 40px; border-radius: 50%; background: rgba(239, 68, 68, 0.1); color: var(--danger); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                <i class="fas fa-sign-out-alt"></i>
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div style="display: flex; gap: 15px; align-items: flex-start;">
+                <div style="width: 40px; height: 40px; border-radius: 50%; background: rgba(239, 68, 68, 0.1); color: var(--danger); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                    <i class="fas fa-sign-out-alt"></i>
+                </div>
+                <div>
+                    <div style="font-weight: 600; margin-bottom: 5px;">Clock Out</div>
+                    @if($attendance->clock_out_time)
+                        <div style="font-size: 14px; color: var(--danger); margin-bottom: 5px;">{{ $attendance->clock_out_time->format('h:i A') }}</div>
+                        <div style="font-size: 12px; color: var(--text-muted); line-height: 1.4;">
+                            {{ $attendance->clock_out_address ?? 'Location not available' }}
+                            <br>
+                            <small style="opacity: 0.7;"><i class="fas fa-map-marker-alt"></i> {{ $attendance->clock_out_latitude }}, {{ $attendance->clock_out_longitude }}</small>
+                        </div>
+                    @else
+                        <div style="color: var(--warning); font-size: 13px; padding: 4px 8px; background: rgba(245, 158, 11, 0.1); border-radius: 4px; display: inline-block;">Currently Working / Pending</div>
+                    @endif
+                </div>
             </div>
+
+            @if($attendance->date->isToday() && $attendance->clockout_type === 'automatic' && !$attendance->is_unlocked)
             <div>
-                <div style="font-weight: 600; margin-bottom: 5px;">Clock Out</div>
-                @if($attendance->clock_out_time)
-                    <div style="font-size: 14px; color: var(--danger); margin-bottom: 5px;">{{ $attendance->clock_out_time->format('h:i A') }}</div>
-                    <div style="font-size: 12px; color: var(--text-muted); line-height: 1.4;">
-                        {{ $attendance->clock_out_address ?? 'Location not available' }}
-                        <br>
-                        <small style="opacity: 0.7;"><i class="fas fa-map-marker-alt"></i> {{ $attendance->clock_out_latitude }}, {{ $attendance->clock_out_longitude }}</small>
-                    </div>
-                @else
-                    <div style="color: var(--warning); font-size: 13px; padding: 4px 8px; background: rgba(245, 158, 11, 0.1); border-radius: 4px; display: inline-block;">Currently Working / Pending</div>
-                @endif
+                <form action="{{ route('salesman.attendance.unlock', $attendance->id) }}" method="POST">
+                    @csrf
+                    <button type="submit" onclick="return confirm('Are you sure you want to unlock this attendance? This will allow the salesman to resume clocking in.')" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 8px 16px; border-radius: 6px; cursor: pointer; transition: 0.3s; font-size: 13px; display: flex; align-items: center; gap: 6px;">
+                        <i class="fas fa-unlock"></i> Unlock
+                    </button>
+                </form>
             </div>
+            @elseif($attendance->is_unlocked)
+            <div>
+                <span class="badge badge-info" style="padding: 8px 16px; font-size: 13px; background: rgba(56, 189, 248, 0.1); color: var(--info); display: inline-flex; align-items: center; gap: 6px; border-radius: 6px;">
+                    <i class="fas fa-unlock-alt"></i> Unlocked
+                </span>
+            </div>
+            @endif
         </div>
     </div>
 </div>

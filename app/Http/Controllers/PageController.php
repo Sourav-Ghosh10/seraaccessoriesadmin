@@ -248,6 +248,19 @@ class PageController extends Controller
         return view('salesman_attendance_details', compact('attendance', 'visits', 'locations'));
     }
 
+    public function unlockSalesmanAttendance($id) {
+        $attendance = \App\Models\SalesmanAttendance::findOrFail($id);
+        
+        if ($attendance->date->isToday() && $attendance->clockout_type === 'automatic') {
+            $attendance->update([
+                'is_unlocked' => true,
+            ]);
+            return redirect()->back()->with('success', 'Attendance unlocked successfully. Salesman can now resume clocking in.');
+        }
+
+        return redirect()->back()->with('error', 'Cannot unlock this attendance.');
+    }
+
     public function distributors(Request $request) {
         $query = \App\Models\Member::where('role', 'distributor')->with('city');
 

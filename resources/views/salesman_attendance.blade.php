@@ -105,9 +105,23 @@
                             @endif
                         </td>
                         <td>
-                            <a href="{{ route('salesman.attendance.details', $record->id) }}" class="btn btn-primary" style="padding: 6px 12px; font-size: 12px; text-decoration: none;">
-                                <i class="fas fa-eye" style="margin-right: 5px;"></i> Details
-                            </a>
+                            <div style="display: flex; gap: 5px;">
+                                <a href="{{ route('salesman.attendance.details', $record->id) }}" class="btn btn-primary" style="padding: 6px 12px; font-size: 12px; text-decoration: none;">
+                                    <i class="fas fa-eye" style="margin-right: 5px;"></i> Details
+                                </a>
+                                @if($record->clockout_type === 'automatic' && !$record->is_unlocked && $record->date->isToday())
+                                    <form action="{{ route('salesman.attendance.unlock', $record->id) }}" method="POST" style="display: inline-block;" onsubmit="return confirm('Are you sure you want to unlock this attendance to allow the salesman to resume clock-in?');">
+                                        @csrf
+                                        <button type="submit" class="btn btn-warning" style="padding: 6px 12px; font-size: 12px; text-decoration: none;">
+                                            <i class="fas fa-unlock" style="margin-right: 5px;"></i> Unlock
+                                        </button>
+                                    </form>
+                                @elseif($record->is_unlocked)
+                                    <span class="badge badge-info" style="padding: 6px 12px; font-size: 12px; background: rgba(56, 189, 248, 0.1); color: var(--info);">
+                                        <i class="fas fa-unlock-alt" style="margin-right: 5px;"></i> Unlocked
+                                    </span>
+                                @endif
+                            </div>
                         </td>
                     @else
                         <td colspan="6" style="text-align: center; color: var(--text-muted);">
