@@ -22,10 +22,16 @@ class SalesmanController extends Controller
             'status' => 'required|string',
             'monthly_target' => 'required|numeric|min:0',
             'city_id' => 'nullable|exists:cities,id',
+            'profile_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
         ]);
 
         $validated['password'] = Hash::make($validated['password']);
         $validated['role'] = 'salesman';
+
+        if ($request->hasFile('profile_image')) {
+            $validated['profile_image'] = $request->file('profile_image')->store('profile_images', 'public');
+        }
+
         Member::create($validated);
 
         return response()->json(['success' => true, 'message' => 'Salesman added successfully!']);
@@ -43,10 +49,15 @@ class SalesmanController extends Controller
             'status' => 'required|string',
             'monthly_target' => 'required|numeric|min:0',
             'city_id' => 'nullable|exists:cities,id',
+            'profile_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
         ]);
 
         if ($request->filled('password')) {
             $validated['password'] = Hash::make($request->password);
+        }
+
+        if ($request->hasFile('profile_image')) {
+            $validated['profile_image'] = $request->file('profile_image')->store('profile_images', 'public');
         }
 
         $salesman->update($validated);
@@ -100,8 +111,28 @@ class SalesmanController extends Controller
         $salesman = Member::where('role', 'salesman')->findOrFail($id);
         
         $request->validate([
-            'points' => 'required|numeric'
+            'points' => 'required|numeric',
+            'order_id' => 'nullable|exists:orders,id'
         ]);
+
+        if ($request->filled('order_id')) {
+            $transaction = \App\Models\RewardTransaction::where('member_id', $salesman->id)
+                            ->where('order_id', $request->order_id)
+                            ->first();
+            
+            if ($transaction) {
+                $transaction->points = (int) $request->points;
+                $transaction->save();
+            } else {
+                \App\Models\RewardTransaction::create([
+                    'member_id' => $salesman->id,
+                    'order_id' => $request->order_id,
+                    'points' => (int) $request->points,
+                    'type' => 'Order Points'
+                ]);
+            }
+            return response()->json(['success' => true, 'message' => 'Order points updated successfully!']);
+        }
 
         $currentPoints = $salesman->points_balance;
         $newPoints = (int) $request->points;

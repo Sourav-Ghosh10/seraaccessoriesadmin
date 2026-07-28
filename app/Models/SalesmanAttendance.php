@@ -21,6 +21,7 @@ class SalesmanAttendance extends Model
         'clock_out_longitude',
         'clock_out_address',
         'total_hours',
+        'clockout_type',
     ];
 
     protected $casts = [

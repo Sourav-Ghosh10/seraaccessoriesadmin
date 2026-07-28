@@ -244,8 +244,44 @@ class PageController extends Controller
         $locations = \App\Models\SalesmanLocationLog::where('attendance_id', $attendance->id)
             ->orderBy('timestamp', 'desc')
             ->get();
+
+        $unlockLogs = \App\Models\SalesmanAttendanceUnlockLog::with('admin')
+            ->where('attendance_id', $attendance->id)
+            ->orderBy('locked_at', 'desc')
+            ->get();
             
-        return view('salesman_attendance_details', compact('attendance', 'visits', 'locations'));
+        return view('salesman_attendance_details', compact('attendance', 'visits', 'locations', 'unlockLogs'));
+    }
+
+    public function unlockSalesmanAttendance($id) {
+        $attendance = \App\Models\SalesmanAttendance::findOrFail($id);
+        
+        if ($attendance->date->isToday() && $attendance->clockout_type === 'automatic') {
+            $attendance->update([
+                'clock_out_time' => null,
+                'clock_out_latitude' => null,
+                'clock_out_longitude' => null,
+                'clock_out_address' => null,
+                'total_hours' => null,
+                'clockout_type' => null,
+            ]);
+
+            $pendingLog = \App\Models\SalesmanAttendanceUnlockLog::where('attendance_id', $attendance->id)
+                ->whereNull('unlocked_at')
+                ->latest('locked_at')
+                ->first();
+            
+            if ($pendingLog) {
+                $pendingLog->update([
+                    'unlocked_at' => now(),
+                    'unlocked_by' => auth()->id(),
+                ]);
+            }
+
+            return redirect()->back()->with('success', 'Attendance unlocked and resumed successfully.');
+        }
+
+        return redirect()->back()->with('error', 'Cannot unlock this attendance.');
     }
 
     public function distributors(Request $request) {
@@ -488,6 +524,12 @@ class PageController extends Controller
         if (!\Illuminate\Support\Facades\Schema::hasColumn('redeem_request', 'salesman_file_path')) {
             \Illuminate\Support\Facades\Schema::table('redeem_request', function (\Illuminate\Database\Schema\Blueprint $table) {
                 $table->string('salesman_file_path')->nullable()->after('distributor_file_path');
+            });
+        }
+        
+        if (!\Illuminate\Support\Facades\Schema::hasColumn('redeem_request', 'deduct_amount')) {
+            \Illuminate\Support\Facades\Schema::table('redeem_request', function (\Illuminate\Database\Schema\Blueprint $table) {
+                $table->decimal('deduct_amount', 10, 2)->nullable()->after('status');
             });
         }
 
@@ -823,6 +865,9 @@ class PageController extends Controller
     public function rewards(Request $request) {
         // Base query for history of orders with points - with filtering
         $query = \App\Models\Order::with(['member.salesman', 'rewardTransactions.member'])
+            ->whereHas('member', function($q) {
+                $q->where('role', 'dealer');
+            })
             ->where('status', '!=', 'Pending')
             ->where('order_number', 'like', 'ORD-%');
 
@@ -1343,5 +1388,59 @@ class PageController extends Controller
                 }
             }
         }
+    }
+
+    public function memberRewardOrders($id)
+    {
+        $member = \App\Models\Member::findOrFail($id);
+
+        $redeemedPoints = abs(\App\Models\RewardTransaction::where('member_id', $member->id)
+            ->where('points', '<', 0)
+            ->sum('points'));
+
+        $query = \App\Models\Order::where('status', '!=', 'Pending')
+            ->where('order_number', 'like', 'ORD-%');
+
+        if ($member->role === 'dealer') {
+            $query->where('member_id', $member->id);
+        } elseif ($member->role === 'salesman') {
+            $query->whereHas('member', function($q) use ($member) {
+                $q->where('salesman_id', $member->id);
+            });
+        } else {
+            return response()->json(['success' => true, 'data' => collect([])]);
+        }
+
+        $orders = $query->orderBy('created_at', 'asc')->get();
+        $accumulated = 0;
+
+        $mappedOrders = $orders->map(function ($order) use ($member, &$accumulated, $redeemedPoints) {
+            $transaction = \App\Models\RewardTransaction::where('member_id', $member->id)
+                ->where('order_id', $order->id)
+                ->first();
+                
+            $points = $transaction ? $transaction->points : 0;
+            $unlockDays = $transaction ? $transaction->unlock_days : null;
+                
+            $isEditable = true;
+            
+            if ($points > 0 && $accumulated < $redeemedPoints) {
+                $isEditable = false;
+                $accumulated += $points;
+            }
+            
+            return [
+                'id' => $order->id,
+                'order_number' => $order->order_number,
+                'points' => $points,
+                'unlock_days' => $unlockDays,
+                'date' => $order->created_at->format('d M Y'),
+                'editable' => $isEditable
+            ];
+        });
+
+        $finalOrders = $mappedOrders->reverse()->values();
+
+        return response()->json(['success' => true, 'data' => $finalOrders]);
     }
 }

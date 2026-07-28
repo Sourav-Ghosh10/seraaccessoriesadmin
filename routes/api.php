@@ -82,6 +82,7 @@ Route::middleware(JwtAuthMiddleware::class)->group(function () {
         Route::get('/attendance-history', [SalesmanController::class, 'attendanceHistory'])->name('attendance-history');
         Route::post('/clock-in', [SalesmanController::class, 'clockIn'])->name('clock-in');
         Route::post('/clock-out', [SalesmanController::class, 'clockOut'])->name('clock-out');
+        Route::post('/resume-clock-in', [SalesmanController::class, 'resumeClockIn'])->name('resume-clock-in');
         Route::get('/visits', [SalesmanController::class, 'getVisits'])->name('visits.index');
         Route::post('/visits', [SalesmanController::class, 'storeVisit'])->name('visits.store');
         Route::post('/location-ping', [SalesmanController::class, 'locationPing'])->name('location-ping');

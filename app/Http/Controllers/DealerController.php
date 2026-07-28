@@ -72,18 +72,44 @@ class DealerController extends Controller
         $dealer = Member::where('role', 'dealer')->findOrFail($id);
         
         $request->validate([
-            'points' => 'required|numeric'
+            'points' => 'required|numeric',
+            'order_id' => 'nullable|exists:orders,id',
+            'unlock_days' => 'nullable|integer|min:0'
         ]);
+
+        if ($request->filled('order_id')) {
+            $transaction = \App\Models\RewardTransaction::where('member_id', $dealer->id)
+                            ->where('order_id', $request->order_id)
+                            ->first();
+            
+            if ($transaction) {
+                $transaction->points = (int) $request->points;
+                if ($request->has('unlock_days')) {
+                    $transaction->unlock_days = $request->unlock_days;
+                }
+                $transaction->save();
+            } else {
+                \App\Models\RewardTransaction::create([
+                    'member_id' => $dealer->id,
+                    'order_id' => $request->order_id,
+                    'points' => (int) $request->points,
+                    'type' => 'Order Points',
+                    'unlock_days' => $request->unlock_days
+                ]);
+            }
+            return response()->json(['success' => true, 'message' => 'Order points updated successfully!']);
+        }
 
         $currentPoints = $dealer->points_balance;
         $newPoints = (int) $request->points;
 
-        if ($currentPoints !== $newPoints) {
+        if ($currentPoints !== $newPoints || $request->has('unlock_days')) {
             $difference = $newPoints - $currentPoints;
             \App\Models\RewardTransaction::create([
                 'member_id' => $dealer->id,
                 'points' => $difference,
-                'type' => 'Admin Adjustment'
+                'type' => 'Admin Adjustment',
+                'unlock_days' => $request->unlock_days
             ]);
         }
 

@@ -53,6 +53,7 @@ Route::middleware(['auth'])->group(function () {
 
         Route::get('/salesman-attendance', [PageController::class, 'salesmanAttendance'])->name('salesman.attendance');
         Route::get('/salesman-attendance/{id}', [PageController::class, 'salesmanAttendanceDetails'])->name('salesman.attendance.details');
+        Route::post('/salesman-attendance/{id}/unlock', [PageController::class, 'unlockSalesmanAttendance'])->name('salesman.attendance.unlock');
 
         Route::get('/expenses', [\App\Http\Controllers\ExpenseController::class, 'index'])->name('expenses.index');
         Route::post('/expenses', [\App\Http\Controllers\ExpenseController::class, 'store'])->name('expenses.store');
@@ -142,5 +143,6 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/api/check-new-requests', [PageController::class, 'checkNewRequests'])->name('check.new.requests');
         Route::get('/api/mark-notifications-read', [PageController::class, 'markNotificationsRead'])->name('mark.notifications.read');
         Route::get('/api/dependent-members', [PageController::class, 'dependentMembers'])->name('api.dependent-members');
+        Route::get('/api/members/{id}/reward-orders', [PageController::class, 'memberRewardOrders'])->name('api.member.reward-orders');
     });
 });

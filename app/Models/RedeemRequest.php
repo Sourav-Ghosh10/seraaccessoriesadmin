@@ -14,6 +14,7 @@ class RedeemRequest extends Model
         'Credit_note',
         'notes',
         'status',
+        'deduct_amount',
         'dealer_file_path',
         'distributor_file_path',
         'salesman_file_path',

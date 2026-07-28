@@ -304,6 +304,7 @@
                                             data-total="{{ number_format($req->member->reward_transactions_sum_points ?? 0) }}"
                                             data-notes="{{ addslashes($req->notes ?? '') }}"
                                             data-credit="{{ addslashes($req->Credit_note ?? '') }}"
+                                            data-deduct="{{ $req->deduct_amount ?? '' }}"
                                             data-sender="{{ addslashes($req->member->shop ?? $req->member->name ?? 'Unknown') }}"
                                             data-status="{{ $req->status }}"
                                             data-role="{{ strtolower($req->member->role ?? $tab) }}"
@@ -434,6 +435,10 @@
                     <div>
                         <label style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;">Note</label>
                         <input type="text" id="redeemCreditInput" class="form-control" style="margin-top: 4px; background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1); color: #fff;" placeholder="Enter reference number...">
+                    </div>
+                    <div>
+                        <label style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;">Add Amount</label>
+                        <input type="number" id="redeemDeductAmountInput" class="form-control" style="margin-top: 4px; background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1); color: #fff;" placeholder="Enter amount to deduct from total due" step="0.01" min="0">
                     </div>
                     <div>
                         <label style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;">Update Status</label>
@@ -573,6 +578,7 @@
             document.getElementById('redeemReqPoints').innerText = btn.getAttribute('data-points') + ' pts';
             document.getElementById('redeemNotes').innerText = btn.getAttribute('data-notes') || 'No notes provided.';
             document.getElementById('redeemCreditInput').value = btn.getAttribute('data-credit') || '';
+            document.getElementById('redeemDeductAmountInput').value = btn.getAttribute('data-deduct') || '';
             document.getElementById('redeemStatusSelect').value = btn.getAttribute('data-status') || 'Pending';
             
             document.getElementById('redeemDealerFile').value = '';
@@ -666,10 +672,14 @@
             
             const status = document.getElementById('redeemStatusSelect').value;
             const credit = document.getElementById('redeemCreditInput').value;
+            const deductAmount = document.getElementById('redeemDeductAmountInput').value;
             
             const formData = new FormData();
             formData.append('status', status);
             formData.append('credit_note', credit);
+            if (deductAmount) {
+                formData.append('deduct_amount', deductAmount);
+            }
             
             const dealerFile = document.getElementById('redeemDealerFile').files[0];
             const distFile = document.getElementById('redeemDistributorFile').files[0];

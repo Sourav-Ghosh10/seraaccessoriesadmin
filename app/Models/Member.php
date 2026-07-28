@@ -14,7 +14,7 @@ class Member extends Authenticatable
         'name', 'email', 'mobile', 'password', 'role', 'status',
         'shop', 'address', 'salesman_id', 'emp_id', 'ref_code',
         'location', 'dist_id', 'gst_no', 'city_id', 'monthly_target',
-        'discount_percent', 'is_passbook_visible'
+        'discount_percent', 'is_passbook_visible', 'profile_image'
     ];
 
     protected $hidden = [
