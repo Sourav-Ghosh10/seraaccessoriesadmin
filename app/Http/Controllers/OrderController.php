@@ -638,6 +638,7 @@ class OrderController extends Controller
         $request->validate([
             'status' => 'required|in:Pending,Approved,Processed,Rejected',
             'credit_note' => 'nullable|string|max:255',
+            'deduct_amount' => 'nullable|numeric|min:0',
             'dealer_file' => 'nullable|file|mimes:pdf,jpg,png|max:2048',
             'distributor_file' => 'nullable|file|mimes:pdf,jpg,png|max:2048',
             'salesman_file' => 'nullable|file|mimes:pdf,jpg,png|max:2048',
@@ -660,7 +661,70 @@ class OrderController extends Controller
             $redeem->salesman_file_path = $request->file('salesman_file')->store('redeem_requests/salesman', 'public');
         }
 
+        $isNewDeduction = false;
+        if ($request->filled('deduct_amount')) {
+            if ($redeem->deduct_amount === null || $redeem->deduct_amount == 0) {
+                $isNewDeduction = true;
+            }
+            $redeem->deduct_amount = $request->deduct_amount;
+        }
+
         $redeem->save();
+
+        if ($isNewDeduction && $request->deduct_amount > 0) {
+            $amount = (float)$request->deduct_amount;
+            $managerName = auth()->user() ? auth()->user()->name : 'System Admin';
+            $ref = 'RDM-' . str_pad($redeem->id, 4, '0', STR_PAD_LEFT);
+
+            if ($redeem->member && $redeem->member->role === 'dealer') {
+                $dealer = $redeem->member;
+                
+                \Illuminate\Support\Facades\DB::transaction(function () use ($dealer, $amount, $managerName, $ref) {
+                    // Deduct from Dealer
+                    $balance = \App\Models\DealerBalance::firstOrCreate(
+                        ['member_id' => $dealer->id],
+                        ['total_amount' => 0, 'paid_amount' => 0, 'due_amount' => 0]
+                    );
+                    $balance->paid_amount += $amount;
+                    $balance->due_amount -= $amount;
+                    $balance->save();
+
+                    \App\Models\PassbookTransaction::create([
+                        'member_id' => $dealer->id,
+                        'managed_by' => $managerName,
+                        'type' => 'Redeem Request',
+                        'amount' => $amount,
+                        'ref' => $ref,
+                        'status' => 'Completed',
+                    ]);
+                    
+                    // Deduct from Distributor
+                    if ($dealer->dist_id) {
+                        $distributor = \App\Models\Member::where('role', 'distributor')
+                            ->where('dist_id', $dealer->dist_id)->first();
+                        
+                        if ($distributor) {
+                            $distBalance = \App\Models\DealerBalance::firstOrCreate(
+                                ['member_id' => $distributor->id],
+                                ['total_amount' => 0, 'paid_amount' => 0, 'due_amount' => 0]
+                            );
+                            $distBalance->paid_amount += $amount;
+                            $distBalance->due_amount -= $amount;
+                            $distBalance->save();
+
+                            \App\Models\PassbookTransaction::create([
+                                'member_id' => $distributor->id,
+                                'managed_by' => $managerName,
+                                'type' => 'Redeem Request',
+                                'amount' => $amount,
+                                'ref' => $ref . '-D',
+                                'status' => 'Completed',
+                            ]);
+                        }
+                    }
+                });
+            }
+        }
 
         try {
             if ($redeem->member) {

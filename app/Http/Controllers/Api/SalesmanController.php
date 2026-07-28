@@ -400,6 +400,8 @@ class SalesmanController extends Controller
         $tab = $request->query('tab', 'All'); // All, Pending, Confirmed, Order Placed
         $search = $request->query('search');
         $dealerIdParam = $request->query('dealer_id');
+        $startDate = $request->query('start_date');
+        $endDate = $request->query('end_date');
 
         // Fetch assigned dealer IDs
         $dealerIds = Member::where('salesman_id', $salesman->id)
@@ -428,6 +430,12 @@ class SalesmanController extends Controller
                                    ->orWhere('shop', 'like', "%$search%");
                             });
                     });
+                })
+                ->when($startDate, function ($query) use ($startDate) {
+                    return $query->whereDate('created_at', '>=', $startDate);
+                })
+                ->when($endDate, function ($query) use ($endDate) {
+                    return $query->whereDate('created_at', '<=', $endDate);
                 })
                 ->get()
                 ->map(function ($item) {
@@ -470,6 +478,12 @@ class SalesmanController extends Controller
                                    ->orWhere('shop', 'like', "%$search%");
                             });
                     });
+                })
+                ->when($startDate, function ($query) use ($startDate) {
+                    return $query->whereDate('created_at', '>=', $startDate);
+                })
+                ->when($endDate, function ($query) use ($endDate) {
+                    return $query->whereDate('created_at', '<=', $endDate);
                 })
                 ->get()
                 ->map(function ($item) {
@@ -530,6 +544,12 @@ class SalesmanController extends Controller
                                    ->orWhere('shop', 'like', "%$search%");
                             });
                     });
+                })
+                ->when($startDate, function ($query) use ($startDate) {
+                    return $query->whereDate('created_at', '>=', $startDate);
+                })
+                ->when($endDate, function ($query) use ($endDate) {
+                    return $query->whereDate('created_at', '<=', $endDate);
                 })
                 ->get()
                 ->map(function ($item) {
@@ -1387,6 +1407,10 @@ class SalesmanController extends Controller
             return response()->json(['success' => false, 'message' => 'Cannot resume. You were not automatically clocked out.'], 400);
         }
 
+        if (!$attendance->is_unlocked) {
+            return response()->json(['success' => false, 'message' => 'Attendance Locked. Please contact admin to unlock.'], 403);
+        }
+
         // Resume the shift
         $attendance->clock_out_time = null;
         $attendance->clock_out_latitude = null;
@@ -1453,26 +1477,6 @@ class SalesmanController extends Controller
             ->first();
 
         if ($attendance) {
-            if ($attendance->clockout_type === 'automatic') {
-                // Resume the shift
-                $attendance->clock_out_time = null;
-                $attendance->clock_out_latitude = null;
-                $attendance->clock_out_longitude = null;
-                $attendance->clock_out_address = null;
-                $attendance->total_hours = null;
-                $attendance->clockout_type = null;
-                $attendance->is_unlocked = false;
-                $attendance->save();
-                
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Shift resumed successfully.',
-                    'data' => [
-                        'clock_in_time' => $attendance->clock_in_time->toIso8601String()
-                    ]
-                ]);
-            }
-
             return response()->json([
                 'success' => false,
                 'message' => 'Already clocked in today.'
@@ -1593,6 +1597,14 @@ class SalesmanController extends Controller
             'total_hours' => $totalHours,
             'clockout_type' => $clockoutType,
         ]);
+
+        if ($clockoutType === 'automatic') {
+            \App\Models\SalesmanAttendanceUnlockLog::create([
+                'attendance_id' => $attendance->id,
+                'salesman_id' => $salesman->id,
+                'locked_at' => $now,
+            ]);
+        }
 
         return response()->json([
             'success' => true,

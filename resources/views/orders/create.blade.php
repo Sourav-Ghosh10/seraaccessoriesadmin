@@ -58,7 +58,15 @@
             </select>
         </div>
         @else
-        <input type="hidden" id="distributorId" value="">
+        <div class="form-group" id="distributorGroup">
+            <label class="form-label">Assign Distributor</label>
+            <select class="form-control" id="distributorId">
+                <option value="">No Distributor Assigned</option>
+                @foreach($distributors as $distributor)
+                    <option value="{{ $distributor->id }}">{{ $distributor->name }}</option>
+                @endforeach
+            </select>
+        </div>
         @endif
         <div class="form-group">
             <label class="form-label">Expected Delivery Date</label>

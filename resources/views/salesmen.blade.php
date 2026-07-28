@@ -2,6 +2,16 @@
 
 @section('title', 'Sales Registration')
 
+@section('styles')
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
+<style>
+    .cropper-view-box,
+    .cropper-face {
+      border-radius: 50%;
+    }
+</style>
+@endsection
+
 @section('content')
 <div class="card">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; flex-wrap: wrap; gap: 15px;">
@@ -55,6 +65,15 @@
         <div class="form-group" style="margin-bottom: 20px;">
             <label class="form-label" style="color: var(--text-muted); font-size: 12px; text-transform: uppercase;">Employee Name</label>
             <input type="text" id="salesmanName" class="form-control" placeholder="Enter name..." autocomplete="off" style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1);">
+        </div>
+
+        <div class="form-group" style="margin-bottom: 20px;">
+            <label class="form-label" style="color: var(--text-muted); font-size: 12px; text-transform: uppercase;">Profile Picture (Optional)</label>
+            <input type="file" id="salesmanProfileImage" accept="image/*" class="form-control" style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1); padding: 8px;">
+            <div id="salesmanProfileImagePreview" style="margin-top: 10px; display: none; position: relative; width: 100px; height: 100px;">
+                <img id="profileImagePreviewImg" src="" alt="Preview" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; border: 2px solid var(--primary);">
+                <button type="button" onclick="clearProfileImage()" style="position: absolute; top: -5px; right: -5px; background: var(--danger); color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; font-size: 12px; display: flex; align-items: center; justify-content: center;"><i class="fas fa-times"></i></button>
+            </div>
         </div>
 
         <div class="form-group" style="margin-bottom: 20px;">
@@ -170,14 +189,34 @@
 <div id="editPointsModal" style="display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background: rgba(2, 6, 23, 0.85); backdrop-filter: blur(10px); align-items: center; justify-content: center;">
     <div class="card modal-content" style="padding: 30px; background: #0f172a; border: 1px solid var(--glass-border); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); width: 400px; animation: modalIn 0.3s ease-out;">
         <h3 style="margin: 0 0 20px 0; font-size: 18px; font-weight: 600;">Edit Salesman Points</h3>
+        <div class="form-group" style="margin-bottom: 15px;">
+            <label class="form-label" style="color: var(--text-muted); font-size: 12px; text-transform: uppercase;">Select Order (Optional)</label>
+            <select id="quickEditPointsOrder" class="form-control" style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1); color: #fff;" onchange="handleOrderPointSelection(this)">
+                <option value="">Admin Adjustment (Total Balance)</option>
+            </select>
+        </div>
         <div class="form-group" style="margin-bottom: 20px;">
-            <label class="form-label" style="color: var(--text-muted); font-size: 12px; text-transform: uppercase;">Points Balance</label>
+            <label class="form-label" id="pointsInputLabel" style="color: var(--text-muted); font-size: 12px; text-transform: uppercase;">Points Balance</label>
             <input type="number" id="quickEditPointsInput" class="form-control" style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1);">
             <small id="err-quick-points" style="color: var(--danger); display: block; margin-top: 5px;"></small>
         </div>
         <div style="display: flex; gap: 12px; justify-content: flex-end;">
             <button class="btn glass" onclick="closeEditPointsModal()" style="border: none; background: rgba(255,255,255,0.05);">Cancel</button>
             <button class="btn btn-primary" onclick="submitEditPoints()">Save Points</button>
+        </div>
+    </div>
+</div>
+
+<!-- Cropper Modal -->
+<div id="cropperModal" style="display: none; position: fixed; z-index: 10000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(2, 6, 23, 0.95); align-items: center; justify-content: center;">
+    <div class="card modal-content" style="padding: 20px; background: #0f172a; border: 1px solid var(--glass-border); max-width: 500px; width: 100%; border-radius: 12px;">
+        <h3 style="margin-top: 0; margin-bottom: 20px; font-size: 18px;">Crop Profile Picture</h3>
+        <div style="width: 100%; max-height: 400px; overflow: hidden; background: #000; border-radius: 8px; margin-bottom: 20px;">
+            <img id="cropperImage" src="" style="max-width: 100%; display: block;">
+        </div>
+        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+            <button type="button" class="btn glass" onclick="closeCropperModal()" style="border: none; background: rgba(255,255,255,0.05);">Cancel</button>
+            <button type="button" class="btn btn-primary" onclick="applyCrop()">Apply Crop</button>
         </div>
     </div>
 </div>
@@ -283,8 +322,11 @@
 @endpush
 
 @section('scripts')
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
 <script>
     let currentSalesmanId = null;
+    let croppedProfileImageBlob = null;
+    let cropperInstance = null;
     let searchTimer = null;
 
     function fetchSalesmen(pageUrl = null) {
@@ -375,7 +417,7 @@
         }, 50);
     }
 
-    function openEditSalesmanModal(id, name, mobile, email, ref_code, status, target, city_id, city_name) {
+    function openEditSalesmanModal(id, name, mobile, email, ref_code, status, target, city_id, city_name, profile_image) {
         currentSalesmanId = id;
         document.getElementById('salesmanName').value = name;
         document.getElementById('salesmanMobile').value = mobile;
@@ -388,6 +430,14 @@
             selectCity(city_id, city_name);
         } else {
             resetCityDropdown();
+        }
+        
+        if (profile_image) {
+            document.getElementById('profileImagePreviewImg').src = profile_image;
+            document.getElementById('salesmanProfileImagePreview').style.display = 'block';
+        } else {
+            document.getElementById('profileImagePreviewImg').src = '';
+            document.getElementById('salesmanProfileImagePreview').style.display = 'none';
         }
         
         const pwdInput = document.getElementById('salesmanPassword');
@@ -416,6 +466,14 @@
         document.getElementById('salesmanMonthlyTarget').value = '';
         document.getElementById('salesmanCity').value = '';
         resetCityDropdown();
+        clearProfileImage();
+    }
+    
+    function clearProfileImage() {
+        document.getElementById('salesmanProfileImage').value = '';
+        document.getElementById('profileImagePreviewImg').src = '';
+        document.getElementById('salesmanProfileImagePreview').style.display = 'none';
+        croppedProfileImageBlob = null;
     }
 
     // ---- Searchable City Dropdown ----
@@ -505,26 +563,34 @@
         const url = isEdit ? `${window.BASE_PATH}/salesmen/${currentSalesmanId}` : `${window.BASE_PATH}/salesmen`;
         const method = isEdit ? 'PUT' : 'POST';
 
+        const formData = new FormData();
+        formData.append('name', document.getElementById('salesmanName').value);
+        formData.append('mobile', document.getElementById('salesmanMobile').value);
+        formData.append('email', document.getElementById('salesmanEmail').value);
+        
         const cityVal = document.getElementById('salesmanCity').value;
-        const data = {
-            name: document.getElementById('salesmanName').value,
-            mobile: document.getElementById('salesmanMobile').value,
-            email: document.getElementById('salesmanEmail').value,
-            city_id: cityVal || null,
-            password: document.getElementById('salesmanPassword').value,
-            ref_code: document.getElementById('autoRefCode').value.toUpperCase(),
-            status: document.getElementById('salesmanStatus').value,
-            monthly_target: document.getElementById('salesmanMonthlyTarget').value,
-            _token: '{{ csrf_token() }}'
-        };
+        if (cityVal) formData.append('city_id', cityVal);
+        
+        formData.append('password', document.getElementById('salesmanPassword').value);
+        formData.append('ref_code', document.getElementById('autoRefCode').value.toUpperCase());
+        formData.append('status', document.getElementById('salesmanStatus').value);
+        formData.append('monthly_target', document.getElementById('salesmanMonthlyTarget').value);
+        formData.append('_token', '{{ csrf_token() }}');
+
+        if (isEdit) {
+            formData.append('_method', 'PUT');
+        }
+
+        if (croppedProfileImageBlob) {
+            formData.append('profile_image', croppedProfileImageBlob, 'profile.jpg');
+        }
 
         fetch(url, {
-            method: method,
+            method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
                 'Accept': 'application/json'
             },
-            body: JSON.stringify(data)
+            body: formData
         })
         .then(response => response.json())
         .then(result => {
@@ -581,12 +647,60 @@
     }
 
     let currentEditPointsSalesmanId = null;
+    let currentEditPointsGlobalBalance = 0;
+    let currentSalesmanOrders = [];
 
     function openEditPointsModal(id, pointsBalance) {
         currentEditPointsSalesmanId = id;
-        document.getElementById('quickEditPointsInput').value = pointsBalance !== undefined ? pointsBalance : '0';
+        currentEditPointsGlobalBalance = pointsBalance !== undefined ? pointsBalance : '0';
+        
+        const orderSelect = document.getElementById('quickEditPointsOrder');
+        if (orderSelect) {
+            orderSelect.innerHTML = '<option value="">Loading orders...</option>';
+            orderSelect.disabled = true;
+            fetch(`${window.BASE_PATH}/api/members/${id}/reward-orders`)
+                .then(r => r.json())
+                .then(result => {
+                    currentSalesmanOrders = result.data || [];
+                    orderSelect.innerHTML = '<option value="">Admin Adjustment (Total Balance)</option>';
+                    currentSalesmanOrders.forEach(order => {
+                        const disabledAttr = order.editable === false ? 'disabled' : '';
+                        const labelText = order.editable === false ? `Order ${order.order_number} (${order.date}) - Redeemed` : `Order ${order.order_number} (${order.date})`;
+                        orderSelect.innerHTML += `<option value="${order.id}" ${disabledAttr}>${labelText}</option>`;
+                    });
+                    orderSelect.disabled = false;
+                })
+                .catch(() => {
+                    orderSelect.innerHTML = '<option value="">Failed to load orders</option>';
+                });
+        }
+
+        const input = document.getElementById('quickEditPointsInput');
+        input.value = currentEditPointsGlobalBalance;
+        
+        const label = document.getElementById('pointsInputLabel');
+        if (label) label.innerText = 'Points Balance';
+
         document.getElementById('err-quick-points').innerText = '';
         document.getElementById('editPointsModal').style.display = 'flex';
+    }
+
+    function handleOrderPointSelection(select) {
+        const orderId = select.value;
+        const input = document.getElementById('quickEditPointsInput');
+        const label = document.getElementById('pointsInputLabel');
+        
+        if (!orderId) {
+            input.value = currentEditPointsGlobalBalance;
+            if (label) label.innerText = 'Points Balance';
+            return;
+        }
+        
+        const order = currentSalesmanOrders.find(o => o.id == orderId);
+        if (order) {
+            input.value = order.points || 0;
+            if (label) label.innerText = `Points for Order ${order.order_number}`;
+        }
     }
 
     function closeEditPointsModal() {
@@ -596,6 +710,7 @@
 
     function submitEditPoints() {
         const points = document.getElementById('quickEditPointsInput').value;
+        const orderId = document.getElementById('quickEditPointsOrder') ? document.getElementById('quickEditPointsOrder').value : '';
         if (!currentEditPointsSalesmanId) return;
 
         fetch(`${window.BASE_PATH}/salesmen/${currentEditPointsSalesmanId}/update-points`, {
@@ -605,7 +720,7 @@
                 'X-CSRF-TOKEN': '{{ csrf_token() }}',
                 'Accept': 'application/json'
             },
-            body: JSON.stringify({ points: points })
+            body: JSON.stringify({ points: points, order_id: orderId })
         })
         .then(response => response.json())
         .then(result => {
@@ -686,5 +801,69 @@
         }
     });
     document.addEventListener('scroll', closeAllActionMenus, true);
+
+    // Profile Image Cropper Logic
+    document.addEventListener('DOMContentLoaded', function() {
+        const fileInput = document.getElementById('salesmanProfileImage');
+        if (fileInput) {
+            fileInput.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        document.getElementById('cropperImage').src = event.target.result;
+                        document.getElementById('cropperModal').style.display = 'flex';
+                        
+                        if (cropperInstance) cropperInstance.destroy();
+                        cropperInstance = new Cropper(document.getElementById('cropperImage'), {
+                            aspectRatio: 1,
+                            viewMode: 1,
+                            dragMode: 'move',
+                            autoCropArea: 0.8,
+                            restore: false,
+                            guides: false,
+                            center: false,
+                            highlight: false,
+                            cropBoxMovable: false,
+                            cropBoxResizable: false,
+                            toggleDragModeOnDblclick: false,
+                        });
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+        }
+    });
+
+    function closeCropperModal() {
+        document.getElementById('cropperModal').style.display = 'none';
+        if (cropperInstance) {
+            cropperInstance.destroy();
+            cropperInstance = null;
+        }
+        if (!croppedProfileImageBlob && !document.getElementById('profileImagePreviewImg').src) {
+            document.getElementById('salesmanProfileImage').value = '';
+        }
+    }
+
+    function applyCrop() {
+        if (cropperInstance) {
+            const canvas = cropperInstance.getCroppedCanvas({
+                width: 400,
+                height: 400,
+                imageSmoothingEnabled: true,
+                imageSmoothingQuality: 'high',
+            });
+            
+            document.getElementById('profileImagePreviewImg').src = canvas.toDataURL('image/jpeg');
+            document.getElementById('salesmanProfileImagePreview').style.display = 'block';
+            
+            canvas.toBlob(function(blob) {
+                croppedProfileImageBlob = blob;
+            }, 'image/jpeg', 0.9);
+            
+            closeCropperModal();
+        }
+    }
 </script>
 @endsection

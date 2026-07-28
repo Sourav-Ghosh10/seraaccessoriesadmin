@@ -454,6 +454,12 @@ class DealerController extends Controller
                     return $query->where('request_number', 'like', "%$search%")
                         ->orWhere('created_at', 'like', "%$search%");
                 })
+                ->when($startDate, function ($query) use ($startDate) {
+                    return $query->whereDate('created_at', '>=', $startDate);
+                })
+                ->when($endDate, function ($query) use ($endDate) {
+                    return $query->whereDate('created_at', '<=', $endDate);
+                })
                 ->get()
                 ->map(function ($item) {
                     $reqNo = $item->request_number ?? 'EST-' . str_pad($item->id, 4, '0', STR_PAD_LEFT);
@@ -481,6 +487,12 @@ class DealerController extends Controller
                 ->when($search, function ($query) use ($search) {
                     return $query->where('request_number', 'like', "%$search%")
                         ->orWhere('created_at', 'like', "%$search%");
+                })
+                ->when($startDate, function ($query) use ($startDate) {
+                    return $query->whereDate('created_at', '>=', $startDate);
+                })
+                ->when($endDate, function ($query) use ($endDate) {
+                    return $query->whereDate('created_at', '<=', $endDate);
                 })
                 ->get()
                 ->map(function ($item) {

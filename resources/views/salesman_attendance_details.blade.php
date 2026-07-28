@@ -102,7 +102,58 @@
     </div>
 </div>
 
-<div class="card" style="margin-bottom: 25px;">
+<!-- Lock / Unlock History Section -->
+<div class="content-card" style="margin-bottom: 24px;">
+    <h3 style="margin-bottom: 20px; font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+        <i class="fas fa-lock" style="color: var(--secondary);"></i> Lock / Unlock History
+    </h3>
+    
+    @if(isset($unlockLogs) && $unlockLogs->count() > 0)
+        <div style="background: rgba(0,0,0,0.2); border-radius: 12px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05);">
+            <div style="max-height: 250px; overflow-y: auto;">
+                <table style="width: 100%; text-align: left; border-collapse: collapse;">
+                    <thead style="position: sticky; top: 0; background: #1a2332; z-index: 10; box-shadow: 0 2px 0 rgba(255,255,255,0.08);">
+                        <tr>
+                            <th style="padding: 12px 16px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: rgba(255,255,255,0.5); font-weight: 600;">Event</th>
+                            <th style="padding: 12px 16px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: rgba(255,255,255,0.5); font-weight: 600;">Time</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($unlockLogs as $log)
+                            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+                                <td style="padding: 12px 16px;">
+                                    @if($log->unlocked_at)
+                                        <span style="color: var(--success); font-weight: 500; font-size: 13px;"><i class="fas fa-unlock"></i> Unlocked</span>
+                                    @else
+                                        <span style="color: var(--danger); font-weight: 500; font-size: 13px;"><i class="fas fa-lock"></i> Auto-Locked</span>
+                                    @endif
+                                </td>
+                                <td style="padding: 12px 16px; font-size: 13px;">
+                                    <div style="color: rgba(255,255,255,0.8); margin-bottom: 2px;">
+                                        <strong>Locked:</strong> {{ $log->locked_at->format('h:i A') }}
+                                    </div>
+                                    @if($log->unlocked_at)
+                                        <div style="color: var(--text-muted);">
+                                            <strong>Unlocked:</strong> {{ $log->unlocked_at->format('h:i A') }}
+                                        </div>
+                                    @endif
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    @else
+        <div style="text-align: center; padding: 20px; color: var(--text-muted); background: rgba(0,0,0,0.1); border-radius: 12px; border: 1px dashed rgba(255,255,255,0.1);">
+            <div style="font-size: 24px; margin-bottom: 8px; opacity: 0.5;"><i class="fas fa-shield-alt"></i></div>
+            <div style="font-size: 13px;">No locks or unlocks recorded for this shift.</div>
+        </div>
+    @endif
+</div>
+
+<!-- Location History Section -->
+<div class="content-card" style="margin-bottom: 24px;">
     <h3 style="margin-top: 0; margin-bottom: 20px; font-size: 18px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px;">
         <i class="fas fa-store" style="color: var(--primary); margin-right: 8px;"></i> Dealer Visits Today
     </h3>

@@ -285,6 +285,9 @@
                         <th>Salesman</th>
                         @endif
                         <th>Distributor</th>
+                        @if(request('tab', 'dealer') === 'distributor')
+                        <th>Assign Distributor</th>
+                        @endif
                         <th>Order Date</th>
                         <th>Status</th>
                         <th>Actions</th>
@@ -323,6 +326,17 @@
                                     <span style="color: var(--text-muted);">-</span>
                                 @endif
                             </td>
+                            @if(request('tab', 'dealer') === 'distributor')
+                            <td>
+                                @if(isset($order->distributor))
+                                    <a href="javascript:void(0)" onclick="viewMemberDetails('{{ addslashes($order->distributor->name) }}', '{{ addslashes($order->distributor->email) }}', '{{ addslashes($order->distributor->mobile) }}', '{{ addslashes($order->distributor->dist_id) }}', 'Distributor', '{{ addslashes(preg_replace('/\r|\n/', ' ', $order->distributor->address ?? '')) }}', '', '{{ addslashes($order->distributor->city->city ?? '') }}', '', '', '', '')" style="font-weight: 500; color: #3b82f6; text-decoration: none;">
+                                        {{ $order->distributor->name }}
+                                    </a>
+                                @else
+                                    <span style="color: var(--text-muted);">-</span>
+                                @endif
+                            </td>
+                            @endif
                             <td>{{ $order->created_at->format('Y-m-d') }}</td>
                             <td>
                                 @if($order->status == 'Confirmed')

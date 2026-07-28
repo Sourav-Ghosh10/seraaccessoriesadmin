@@ -470,10 +470,20 @@
                 <i class="fas fa-times" style="color: var(--text-muted); font-size: 14px;"></i>
             </div>
         </div>
+        <div class="form-group" style="margin-bottom: 15px;">
+            <label class="form-label" style="color: var(--text-muted); font-size: 12px; text-transform: uppercase;">Select Order (Optional)</label>
+            <select id="quickEditPointsOrder" class="form-control" style="background: #1e293b; border-color: rgba(255,255,255,0.1); color: #fff;" onchange="handleOrderPointSelection(this)">
+                <option value="">Admin Adjustment (Total Balance)</option>
+            </select>
+        </div>
         <div class="form-group" style="margin-bottom: 20px;">
-            <label class="form-label" style="color: var(--text-muted); font-size: 12px; text-transform: uppercase;">Points Balance</label>
+            <label class="form-label" id="pointsInputLabel" style="color: var(--text-muted); font-size: 12px; text-transform: uppercase;">Points Balance</label>
             <input type="number" id="quickEditPointsInput" class="form-control" style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1); font-size: 18px; font-weight: bold; color: var(--primary);">
             <p class="field-error" id="err-quick-points"></p>
+        </div>
+        <div class="form-group" style="margin-bottom: 20px;">
+            <label class="form-label" style="color: var(--text-muted); font-size: 12px; text-transform: uppercase;">Unlock Days Count</label>
+            <input type="number" id="quickEditUnlockDaysInput" class="form-control" style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1); font-size: 18px; font-weight: bold; color: #fff;">
         </div>
         <div style="display: flex; gap: 12px; justify-content: flex-end;">
             <button class="btn glass" onclick="closeEditPointsModal()" style="border: none; background: rgba(255,255,255,0.05); padding: 10px 20px;">Cancel</button>
@@ -1075,16 +1085,66 @@ input:-webkit-autofill:active{
     }
 
     let currentEditPointsDealerId = null;
+    let currentEditPointsGlobalBalance = 0;
+    let currentDealerOrders = [];
 
     function openEditPointsModal(dealer, pointsBalance) {
         currentEditPointsDealerId = dealer.id;
+        currentEditPointsGlobalBalance = pointsBalance !== undefined ? pointsBalance : '0';
+        
+        const orderSelect = document.getElementById('quickEditPointsOrder');
+        if (orderSelect) {
+            orderSelect.innerHTML = '<option value="">Loading orders...</option>';
+            orderSelect.disabled = true;
+            fetch(`${window.BASE_PATH}/api/members/${dealer.id}/reward-orders`)
+                .then(r => r.json())
+                .then(result => {
+                    currentDealerOrders = result.data || [];
+                    orderSelect.innerHTML = '<option value="">Admin Adjustment (Total Balance)</option>';
+                    currentDealerOrders.forEach(order => {
+                        const disabledAttr = order.editable === false ? 'disabled' : '';
+                        const labelText = order.editable === false ? `Order ${order.order_number} (${order.date}) - Redeemed` : `Order ${order.order_number} (${order.date})`;
+                        orderSelect.innerHTML += `<option value="${order.id}" ${disabledAttr}>${labelText}</option>`;
+                    });
+                    orderSelect.disabled = false;
+                })
+                .catch(() => {
+                    orderSelect.innerHTML = '<option value="">Failed to load orders</option>';
+                });
+        }
+        
         const input = document.getElementById('quickEditPointsInput');
-        input.value = pointsBalance !== undefined ? pointsBalance : '0';
+        input.value = currentEditPointsGlobalBalance;
         input.classList.remove('input-error');
         const err = document.getElementById('err-quick-points');
         if (err) { err.innerText = ''; err.style.display = 'none'; }
+        
+        const label = document.getElementById('pointsInputLabel');
+        if (label) label.innerText = 'Points Balance';
+
         document.getElementById('editPointsModal').style.display = 'flex';
         closeAllActionMenus();
+    }
+
+    function handleOrderPointSelection(select) {
+        const orderId = select.value;
+        const input = document.getElementById('quickEditPointsInput');
+        const unlockDaysInput = document.getElementById('quickEditUnlockDaysInput');
+        const label = document.getElementById('pointsInputLabel');
+        
+        if (!orderId) {
+            input.value = currentEditPointsGlobalBalance;
+            if (unlockDaysInput) unlockDaysInput.value = '';
+            if (label) label.innerText = 'Points Balance';
+            return;
+        }
+        
+        const order = currentDealerOrders.find(o => o.id == orderId);
+        if (order) {
+            input.value = order.points || 0;
+            if (unlockDaysInput) unlockDaysInput.value = order.unlock_days || '';
+            if (label) label.innerText = `Points for Order ${order.order_number}`;
+        }
     }
 
     function closeEditPointsModal() {
@@ -1094,16 +1154,18 @@ input:-webkit-autofill:active{
 
     function submitEditPoints() {
         const points = document.getElementById('quickEditPointsInput').value;
+        const unlockDays = document.getElementById('quickEditUnlockDaysInput') ? document.getElementById('quickEditUnlockDaysInput').value : '';
+        const orderId = document.getElementById('quickEditPointsOrder') ? document.getElementById('quickEditPointsOrder').value : '';
         if (!currentEditPointsDealerId) return;
 
         fetch(`${window.BASE_PATH}/dealers/${currentEditPointsDealerId}/update-points`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
                 'Accept': 'application/json'
             },
-            body: JSON.stringify({ points: points })
+            body: JSON.stringify({ points: points, order_id: orderId, unlock_days: unlockDays })
         })
         .then(response => response.json())
         .then(result => {

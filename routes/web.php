@@ -143,5 +143,6 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/api/check-new-requests', [PageController::class, 'checkNewRequests'])->name('check.new.requests');
         Route::get('/api/mark-notifications-read', [PageController::class, 'markNotificationsRead'])->name('mark.notifications.read');
         Route::get('/api/dependent-members', [PageController::class, 'dependentMembers'])->name('api.dependent-members');
+        Route::get('/api/members/{id}/reward-orders', [PageController::class, 'memberRewardOrders'])->name('api.member.reward-orders');
     });
 });
