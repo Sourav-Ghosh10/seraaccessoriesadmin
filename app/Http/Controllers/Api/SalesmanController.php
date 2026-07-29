@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\FetchLocationAddress;
+use App\Models\DeviceToken;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use App\Models\Order;
@@ -1946,13 +1948,16 @@ class SalesmanController extends Controller
             ], 400);
         }
 
-        SalesmanLocationLog::create([
+        $log = SalesmanLocationLog::create([
             'attendance_id' => $attendance->id,
             'latitude' => $request->input('latitude'),
             'longitude' => $request->input('longitude'),
             'timestamp' => Carbon::now(), // Use server time (IST) — app sends UTC which causes a 5:30h offset
             'battery_level' => $request->input('battery_level'),
         ]);
+
+        // Dispatch background job to fetch location address
+        FetchLocationAddress::dispatch($log->id)->onQueue('geocoding');
 
         return response()->json([
             'success' => true,

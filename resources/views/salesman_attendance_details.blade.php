@@ -255,7 +255,7 @@
                             </td>
                             <td>
                                 <div class="geo-coord" data-lat="{{ $log->latitude }}" data-lng="{{ $log->longitude }}" style="font-size: 13px; line-height: 1.4; max-width: 300px;">
-                                    <i class="fas fa-spinner fa-spin" style="color: var(--text-muted); margin-right: 5px;"></i> <span style="color: var(--text-muted);">Fetching location...</span>
+                                    {!! $log->address ?? 'Location logged' !!}
                                 </div>
                             </td>
                             <td>
@@ -361,53 +361,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    const coordsElements = document.querySelectorAll('.geo-coord');
-    if (coordsElements.length === 0) return;
-
-    const cache = {};
-    let index = 0;
-
-    function fetchNextAddress() {
-        if (index >= coordsElements.length) return;
-
-        const el = coordsElements[index];
-        const lat = el.getAttribute('data-lat');
-        const lng = el.getAttribute('data-lng');
-        const key = `${lat},${lng}`;
-
-        if (cache[key]) {
-            el.innerHTML = cache[key];
-            index++;
-            fetchNextAddress();
-        } else {
-            fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`, {
-                headers: {
-                    'Accept-Language': 'en'
-                }
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data && data.display_name) {
-                    const address = `<i class="fas fa-map-marker-alt" style="color: var(--text-muted); margin-right: 5px;"></i> ${data.display_name}`;
-                    cache[key] = address;
-                    el.innerHTML = address;
-                } else {
-                    el.innerHTML = '<span style="color: var(--text-muted);">Location unavailable</span>';
-                }
-                index++;
-                // Add a delay to respect Nominatim's usage policy (1 request per second)
-                setTimeout(fetchNextAddress, 1100);
-            })
-            .catch(err => {
-                console.error("Geocoding error:", err);
-                el.innerHTML = '<span style="color: var(--danger);">Error fetching</span>';
-                index++;
-                setTimeout(fetchNextAddress, 1100);
-            });
-        }
-    }
-
-    fetchNextAddress();
 });
 </script>
 @endsection
