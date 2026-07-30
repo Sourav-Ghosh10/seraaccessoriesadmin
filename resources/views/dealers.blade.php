@@ -471,7 +471,7 @@
             </div>
         </div>
         <div class="form-group" style="margin-bottom: 15px;">
-            <label class="form-label" style="color: var(--text-muted); font-size: 12px; text-transform: uppercase;">Select Order (Optional)</label>
+            <label class="form-label" style="color: var(--text-muted); font-size: 12px; text-transform: uppercase;">Select Order <span style="color: var(--danger);">*</span></label>
             <select id="quickEditPointsOrder" class="form-control" style="background: #1e293b; border-color: rgba(255,255,255,0.1); color: #fff;" onchange="handleOrderPointSelection(this)">
                 <option value="">Admin Adjustment (Total Balance)</option>
             </select>
@@ -896,27 +896,39 @@ input:-webkit-autofill:active{
     }
 
     function deleteDealer(id, name) {
-        if (!confirm('Are you sure you want to delete dealer "' + name + '"?')) return;
-        
-        fetch(`${window.BASE_PATH}/dealers/${id}`, {
-            method: 'DELETE',
-            headers: {
-                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                'Accept': 'application/json'
+        Swal.fire({
+            title: 'Confirmation Required',
+            text: 'Are you sure you want to delete dealer "' + name + '"?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#e3342f',
+            cancelButtonColor: 'rgba(255,255,255,0.1)',
+            confirmButtonText: 'Yes, delete',
+            background: '#0f172a',
+            color: '#fff'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                fetch(`${window.BASE_PATH}/dealers/${id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Accept': 'application/json'
+                    }
+                })
+                .then(r => r.json())
+                .then(result => {
+                    if (result.success) {
+                        toastr.success(result.message);
+                        location.reload();
+                    } else {
+                        toastr.error('Error: ' + (result.message || 'Could not delete dealer'));
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    toastr.error('An error occurred. Please try again.');
+                });
             }
-        })
-        .then(r => r.json())
-        .then(result => {
-            if (result.success) {
-                alert(result.message);
-                location.reload();
-            } else {
-                alert('Error: ' + (result.message || 'Could not delete dealer'));
-            }
-        })
-        .catch(err => {
-            console.error(err);
-            alert('An error occurred. Please try again.');
         });
     }
 
@@ -1156,13 +1168,19 @@ input:-webkit-autofill:active{
         const points = document.getElementById('quickEditPointsInput').value;
         const unlockDays = document.getElementById('quickEditUnlockDaysInput') ? document.getElementById('quickEditUnlockDaysInput').value : '';
         const orderId = document.getElementById('quickEditPointsOrder') ? document.getElementById('quickEditPointsOrder').value : '';
+        
+        if (!orderId) {
+            alert('Please select an order before saving points.');
+            return;
+        }
+        
         if (!currentEditPointsDealerId) return;
 
         fetch(`${window.BASE_PATH}/dealers/${currentEditPointsDealerId}/update-points`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
                 'Accept': 'application/json'
             },
             body: JSON.stringify({ points: points, order_id: orderId, unlock_days: unlockDays })

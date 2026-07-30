@@ -149,6 +149,7 @@ class PageController extends Controller
                   ->orWhere('mobile', 'like', "%{$search}%")
                   ->orWhere('email', 'like', "%{$search}%")
                   ->orWhere('id', 'like', "%{$search}%")
+                  ->orWhere('ref_code', 'like', "%{$search}%")
                   ->orWhereHas('city', function($q2) use ($search) {
                       $q2->where('city', 'like', "%{$search}%");
                   });

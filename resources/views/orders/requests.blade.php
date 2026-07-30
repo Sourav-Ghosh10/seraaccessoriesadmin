@@ -730,27 +730,39 @@
         });
 
         function deleteOrderRequest(id, reqNumber) {
-            if (!confirm('Are you sure you want to delete order request "' + reqNumber + '"?')) return;
-            
-            fetch(`${window.BASE_PATH}/order-requests/${id}`, {
-                method: 'DELETE',
-                headers: {
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                    'Accept': 'application/json'
+            Swal.fire({
+                title: 'Confirmation Required',
+                text: 'Are you sure you want to delete order request "' + reqNumber + '"?',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#e3342f',
+                cancelButtonColor: 'rgba(255,255,255,0.1)',
+                confirmButtonText: 'Yes, delete',
+                background: '#0f172a',
+                color: '#fff'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    fetch(`${window.BASE_PATH}/order-requests/${id}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                            'Accept': 'application/json'
+                        }
+                    })
+                    .then(r => r.json())
+                    .then(result => {
+                        if (result.success) {
+                            toastr.success(result.message);
+                            location.reload();
+                        } else {
+                            toastr.error('Error: ' + (result.message || 'Could not delete order request'));
+                        }
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        toastr.error('An error occurred. Please try again.');
+                    });
                 }
-            })
-            .then(r => r.json())
-            .then(result => {
-                if (result.success) {
-                    alert(result.message);
-                    location.reload();
-                } else {
-                    alert('Error: ' + (result.message || 'Could not delete order request'));
-                }
-            })
-            .catch(err => {
-                console.error(err);
-                alert('An error occurred. Please try again.');
             });
         }
 

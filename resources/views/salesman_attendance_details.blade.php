@@ -84,9 +84,9 @@
 
             @if($attendance->date->isToday() && $attendance->clockout_type === 'automatic' && !$attendance->is_unlocked)
             <div>
-                <form action="{{ route('salesman.attendance.unlock', $attendance->id) }}" method="POST">
+                <form action="{{ route('salesman.attendance.unlock', $attendance->id) }}" method="POST" class="swal-confirm-form" data-confirm-text="Are you sure you want to unlock this attendance? This will allow the salesman to resume clocking in.">
                     @csrf
-                    <button type="submit" onclick="return confirm('Are you sure you want to unlock this attendance? This will allow the salesman to resume clocking in.')" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 8px 16px; border-radius: 6px; cursor: pointer; transition: 0.3s; font-size: 13px; display: flex; align-items: center; gap: 6px;">
+                    <button type="submit" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 8px 16px; border-radius: 6px; cursor: pointer; transition: 0.3s; font-size: 13px; display: flex; align-items: center; gap: 6px;">
                         <i class="fas fa-unlock"></i> Unlock
                     </button>
                 </form>

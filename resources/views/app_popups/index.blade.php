@@ -171,31 +171,42 @@ input:checked + .slider:before { transform: translateX(16px); background-color: 
     }
 
     function deletePopup(id, title) {
-        if (!confirm(`Are you sure you want to delete the popup "${title}"? This action cannot be undone.`)) {
-            return;
-        }
-
-        const url = `${window.BASE_PATH}/app-popups/${id}`;
-        
-        fetch(url, {
-            method: 'DELETE',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        Swal.fire({
+            title: 'Confirmation Required',
+            text: `Are you sure you want to delete the popup "${title}"? This action cannot be undone.`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#e3342f',
+            cancelButtonColor: 'rgba(255,255,255,0.1)',
+            confirmButtonText: 'Yes, delete it',
+            background: '#0f172a',
+            color: '#fff'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                const url = `${window.BASE_PATH}/app-popups/${id}`;
+                
+                fetch(url, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        toastr.success(data.message || 'Popup deleted');
+                        filterPopups();
+                    } else {
+                        toastr.error(data.message || 'Error deleting popup');
+                    }
+                })
+                .catch(err => {
+                    console.error('Error:', err);
+                    toastr.error('An error occurred.');
+                });
             }
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                filterPopups();
-            } else {
-                alert(data.message || 'Error deleting popup');
-            }
-        })
-        .catch(err => {
-            console.error('Error:', err);
-            alert('An error occurred while deleting the popup.');
         });
     }
 

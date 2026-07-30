@@ -97,7 +97,7 @@
                             <td>
                                 @if($submission->status == 'Pending')
                                     <div style="display: flex; gap: 5px;">
-                                        <form action="{{ route('payments.approve', $submission->id) }}" method="POST" onsubmit="return confirm('Are you sure you want to approve this payment of ₹ {{ number_format($submission->amount, 2) }}?')">
+                                        <form action="{{ route('payments.approve', $submission->id) }}" method="POST" class="swal-confirm-form" data-confirm-text="Are you sure you want to approve this payment of ₹ {{ number_format($submission->amount, 2) }}?">
                                             @csrf
                                             <button type="submit" class="btn btn-primary" style="padding: 5px 12px; font-size: 11px; background: #22c55e; border-color: #22c55e;">
                                                 <i class="fas fa-check"></i> Approve

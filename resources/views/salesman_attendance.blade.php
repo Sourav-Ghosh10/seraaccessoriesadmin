@@ -110,7 +110,7 @@
                                     <i class="fas fa-eye" style="margin-right: 5px;"></i> Details
                                 </a>
                                 @if($record->clockout_type === 'automatic' && !$record->is_unlocked && $record->date->isToday())
-                                    <form action="{{ route('salesman.attendance.unlock', $record->id) }}" method="POST" style="display: inline-block;" onsubmit="return confirm('Are you sure you want to unlock this attendance to allow the salesman to resume clock-in?');">
+                                    <form action="{{ route('salesman.attendance.unlock', $record->id) }}" method="POST" style="display: inline-block;" class="swal-confirm-form" data-confirm-text="Are you sure you want to unlock this attendance to allow the salesman to resume clock-in?">
                                         @csrf
                                         <button type="submit" class="btn btn-warning" style="padding: 6px 12px; font-size: 12px; text-decoration: none;">
                                             <i class="fas fa-unlock" style="margin-right: 5px;"></i> Unlock
