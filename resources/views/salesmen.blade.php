@@ -190,7 +190,7 @@
     <div class="card modal-content" style="padding: 30px; background: #0f172a; border: 1px solid var(--glass-border); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); width: 400px; animation: modalIn 0.3s ease-out;">
         <h3 style="margin: 0 0 20px 0; font-size: 18px; font-weight: 600;">Edit Salesman Points</h3>
         <div class="form-group" style="margin-bottom: 15px;">
-            <label class="form-label" style="color: var(--text-muted); font-size: 12px; text-transform: uppercase;">Select Order (Optional)</label>
+            <label class="form-label" style="color: var(--text-muted); font-size: 12px; text-transform: uppercase;">Select Order <span style="color: var(--danger);">*</span></label>
             <select id="quickEditPointsOrder" class="form-control" style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1); color: #fff;" onchange="handleOrderPointSelection(this)">
                 <option value="">Admin Adjustment (Total Balance)</option>
             </select>
@@ -711,6 +711,12 @@
     function submitEditPoints() {
         const points = document.getElementById('quickEditPointsInput').value;
         const orderId = document.getElementById('quickEditPointsOrder') ? document.getElementById('quickEditPointsOrder').value : '';
+        
+        if (!orderId) {
+            alert('Please select an order before saving points.');
+            return;
+        }
+
         if (!currentEditPointsSalesmanId) return;
 
         fetch(`${window.BASE_PATH}/salesmen/${currentEditPointsSalesmanId}/update-points`, {

@@ -1171,29 +1171,41 @@
         document.addEventListener('scroll', closeAllActionMenus, true);
 
         function cancelOrder(id, orderNum) {
-            if (confirm(`Are you sure you want to cancel order ${orderNum}?`)) {
-                fetch(`${window.BASE_PATH}/orders/${id}/cancel`, {
-                    method: 'PATCH',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                    }
-                })
-                .then(res => res.json())
-                .then(result => {
-                    if (result.success) {
-                        alert(result.message);
-                        location.reload();
-                    } else {
-                        alert('Error: ' + result.message);
-                    }
-                })
-                .catch(err => {
-                    console.error(err);
-                    alert('An error occurred.');
-                });
-            }
+            Swal.fire({
+                title: 'Confirmation Required',
+                text: `Are you sure you want to cancel order ${orderNum}?`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#e3342f',
+                cancelButtonColor: 'rgba(255,255,255,0.1)',
+                confirmButtonText: 'Yes, cancel',
+                background: '#0f172a',
+                color: '#fff'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    fetch(`${window.BASE_PATH}/orders/${id}/cancel`, {
+                        method: 'PATCH',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                        }
+                    })
+                    .then(res => res.json())
+                    .then(result => {
+                        if (result.success) {
+                            toastr.success(result.message);
+                            location.reload();
+                        } else {
+                            toastr.error('Error: ' + result.message);
+                        }
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        toastr.error('An error occurred.');
+                    });
+                }
+            });
         }
 
         function updateDealerFileName(input) {
@@ -1211,30 +1223,42 @@
         }
 
         function markAsReturned(orderId, orderNumber) {
-            if (confirm(`Are you sure you want to mark order ${orderNumber} as Returned?`)) {
-                const url = '{{ url("/orders") }}/' + orderId + '/mark-returned';
-                
-                fetch(url, {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                        'Content-Type': 'application/json'
-                    }
-                })
-                .then(response => response.json())
-                .then(result => {
-                    if (result.success) {
-                        alert(result.message);
-                        location.reload();
-                    } else {
-                        alert('Error: ' + result.message);
-                    }
-                })
-                .catch(err => {
-                    console.error(err);
-                    alert('Something went wrong!');
-                });
-            }
+            Swal.fire({
+                title: 'Confirmation Required',
+                text: `Are you sure you want to mark order ${orderNumber} as Returned?`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#e3342f',
+                cancelButtonColor: 'rgba(255,255,255,0.1)',
+                confirmButtonText: 'Yes, return it',
+                background: '#0f172a',
+                color: '#fff'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    const url = '{{ url("/orders") }}/' + orderId + '/mark-returned';
+                    
+                    fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                            'Content-Type': 'application/json'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(result => {
+                        if (result.success) {
+                            toastr.success(result.message);
+                            location.reload();
+                        } else {
+                            toastr.error('Error: ' + result.message);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error marking as returned:', error);
+                        toastr.error('An error occurred.');
+                    });
+                }
+            });
         }
 
         function openUploadCreditNoteModal(orderId, orderNumber, role = 'dealer') {

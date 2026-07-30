@@ -15,6 +15,7 @@
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{{ asset('css/style.css') }}?v={{ time() }}">
     @yield('styles')
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
     
     <script>
         window.APP_URL = "{{ url('/') }}";
@@ -343,6 +344,29 @@
     @endif
 
     <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        toastr.options = {
+            "closeButton": true,
+            "progressBar": true,
+            "positionClass": "toast-top-right",
+            "timeOut": "3000"
+        };
+        @if(Session::has('success'))
+            toastr.success("{!! Session::get('success') !!}");
+        @endif
+        @if(Session::has('error'))
+            toastr.error("{!! Session::get('error') !!}");
+        @endif
+        @if(Session::has('info'))
+            toastr.info("{!! Session::get('info') !!}");
+        @endif
+        @if(Session::has('warning'))
+            toastr.warning("{!! Session::get('warning') !!}");
+        @endif
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
@@ -436,6 +460,46 @@
                 })
                 .catch(err => console.error('Error marking notifications read:', err));
         }
+
+        $(document).ready(function() {
+            // Override native alert to use Toastr
+            window.alert = function(message) {
+                if (typeof message === 'string') {
+                    const msgLower = message.toLowerCase();
+                    if (msgLower.includes('error') || msgLower.includes('fail') || msgLower.includes('wrong')) {
+                        toastr.error(message);
+                    } else if (msgLower.includes('success')) {
+                        toastr.success(message);
+                    } else {
+                        toastr.warning(message);
+                    }
+                } else {
+                    toastr.info(message);
+                }
+            };
+
+            $(document).on('submit', '.swal-confirm-form', function(e) {
+                e.preventDefault();
+                const form = this;
+                const msg = $(form).data('confirm-text') || 'Are you sure you want to proceed?';
+                
+                Swal.fire({
+                    title: 'Confirmation Required',
+                    text: msg,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#9a5a3a', // Primary color
+                    cancelButtonColor: 'rgba(255,255,255,0.1)',
+                    confirmButtonText: 'Yes, proceed',
+                    background: '#0f172a', // Dark theme background
+                    color: '#fff'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        form.submit();
+                    }
+                });
+            });
+        });
     </script>
 
     <!-- Global AJAX Loader Script -->

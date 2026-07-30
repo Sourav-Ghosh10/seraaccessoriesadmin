@@ -107,13 +107,13 @@
                     <td>
                         <div style="display: flex; gap: 5px;">
                             @if($expense->status == 'Pending')
-                                <form method="POST" action="{{ route('expenses.status.update', $expense->id) }}" onsubmit="return confirm('Are you sure you want to approve this expense?');">
+                                <form method="POST" action="{{ route('expenses.status.update', $expense->id) }}" class="swal-confirm-form" data-confirm-text="Are you sure you want to approve this expense?">
                                     @csrf
                                     @method('PATCH')
                                     <input type="hidden" name="status" value="Approved">
                                     <button type="submit" class="btn btn-primary" style="padding: 5px 10px; font-size: 12px; background: #22c55e; border-color: #22c55e;">Approve</button>
                                 </form>
-                                <form method="POST" action="{{ route('expenses.status.update', $expense->id) }}" onsubmit="return confirm('Are you sure you want to reject this expense?');">
+                                <form method="POST" action="{{ route('expenses.status.update', $expense->id) }}" class="swal-confirm-form" data-confirm-text="Are you sure you want to reject this expense?">
                                     @csrf
                                     @method('PATCH')
                                     <input type="hidden" name="status" value="Rejected">
