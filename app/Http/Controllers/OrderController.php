@@ -89,13 +89,14 @@ class OrderController extends Controller
             ]);
         }
 
-        // Send push notification to dealer with deep link
+        // Send push notification to member (dealer or distributor) with deep link
+        $notificationType = ($order->member->role === 'distributor') ? 'assigned_order' : 'order';
         FcmService::sendPushNotification(
             $order->member,
             'New Order Confirmed',
             "Your order {$orderNumber} has been confirmed and is being processed.",
             [
-                'type' => 'order',
+                'type' => $notificationType,
                 'id' => $order->id,
                 'order_number' => $orderNumber,
                 'status' => 'Confirmed'
@@ -141,7 +142,7 @@ class OrderController extends Controller
                 'Challan Uploaded',
                 "Challan has been uploaded for your order {$order->order_number}.",
                 [
-                    'type' => 'order',
+                    'type' => ($order->member->role === 'distributor') ? 'assigned_order' : 'order',
                     'id' => $order->id,
                     'order_number' => $order->order_number,
                     'status' => $order->status
@@ -217,7 +218,7 @@ class OrderController extends Controller
             'Order Out for Delivery',
             "Your order {$order->order_number} is out for delivery! Vehicle: {$validated['vehicle_no']}.",
             [
-                'type' => 'order',
+                'type' => ($order->member->role === 'distributor') ? 'assigned_order' : 'order',
                 'id' => $order->id,
                 'order_number' => $order->order_number,
                 'status' => 'Out for Delivery'
@@ -290,7 +291,7 @@ class OrderController extends Controller
                 'Invoice Generated',
                 "Invoice {$validated['invoice_number']} of ₹{$totalAmount} has been generated for order {$order->order_number}.",
                 [
-                    'type' => 'order',
+                    'type' => ($order->member->role === 'distributor') ? 'assigned_order' : 'order',
                     'id' => $order->id,
                     'order_number' => $order->order_number,
                     'status' => 'Invoiced',
@@ -334,7 +335,7 @@ class OrderController extends Controller
             'Estimate Reverted',
             "Your estimate request {$estimate->request_number} has been reverted by the administrator.",
             [
-                'type' => 'estimate',
+                'type' => ($estimate->member->role === 'distributor') ? 'assigned_estimate' : 'estimate',
                 'id' => $estimate->id,
                 'status' => 'Responded'
             ]
@@ -479,7 +480,7 @@ class OrderController extends Controller
                 'Order Returned',
                 "Your order {$order->order_number} has been marked as returned.",
                 [
-                    'type' => 'order',
+                    'type' => ($order->member->role === 'distributor') ? 'assigned_order' : 'order',
                     'id' => $order->id,
                     'order_number' => $order->order_number,
                     'status' => 'Returned'
@@ -630,7 +631,7 @@ class OrderController extends Controller
                 'Order Cancelled',
                 "Your order {$order->order_number} has been cancelled.",
                 [
-                    'type' => 'order',
+                    'type' => ($order->member->role === 'distributor') ? 'assigned_order' : 'order',
                     'id' => $order->id,
                     'order_number' => $order->order_number,
                     'status' => 'Cancelled'
