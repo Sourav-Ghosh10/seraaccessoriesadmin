@@ -312,19 +312,7 @@
                                 @endif
                             </td>
                             <td>
-                                @if($order->status == 'Confirmed')
-                                    <span class="badge badge-success">Confirmed</span>
-                                @elseif($order->status == 'Out for Delivery')
-                                    <span class="badge badge-primary" style="background: rgba(59, 130, 246, 0.2); color: #3b82f6;">Out for Delivery</span>
-                                @elseif($order->status == 'Delivered')
-                                    <span class="badge badge-success">Delivered</span>
-                                @elseif($order->status == 'Returned')
-                                    <span class="badge badge-danger" style="background: rgba(239, 68, 68, 0.2); color: #ef4444;">Returned</span>
-                                @elseif($order->status == 'Invoiced')
-                                    <span class="badge badge-info" style="background: rgba(6, 182, 212, 0.2); color: #06b6d4;">Invoiced</span>
-                                @else
-                                    <span class="badge badge-warning">{{ $order->status }}</span>
-                                @endif
+                                <span class="badge badge-status-{{ Str::slug($order->status) }}">{{ $order->status }}</span>
                             </td>
                             <td>
                                 @if($order->invoice)

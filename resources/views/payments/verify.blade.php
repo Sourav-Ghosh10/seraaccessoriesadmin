@@ -80,7 +80,7 @@
                             <td style="font-weight: 600; color: var(--primary);">₹ {{ number_format($submission->amount, 2) }}</td>
                             <td>{{ $submission->created_at->format('Y-m-d / h:i A') }}</td>
                             <td>
-                                <span class="badge {{ $submission->status == 'Approved' ? 'badge-success' : ($submission->status == 'Rejected' ? 'badge-danger' : 'badge-warning') }}">
+                                <span class="badge badge-status-{{ Str::slug($submission->status) }}">
                                     {{ $submission->status }}
                                 </span>
                             </td>

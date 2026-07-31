@@ -38,7 +38,7 @@
                         </span>
                     </td>
                     <td>
-                        <span class="badge {{ $user->status == 'Active' ? 'badge-success' : 'badge-warning' }}">
+                        <span class="badge badge-status-{{ Str::slug($user->status) }}">
                             {{ $user->status }}
                         </span>
                     </td>

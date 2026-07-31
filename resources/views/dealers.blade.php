@@ -242,7 +242,7 @@
                         </label>
                     </td>
                     <td>
-                        <span class="badge {{ $dealer->status == 'Active' ? 'badge-success' : ($dealer->status == 'Pending' ? 'badge-warning' : 'badge-danger') }}">
+                        <span class="badge badge-status-{{ Str::slug($dealer->status) }}">
                             {{ $dealer->status }}
                         </span>
                     </td>
@@ -643,7 +643,7 @@ input:-webkit-autofill:active{
         document.getElementById('vDistributor').innerText   = dealer.dist_id || '—';
         document.getElementById('vAddress').innerText       = dealer.address || 'No address provided';
 
-        const badgeClass = dealer.status === 'Active' ? 'badge-success' : (dealer.status === 'Pending' ? 'badge-warning' : 'badge-danger');
+        const badgeClass = 'badge-status-' + dealer.status.toLowerCase().replace(/\s+/g, '-');
         document.getElementById('vStatus').innerHTML = `<span class="badge ${badgeClass}">${dealer.status}</span>`;
 
         document.getElementById('dealerModal').style.display = 'flex';

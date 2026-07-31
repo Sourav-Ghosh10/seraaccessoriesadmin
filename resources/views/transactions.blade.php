@@ -196,7 +196,7 @@
                     <td><span class="badge ${typeClass}">${t.type}</span></td>
                     <td style="font-weight: 700; color: ${t.type === 'Order' ? 'var(--accent)' : 'var(--success)'}">₹ ${Math.abs(t.amount).toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
                     <td style="font-family: 'JetBrains Mono', monospace; color: var(--text-muted); font-size: 12px;">${t.ref}</td>
-                    <td><span class="badge badge-success" style="font-size: 10px; padding: 4px 10px;">${t.status}</span></td>
+                    <td><span class="badge badge-status-${t.status.toLowerCase().replace(/\s+/g, '-')}" style="font-size: 10px; padding: 4px 10px;">${t.status}</span></td>
                 </tr>
             `;
         });

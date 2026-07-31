@@ -42,7 +42,7 @@
                     <td>{{ $staff->email }}</td>
                     <td>{{ $staff->mobile }}</td>
                     <td>
-                        <span class="badge {{ strtolower($staff->status) == 'active' ? 'badge-success' : 'badge-danger' }}" style="background: {{ strtolower($staff->status) == 'active' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)' }}; color: {{ strtolower($staff->status) == 'active' ? '#10b981' : '#ef4444' }}; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600;">
+                        <span class="badge badge-status-{{ Str::slug($staff->status) }}" style="padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600;">
                             {{ $staff->status }}
                         </span>
                     </td>

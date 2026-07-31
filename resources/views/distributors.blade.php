@@ -159,7 +159,7 @@
                     <td>{{ $distributor->address ?? 'N/A' }}</td>
                     <td>{{ $distributor->city ? $distributor->city->city : 'N/A' }}</td>
                     <td>{{ $distributor->gst_no ?? 'N/A' }}</td>
-                    <td><span class="badge badge-success">{{ $distributor->status }}</span></td>
+                    <td><span class="badge badge-status-{{ Str::slug($distributor->status) }}">{{ $distributor->status }}</span></td>
                     <td>
                         <div style="display: flex; gap: 8px;">
                             <button class="btn glass" onclick="editDistributor('{{ $distributor->id }}', '{{ addslashes($distributor->name) }}', '{{ addslashes($distributor->email) }}', '{{ addslashes($distributor->mobile) }}', '{{ $distributor->status }}', '{{ addslashes($distributor->dist_id) }}', '{{ addslashes($distributor->address) }}', '{{ addslashes($distributor->gst_no) }}', '{{ $distributor->city_id }}')" style="padding: 5px 10px; font-size: 12px;" title="Edit Distributor"><i class="fas fa-edit"></i></button>

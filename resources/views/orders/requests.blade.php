@@ -391,13 +391,7 @@
                             </td>
                             <td>{{ $order->created_at->format('d M, Y') }}</td>
                             <td>
-                                @if($order->status == 'Pending')
-                                    <span class="badge badge-warning">Pending</span>
-                                @elseif($order->status == 'Processed')
-                                    <span class="badge badge-success">Processed</span>
-                                @else
-                                    <span class="badge badge-danger">{{ $order->status }}</span>
-                                @endif
+                                <span class="badge badge-status-{{ Str::slug($order->status) }}">{{ $order->status }}</span>
                             </td>
                             <td>
                                 <div class="action-dropdown">

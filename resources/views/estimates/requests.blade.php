@@ -254,7 +254,7 @@
                             </td>
                             <td>{{ $estimate->created_at->format('Y-m-d / h:i A') }}</td>
                             <td>
-                                <span class="badge {{ $estimate->status == 'Responded' ? 'badge-success' : 'badge-warning' }}">
+                                <span class="badge badge-status-{{ Str::slug($estimate->status) }}">
                                     {{ $estimate->status }}
                                 </span>
                             </td>
@@ -272,7 +272,8 @@
                                         <i class="fas fa-eye"></i> View
                                     </button>
  
-                                    <button class="btn btn-primary" style="padding: 5px 12px; font-size: 11px;"
+                                    <button class="btn btn-primary" style="padding: 5px 12px; font-size: 11px; {{ strtolower($estimate->status) === 'confirmed' ? 'opacity: 0.5; cursor: not-allowed;' : '' }}"
+                                        {{ strtolower($estimate->status) === 'confirmed' ? 'disabled' : '' }}
                                         onclick="openEstimateModal('{{ $estimate->id }}', '{{ $estimate->request_number ?? 'EST-' . str_pad($estimate->id, 4, '0', STR_PAD_LEFT) }}', '{{ $estimate->response_description }}')">
                                         <i class="fas fa-reply"></i> Revert Estimate
                                     </button>
@@ -601,6 +602,9 @@
         </div>
     </div>
 
+@endsection
+
+@section('scripts')
     <script>
         function toggleDateInputs() {
             const type = document.getElementById('dateTypeSelect').value;
@@ -817,7 +821,6 @@
         }
         // Modals do not close on outside click; user must click X icon or Close button
     </script>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script>
         $(document).ready(function() {
@@ -961,7 +964,7 @@
                             $('.table-container').html(newTable);
                         }
                     });
-                }, 300);
+                }, 800);
             }
 
             $('#searchInput').on('input', function() {
