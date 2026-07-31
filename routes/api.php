@@ -107,6 +107,11 @@ Route::middleware(JwtAuthMiddleware::class)->group(function () {
         Route::post('/redeem-request/{id}/status', [DistributorController::class, 'updateRedeemRequestStatus'])->name('redeem-request.status');
         Route::post('/redeem-request/{id}/approve', [DistributorController::class, 'updateRedeemRequestStatus'])->name('redeem-request.approve');
         Route::post('/redeem-request/{id}/reject', [DistributorController::class, 'updateRedeemRequestStatus'])->name('redeem-request.reject');
+
+        // Push Notifications
+        Route::post('/update-fcm-token', [DistributorController::class, 'updateFcmToken'])->name('update-fcm-token');
+        Route::get('/notifications', [DistributorController::class, 'getNotifications'])->name('notifications.list');
+        Route::post('/notifications/read-all', [DistributorController::class, 'readAllNotifications'])->name('notifications.read-all');
     });
 
 });

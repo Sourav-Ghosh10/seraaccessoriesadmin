@@ -85,7 +85,8 @@ class AuthController extends Controller
                                                 new OA\Property(property: "id",     type: "integer", example: 2),
                                                 new OA\Property(property: "name",   type: "string",  example: "Rakesh Sharma"),
                                                 new OA\Property(property: "mobile", type: "string",  example: "9876543210"),
-                                                new OA\Property(property: "role",   type: "string",  example: "salesman")
+                                                new OA\Property(property: "role",   type: "string",  example: "salesman"),
+                                                new OA\Property(property: "photo",  type: "string",  nullable: true, example: "https://example.com/storage/profile_images/abc.jpg")
                                             ]
                                         ),
                                         new OA\Property(property: "emp_id",      type: "string",  nullable: true, example: null),
@@ -237,7 +238,8 @@ class AuthController extends Controller
                                         new OA\Property(property: "id",     type: "integer", example: 2),
                                         new OA\Property(property: "name",   type: "string",  example: "Rakesh Sharma"),
                                         new OA\Property(property: "mobile", type: "string",  example: "9876543210"),
-                                        new OA\Property(property: "role",   type: "string",  example: "salesman")
+                                        new OA\Property(property: "role",   type: "string",  example: "salesman"),
+                                        new OA\Property(property: "photo",  type: "string",  nullable: true, example: "https://example.com/storage/profile_images/abc.jpg")
                                     ]
                                 ),
                                 new OA\Property(property: "emp_id",      type: "string",  nullable: true, example: null),
@@ -477,6 +479,9 @@ class AuthController extends Controller
                 'name'   => $member->salesman->name,
                 'mobile' => $member->salesman->mobile,
                 'role'   => $member->salesman->role,
+                'photo'  => $member->salesman->profile_image
+                    ? asset('uploads/' . $member->salesman->profile_image)
+                    : null,
             ] : null,
         ];
     }
