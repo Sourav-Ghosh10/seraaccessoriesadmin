@@ -427,7 +427,7 @@ class DistributorController extends Controller
         ]);
 
         $delivery = null;
-        if ($order->delivery) {
+        if ($order->delivery && !empty(trim($order->delivery->status ?? ''))) {
             $delivery = [
                 'id'                   => $order->delivery->id,
                 'vehicle_no'           => $order->delivery->vehicle_no,
