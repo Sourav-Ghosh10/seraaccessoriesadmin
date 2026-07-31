@@ -283,15 +283,7 @@
                             </td>
                             <td>{{ $req->created_at ? $req->created_at->format('d M, Y') : '-' }}</td>
                             <td>
-                                @if($req->status == 'Pending')
-                                    <span class="badge badge-warning">Pending</span>
-                                @elseif($req->status == 'Approved')
-                                    <span class="badge badge-info" style="background: rgba(59,130,246,0.2); color: #60a5fa; border: 1px solid rgba(59,130,246,0.3); padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 500;">Approved</span>
-                                @elseif($req->status == 'Processed')
-                                    <span class="badge badge-success">Processed</span>
-                                @else
-                                    <span class="badge badge-danger">{{ $req->status }}</span>
-                                @endif
+                                <span class="badge badge-status-{{ Str::slug($req->status) }}">{{ $req->status }}</span>
                             </td>
                             <td>
                                 <div class="action-dropdown">

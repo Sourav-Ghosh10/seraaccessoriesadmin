@@ -32,7 +32,7 @@
                     Dealer Information</p>
                 <h2 style="margin: 10px 0 5px 0; color: var(--primary);">{{ $order->member->name }}</h2>
                 <p style="margin: 0; color: var(--text-muted);">Status: <span
-                        class="badge {{ $order->status == 'Confirmed' ? 'badge-success' : 'badge-warning' }}">{{ $order->status }}</span>
+                        class="badge badge-status-{{ Str::slug($order->status) }}">{{ $order->status }}</span>
                 </p>
             </div>
             <div style="text-align: right;">
@@ -54,7 +54,7 @@
                 @if($order->delivery)
                     <div style="margin-bottom: 12px;">
                         <span style="font-size: 12px; color: var(--text-muted); display: block;">Expected Delivery:</span>
-                        <strong style="color: #fff; font-size: 15px;">{{ \Carbon\Carbon::parse($order->delivery->expected_delivery_at)->format('d M, Y \a\t h:i A') }}</strong>
+                        <strong style="color: #fff; font-size: 15px;">{{ \Carbon\Carbon::parse($order->delivery->expected_delivery_at)->format('d M, Y') }}</strong>
                     </div>
                     @if($order->received_at || strtolower($order->status) === 'delivered' || strtolower($order->delivery->status) === 'delivered')
                         <div style="margin-bottom: 12px;">
@@ -68,14 +68,20 @@
                             </strong>
                         </div>
                     @endif
-                    <div style="margin-bottom: 12px;">
-                        <span style="font-size: 12px; color: var(--text-muted); display: block;">Vehicle Details:</span>
-                        <strong style="color: #fff; font-size: 14px;">{{ $order->delivery->vehicle_no }} ({{ $order->delivery->vehicle_type }})</strong>
-                    </div>
-                    <div>
-                        <span style="font-size: 12px; color: var(--text-muted); display: block;">Driver Phone:</span>
-                        <strong style="color: #fff; font-size: 14px;">{{ $order->delivery->driver_phone }}</strong>
-                    </div>
+                    @if($order->delivery->vehicle_no)
+                        <div style="margin-bottom: 12px;">
+                            <span style="font-size: 12px; color: var(--text-muted); display: block;">Vehicle Details:</span>
+                            <strong style="color: #fff; font-size: 14px;">{{ $order->delivery->vehicle_no }} ({{ $order->delivery->vehicle_type }})</strong>
+                        </div>
+                        <div>
+                            <span style="font-size: 12px; color: var(--text-muted); display: block;">Driver Phone:</span>
+                            <strong style="color: #fff; font-size: 14px;">{{ $order->delivery->driver_phone }}</strong>
+                        </div>
+                    @else
+                        <div style="padding: 10px 15px; background: rgba(255,255,255,0.03); border: 1px dashed rgba(255,255,255,0.1); border-radius: 8px; color: var(--text-muted); font-size: 12px; margin-bottom: 12px;">
+                            <i class="fas fa-shipping-fast" style="margin-right: 5px;"></i> Transport details not yet scheduled.
+                        </div>
+                    @endif
                     @if($order->delivery->document_path)
                         <div style="margin-top: 12px;">
                             <span style="font-size: 12px; color: var(--text-muted); display: block;">Delivery Document:</span>

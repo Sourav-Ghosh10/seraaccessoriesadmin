@@ -100,7 +100,7 @@
                         </div>
                     </td>
                     <td>
-                        <span class="badge {{ $expense->status == 'Approved' ? 'badge-success' : ($expense->status == 'Pending' ? 'badge-warning' : 'badge-danger') }}">
+                        <span class="badge badge-status-{{ Str::slug($expense->status) }}">
                             {{ $expense->status }}
                         </span>
                     </td>
@@ -195,7 +195,7 @@
                         @endif
                     </td>
                     <td>
-                        <span class="badge {{ $reimbursement->status == 'Approved' ? 'badge-success' : ($reimbursement->status == 'Pending' ? 'badge-warning' : 'badge-danger') }}">
+                        <span class="badge badge-status-{{ Str::slug($reimbursement->status) }}">
                             {{ $reimbursement->status }}
                         </span>
                     </td>

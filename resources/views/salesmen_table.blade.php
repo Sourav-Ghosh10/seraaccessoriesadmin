@@ -6,7 +6,7 @@
                     <td>{{ $salesman->email }}</td>
                     <td>{{ $salesman->mobile }}</td>
                     <td style="color: var(--secondary); font-weight: 600;">{{ number_format($salesman->points_balance) }}</td>
-                    <td><span class="badge {{ strtolower($salesman->status) == 'active' ? 'badge-success' : 'badge-danger' }}">{{ strtoupper($salesman->status) }}</span></td>
+                    <td><span class="badge badge-status-{{ Str::slug($salesman->status) }}">{{ strtoupper($salesman->status) }}</span></td>
                     <td>
                         <div class="action-menu-container">
                             <button class="action-btn" onclick="toggleActionMenu(this, event)">

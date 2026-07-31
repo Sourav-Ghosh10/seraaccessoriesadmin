@@ -161,17 +161,39 @@
             .then(response => response.json())
                 .then(result => {
                     if (result.success) {
-                        alert(result.message);
-                        window.location.href = '{{ route('orders.index') }}';
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Success!',
+                            text: result.message,
+                            background: 'var(--dark)',
+                            color: 'var(--light)',
+                            confirmButtonColor: 'var(--primary)'
+                        }).then(() => {
+                            window.location.href = '{{ route('orders.index') }}';
+                        });
                     } else {
-                        alert('Error: ' + (result.message || 'Unknown error'));
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: result.message || 'Unknown error',
+                            background: 'var(--dark)',
+                            color: 'var(--light)',
+                            confirmButtonColor: 'var(--primary)'
+                        });
                         submitBtn.disabled = false;
                         submitBtn.innerHTML = 'Confirm & Generate Order';
                     }
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    alert('Something went wrong!');
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Oops...',
+                        text: 'Something went wrong!',
+                        background: 'var(--dark)',
+                        color: 'var(--light)',
+                        confirmButtonColor: 'var(--primary)'
+                    });
                     submitBtn.disabled = false;
                     submitBtn.innerHTML = 'Confirm & Generate Order';
                 });

@@ -847,20 +847,26 @@ select.form-control option {
 /* Select2 Clear Icon Fix for Dark Mode */
 .select2-container--default .select2-selection--single .select2-selection__clear,
 .select2-container--default .select2-selection--multiple .select2-selection__clear {
+    position: absolute !important;
+    right: 32px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
     color: #f8fafc !important;
-    font-size: 18px !important;
+    font-size: 24px !important;
     font-weight: bold !important;
-    margin-right: 12px !important;
-    float: right !important;
-    line-height: 38px !important;
-    opacity: 0.9 !important;
+    line-height: 1 !important;
+    margin: 0 !important;
+    float: none !important;
+    opacity: 0.8 !important;
     transition: all 0.2s ease !important;
     cursor: pointer !important;
+    z-index: 10 !important;
 }
 .select2-container--default .select2-selection--single .select2-selection__clear:hover,
 .select2-container--default .select2-selection--multiple .select2-selection__clear:hover {
     color: #ef4444 !important;
     opacity: 1 !important;
+    transform: translateY(-50%) scale(1.1) !important;
 }
 
 /* Fix for native date, time, and month picker icons in dark mode */
@@ -882,3 +888,21 @@ input[type="month"]::-webkit-calendar-picker-indicator:hover,
 input[type="week"]::-webkit-calendar-picker-indicator:hover {
     opacity: 1;
 }
+
+/* Dynamic Status Badges */
+.badge[class*="badge-status-"] {
+    border: 1px solid transparent;
+}
+.badge-status-pending { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border-color: rgba(245, 158, 11, 0.2); }
+.badge-status-confirmed { background: rgba(59, 130, 246, 0.15); color: #60a5fa; border-color: rgba(59, 130, 246, 0.2); }
+.badge-status-processed { background: rgba(20, 184, 166, 0.15); color: #2dd4bf; border-color: rgba(20, 184, 166, 0.2); }
+.badge-status-approved { background: rgba(16, 185, 129, 0.15); color: #34d399; border-color: rgba(16, 185, 129, 0.2); }
+.badge-status-responded { background: rgba(139, 92, 246, 0.15); color: #a78bfa; border-color: rgba(139, 92, 246, 0.2); }
+.badge-status-active { background: rgba(34, 197, 94, 0.15); color: #4ade80; border-color: rgba(34, 197, 94, 0.2); }
+.badge-status-inactive { background: rgba(100, 116, 139, 0.15); color: #94a3b8; border-color: rgba(100, 116, 139, 0.2); }
+.badge-status-out-for-delivery { background: rgba(99, 102, 241, 0.15); color: #818cf8; border-color: rgba(99, 102, 241, 0.2); }
+.badge-status-delivered { background: rgba(132, 204, 22, 0.15); color: #a3e635; border-color: rgba(132, 204, 22, 0.2); }
+.badge-status-returned { background: rgba(239, 68, 68, 0.15); color: #f87171; border-color: rgba(239, 68, 68, 0.2); }
+.badge-status-rejected { background: rgba(244, 63, 94, 0.15); color: #fb7185; border-color: rgba(244, 63, 94, 0.2); }
+.badge-status-invoiced { background: rgba(6, 182, 212, 0.15); color: #22d3ee; border-color: rgba(6, 182, 212, 0.2); }
+.badge-status-processing { background: rgba(234, 179, 8, 0.15); color: #facc15; border-color: rgba(234, 179, 8, 0.2); }

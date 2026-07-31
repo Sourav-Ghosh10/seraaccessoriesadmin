@@ -76,6 +76,12 @@ class OrderController extends Controller
             'status' => 'Confirmed',
         ]);
 
+        \App\Models\Delivery::create([
+            'order_id' => $order->id,
+            'expected_delivery_at' => $validated['delivery_date'] . ' 00:00:00',
+            'status' => 'Pending'
+        ]);
+
         if ($request->from_request_id) {
             OrderRequest::where('id', $request->from_request_id)->update([
                 'status' => 'Processed',
@@ -244,9 +250,9 @@ class OrderController extends Controller
                 'file_path' => $path
             ]);
 
-            // Update Dealer Balance and Passbook
+            // Update Member Balance and Passbook (Dealer or Distributor)
             $dealer = $order->member;
-            if ($dealer && $dealer->role === 'dealer') {
+            if ($dealer && in_array($dealer->role, ['dealer', 'distributor'])) {
                 $balance = $dealer->dealerBalance;
                 if (!$balance) {
                     $balance = \App\Models\DealerBalance::create([
@@ -306,6 +312,10 @@ class OrderController extends Controller
         ]);
 
         $estimate = \App\Models\Estimate::findOrFail($id);
+
+        if (strtolower($estimate->status) === 'confirmed') {
+            return redirect()->back()->with('error', 'Cannot revert an estimate that is already confirmed.');
+        }
 
         $filePath = $estimate->response_file_path;
         if ($request->hasFile('estimate_pdf')) {
