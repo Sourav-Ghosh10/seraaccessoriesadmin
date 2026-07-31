@@ -427,7 +427,7 @@ class DistributorController extends Controller
         ]);
 
         $delivery = null;
-        if ($order->delivery) {
+        if ($order->delivery && !empty(trim($order->delivery->status ?? ''))) {
             $delivery = [
                 'id'                   => $order->delivery->id,
                 'vehicle_no'           => $order->delivery->vehicle_no,
@@ -956,6 +956,157 @@ class DistributorController extends Controller
             'success' => true,
             'message' => "Redeem request updated to {$validated['status']}.",
             'data' => $redeemRequest,
+        ]);
+    }
+
+    #[OA\Post(
+        path: "/distributor/update-fcm-token",
+        summary: "Update FCM Push Token",
+        description: "Registers or updates the FCM token for the distributor's device.",
+        security: [["bearerAuth" => []]],
+        tags: ["Distributor"],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ["fcm_token"],
+                properties: [
+                    new OA\Property(property: "fcm_token", type: "string", description: "The FCM push token received from Firebase SDK"),
+                    new OA\Property(property: "device_type", type: "string", description: "Optional. 'android' or 'ios'", example: "android")
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: "Token updated successfully",
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: "success", type: "boolean", example: true),
+                        new OA\Property(property: "message", type: "string", example: "FCM Token registered successfully.")
+                    ]
+                )
+            )
+        ]
+    )]
+    public function updateFcmToken(Request $request): JsonResponse
+    {
+        /** @var Member $distributor */
+        $distributor = $request->user();
+
+        // Distributor-only guard
+        if (strtolower($distributor->role) !== 'distributor') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized.',
+            ], 403);
+        }
+
+        $request->validate([
+            'fcm_token' => 'required|string',
+        ]);
+
+        \App\Models\MemberDevice::updateOrCreate(
+            ['fcm_token' => $request->fcm_token],
+            ['member_id' => $distributor->id, 'device_type' => $request->device_type ?? 'android']
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'FCM Token registered successfully.',
+        ]);
+    }
+
+    #[OA\Get(
+        path: "/distributor/notifications",
+        summary: "Get notifications history",
+        description: "Fetches a paginated history list of all stored notifications sent to the authenticated distributor.",
+        security: [["bearerAuth" => []]],
+        tags: ["Distributor"],
+        parameters: [
+            new OA\Parameter(
+                name: "page",
+                in: "query",
+                description: "Page number",
+                required: false,
+                schema: new OA\Schema(type: "integer", default: 1)
+            )
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: "Notifications fetched successfully",
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: "success", type: "boolean", example: true)
+                    ]
+                )
+            )
+        ]
+    )]
+    public function getNotifications(Request $request): JsonResponse
+    {
+        /** @var Member $distributor */
+        $distributor = $request->user();
+
+        if (strtolower($distributor->role) !== 'distributor') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized.',
+            ], 403);
+        }
+
+        $notifications = $distributor->notifications()
+            ->orderBy('created_at', 'desc')
+            ->paginate(15);
+
+        return response()->json([
+            'success' => true,
+            'data' => $notifications->items(),
+            'meta' => [
+                'current_page' => $notifications->currentPage(),
+                'last_page' => $notifications->lastPage(),
+                'per_page' => $notifications->perPage(),
+                'total' => $notifications->total(),
+            ]
+        ]);
+    }
+
+    #[OA\Post(
+        path: "/distributor/notifications/read-all",
+        summary: "Mark all notifications as read",
+        description: "Marks all stored notifications for the authenticated distributor as read.",
+        security: [["bearerAuth" => []]],
+        tags: ["Distributor"],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: "Notifications marked as read successfully",
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: "success", type: "boolean", example: true),
+                        new OA\Property(property: "message", type: "string", example: "All notifications marked as read.")
+                    ]
+                )
+            )
+        ]
+    )]
+    public function readAllNotifications(Request $request): JsonResponse
+    {
+        /** @var Member $distributor */
+        $distributor = $request->user();
+
+        if (strtolower($distributor->role) !== 'distributor') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized.',
+            ], 403);
+        }
+
+        $distributor->notifications()->update(['is_read' => true]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'All notifications marked as read.'
         ]);
     }
 }

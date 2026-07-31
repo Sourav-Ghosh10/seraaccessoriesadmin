@@ -79,7 +79,7 @@ class OrderController extends Controller
         \App\Models\Delivery::create([
             'order_id' => $order->id,
             'expected_delivery_at' => $validated['delivery_date'] . ' 00:00:00',
-            'status' => 'Pending'
+            'status' => null
         ]);
 
         if ($request->from_request_id) {
@@ -148,6 +148,23 @@ class OrderController extends Controller
                     'status' => $order->status
                 ]
             );
+
+            if ($order->distributor_id && $order->distributor_id !== $order->member_id) {
+                $distributor = \App\Models\Member::find($order->distributor_id);
+                if ($distributor) {
+                    FcmService::sendPushNotification(
+                        $distributor,
+                        'Challan Uploaded',
+                        "Challan has been uploaded for assigned order {$order->order_number}.",
+                        [
+                            'type' => 'assigned_order',
+                            'id' => $order->id,
+                            'order_number' => $order->order_number,
+                            'status' => $order->status
+                        ]
+                    );
+                }
+            }
 
             return response()->json(['success' => true, 'message' => 'Challan uploaded successfully!']);
         }
@@ -225,6 +242,23 @@ class OrderController extends Controller
             ]
         );
 
+        if ($order->distributor_id && $order->distributor_id !== $order->member_id) {
+            $distributor = \App\Models\Member::find($order->distributor_id);
+            if ($distributor) {
+                FcmService::sendPushNotification(
+                    $distributor,
+                    'Order Out for Delivery',
+                    "Assigned order {$order->order_number} is out for delivery! Vehicle: {$validated['vehicle_no']}.",
+                    [
+                        'type' => 'assigned_order',
+                        'id' => $order->id,
+                        'order_number' => $order->order_number,
+                        'status' => 'Out for Delivery'
+                    ]
+                );
+            }
+        }
+
         return response()->json(['success' => true, 'message' => 'Delivery status updated successfully!']);
     }
 
@@ -298,6 +332,24 @@ class OrderController extends Controller
                     'invoice_number' => $validated['invoice_number']
                 ]
             );
+
+            if ($order->distributor_id && $order->distributor_id !== $order->member_id) {
+                $distributor = \App\Models\Member::find($order->distributor_id);
+                if ($distributor) {
+                    FcmService::sendPushNotification(
+                        $distributor,
+                        'Invoice Generated',
+                        "Invoice {$validated['invoice_number']} of ₹{$totalAmount} has been generated for assigned order {$order->order_number}.",
+                        [
+                            'type' => 'assigned_order',
+                            'id' => $order->id,
+                            'order_number' => $order->order_number,
+                            'status' => 'Invoiced',
+                            'invoice_number' => $validated['invoice_number']
+                        ]
+                    );
+                }
+            }
 
             return response()->json(['success' => true, 'message' => 'Invoice uploaded successfully!']);
         }
@@ -486,6 +538,23 @@ class OrderController extends Controller
                     'status' => 'Returned'
                 ]
             );
+
+            if ($order->distributor_id && $order->distributor_id !== $order->member_id) {
+                $distributor = \App\Models\Member::find($order->distributor_id);
+                if ($distributor) {
+                    FcmService::sendPushNotification(
+                        $distributor,
+                        'Order Returned',
+                        "Assigned order {$order->order_number} has been marked as returned.",
+                        [
+                            'type' => 'assigned_order',
+                            'id' => $order->id,
+                            'order_number' => $order->order_number,
+                            'status' => 'Returned'
+                        ]
+                    );
+                }
+            }
         } catch (\Exception $e) {}
 
         return response()->json([
@@ -601,13 +670,31 @@ class OrderController extends Controller
                 'Credit Note Generated',
                 "Credit Note {$creditNoteNumber} has been generated for order {$order->order_number}.",
                 [
-                    'type' => 'order',
+                    'type' => ($order->member->role === 'distributor') ? 'assigned_order' : 'order',
                     'id' => $order->id,
                     'order_number' => $order->order_number,
                     'status' => $order->status,
                     'credit_note_number' => $creditNoteNumber
                 ]
             );
+
+            if ($order->distributor_id && $order->distributor_id !== $order->member_id) {
+                $distributor = \App\Models\Member::find($order->distributor_id);
+                if ($distributor) {
+                    FcmService::sendPushNotification(
+                        $distributor,
+                        'Credit Note Generated',
+                        "Credit Note {$creditNoteNumber} has been generated for assigned order {$order->order_number}.",
+                        [
+                            'type' => 'assigned_order',
+                            'id' => $order->id,
+                            'order_number' => $order->order_number,
+                            'status' => $order->status,
+                            'credit_note_number' => $creditNoteNumber
+                        ]
+                    );
+                }
+            }
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error("Failed to send push notification: " . $e->getMessage());
         }
@@ -637,6 +724,23 @@ class OrderController extends Controller
                     'status' => 'Cancelled'
                 ]
             );
+
+            if ($order->distributor_id && $order->distributor_id !== $order->member_id) {
+                $distributor = \App\Models\Member::find($order->distributor_id);
+                if ($distributor) {
+                    FcmService::sendPushNotification(
+                        $distributor,
+                        'Order Cancelled',
+                        "Assigned order {$order->order_number} has been cancelled.",
+                        [
+                            'type' => 'assigned_order',
+                            'id' => $order->id,
+                            'order_number' => $order->order_number,
+                            'status' => 'Cancelled'
+                        ]
+                    );
+                }
+            }
         } catch (\Exception $e) {}
 
         return response()->json(['success' => true, 'message' => 'Order cancelled successfully!']);
