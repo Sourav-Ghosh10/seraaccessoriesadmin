@@ -469,7 +469,9 @@ class AuthController extends Controller
             'emp_id'         => $member->emp_id,
             'ref_code'       => $member->ref_code,
             'distributor_id' => $distributorId,
-            'profile_image'  => $member->profile_image,
+            'profile_image'  => $member->profile_image
+                ? asset('uploads/' . $member->profile_image)
+                : null,
             'is_passbook_visible' => (bool) ($member->is_passbook_visible ?? true),
             'city_id'        => $member->city_id,
             'city'           => $cityName,

@@ -44,6 +44,7 @@ Route::middleware(['auth'])->group(function () {
 
         Route::get('/settings', [PageController::class, 'settings'])->name('settings');
         Route::post('/settings/update', [PageController::class, 'updateSettings'])->name('settings.update');
+        Route::delete('/settings/delete-data', [PageController::class, 'deleteDataByDateRange'])->name('settings.delete-data');
 
         Route::get('/salesmen', [PageController::class, 'salesmen'])->name('salesmen');
         Route::post('/salesmen', [SalesmanController::class, 'store'])->name('salesmen.store');

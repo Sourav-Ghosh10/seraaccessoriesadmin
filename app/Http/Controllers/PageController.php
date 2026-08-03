@@ -1234,6 +1234,59 @@ class PageController extends Controller
         return redirect()->back()->with('success', 'Settings updated successfully!');
     }
 
+    public function deleteDataByDateRange(Request $request) {
+        $request->validate([
+            'start_date' => 'required|date',
+            'end_date' => 'required|date|after_or_equal:start_date',
+        ]);
+
+        $start = \Carbon\Carbon::parse($request->start_date)->startOfDay();
+        $end = \Carbon\Carbon::parse($request->end_date)->endOfDay();
+
+        try {
+            \Illuminate\Support\Facades\DB::transaction(function () use ($start, $end) {
+                // Delete Invoices
+                $invoices = \App\Models\Invoice::whereBetween('created_at', [$start, $end])->get();
+                foreach ($invoices as $invoice) {
+                    if ($invoice->file_path) {
+                        \Illuminate\Support\Facades\Storage::disk('public')->delete($invoice->file_path);
+                    }
+                    $invoice->delete();
+                }
+
+                // Delete Deliveries
+                $deliveries = \App\Models\Delivery::whereBetween('created_at', [$start, $end])->get();
+                foreach ($deliveries as $delivery) {
+                    if ($delivery->document_path) {
+                        \Illuminate\Support\Facades\Storage::disk('public')->delete($delivery->document_path);
+                    }
+                    $delivery->delete();
+                }
+                
+                // Delete Order Items related to Orders in this date range to prevent constraint errors
+                \App\Models\OrderItem::whereHas('order', function($q) use ($start, $end) {
+                    $q->whereBetween('created_at', [$start, $end]);
+                })->delete();
+
+                // Delete Orders
+                $orders = \App\Models\Order::whereBetween('created_at', [$start, $end])->get();
+                foreach ($orders as $order) {
+                    if ($order->challan_file) {
+                        \Illuminate\Support\Facades\Storage::disk('public')->delete($order->challan_file);
+                    }
+                    if ($order->invoice_file) {
+                        \Illuminate\Support\Facades\Storage::disk('public')->delete($order->invoice_file);
+                    }
+                    $order->delete();
+                }
+            });
+            return response()->json(['success' => true, 'message' => 'Data deleted successfully.']);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("Failed to delete data by date range: " . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Error deleting data: ' . $e->getMessage()], 500);
+        }
+    }
+
     public function checkNewRequests(Request $request) {
         $lastEstimateId = $request->query('last_estimate_id', 0);
         $lastOrderId = $request->query('last_order_id', 0);
