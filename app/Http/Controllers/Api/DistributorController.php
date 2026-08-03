@@ -207,7 +207,7 @@ class DistributorController extends Controller
         ->get()
         ->map(function ($order) {
             $delivery = null;
-            if ($order->delivery) {
+            if ($order->delivery && !empty($order->delivery->status)) {
                 $delivery = [
                     'vehicle_no' => $order->delivery->vehicle_no,
                     'vehicle_type' => $order->delivery->vehicle_type,
