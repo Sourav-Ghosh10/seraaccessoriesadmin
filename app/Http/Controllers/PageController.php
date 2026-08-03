@@ -1245,39 +1245,14 @@ class PageController extends Controller
 
         try {
             \Illuminate\Support\Facades\DB::transaction(function () use ($start, $end) {
-                // Delete Invoices
+                // Delete Invoices only
                 $invoices = \App\Models\Invoice::whereBetween('created_at', [$start, $end])->get();
+                // dd($invoices->toArray());
                 foreach ($invoices as $invoice) {
                     if ($invoice->file_path) {
                         \Illuminate\Support\Facades\Storage::disk('public')->delete($invoice->file_path);
                     }
                     $invoice->delete();
-                }
-
-                // Delete Deliveries
-                $deliveries = \App\Models\Delivery::whereBetween('created_at', [$start, $end])->get();
-                foreach ($deliveries as $delivery) {
-                    if ($delivery->document_path) {
-                        \Illuminate\Support\Facades\Storage::disk('public')->delete($delivery->document_path);
-                    }
-                    $delivery->delete();
-                }
-                
-                // Delete Order Items related to Orders in this date range to prevent constraint errors
-                \App\Models\OrderItem::whereHas('order', function($q) use ($start, $end) {
-                    $q->whereBetween('created_at', [$start, $end]);
-                })->delete();
-
-                // Delete Orders
-                $orders = \App\Models\Order::whereBetween('created_at', [$start, $end])->get();
-                foreach ($orders as $order) {
-                    if ($order->challan_file) {
-                        \Illuminate\Support\Facades\Storage::disk('public')->delete($order->challan_file);
-                    }
-                    if ($order->invoice_file) {
-                        \Illuminate\Support\Facades\Storage::disk('public')->delete($order->invoice_file);
-                    }
-                    $order->delete();
                 }
             });
             return response()->json(['success' => true, 'message' => 'Data deleted successfully.']);
