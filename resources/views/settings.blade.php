@@ -112,7 +112,7 @@
 
         Swal.fire({
             title: 'Are you sure?',
-            text: "You are about to delete Invoice Management, Delivery Status, and Orders List data from " + startDate + " to " + endDate + ". This action cannot be undone!",
+            text: "You are about to delete Invoice Management data from " + startDate + " to " + endDate + ". This action cannot be undone!",
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#dc3545',
