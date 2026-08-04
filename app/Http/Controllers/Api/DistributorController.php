@@ -495,6 +495,7 @@ class DistributorController extends Controller
                     'shop'   => $order->member->shop,
                     'mobile' => $order->member->mobile,
                     'email'  => $order->member->email,
+                    'role'   => $order->member->role,
                 ],
                 'items'    => $items,
                 'delivery' => $delivery,
@@ -644,20 +645,20 @@ class DistributorController extends Controller
         $expectedAt  = $request->expected_delivery_date . ' ' . $time . ':00';
 
         // Handle dispatch document upload
-        $documentPaths = [];
+        $documentPaths = "";
         if ($request->hasFile('dispatch_documents')) {
             foreach ($request->file('dispatch_documents') as $file) {
                 if ($file->isValid()) {
-                    $documentPaths[] = $file->store('deliveries/documents', 'public');
+                    $documentPaths = $file->store('deliveries/documents', 'public');
                 }
             }
         } elseif ($request->hasFile('dispatch_document') && $request->file('dispatch_document')->isValid()) {
-            $documentPaths[] = $request->file('dispatch_document')->store('deliveries/documents', 'public');
+            $documentPaths = $request->file('dispatch_document')->store('deliveries/documents', 'public');
         } elseif ($request->hasFile('upload_documents') && $request->file('upload_documents')->isValid()) {
-            $documentPaths[] = $request->file('upload_documents')->store('deliveries/documents', 'public');
+            $documentPaths = $request->file('upload_documents')->store('deliveries/documents', 'public');
         }
 
-        $documentPath = !empty($documentPaths) ? json_encode($documentPaths) : null;
+        $documentPath = !empty($documentPaths) ? $documentPaths : null;
 
         $deliveryData = [
             'vehicle_no'           => $request->vehicle_no,
