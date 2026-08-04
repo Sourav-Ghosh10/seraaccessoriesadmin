@@ -497,6 +497,7 @@ class DistributorController extends Controller
                     'email'  => $order->member->email,
                     'role'   => $order->member->role,
                 ],
+                'is_assigned_dispatcher' => ($order->distributor_id === $distributorId),
                 'items'    => $items,
                 'delivery' => $delivery,
                 'invoice'  => $invoice,
