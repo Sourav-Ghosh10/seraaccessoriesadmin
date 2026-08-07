@@ -72,6 +72,7 @@
                     <th>Amount</th>
                     <th>Reference</th>
                     <th>Status</th>
+                    <th>Action</th>
                 </tr>
             </thead>
             <tbody id="transactionBody">
@@ -166,7 +167,7 @@
         let html = '';
 
         if (!data || data.length === 0) {
-            body.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 60px; color: var(--text-muted);"><i class="fas fa-info-circle" style="display: block; font-size: 24px; margin-bottom: 10px;"></i> No transactions found matching your criteria.</td></tr>';
+            body.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 60px; color: var(--text-muted);"><i class="fas fa-info-circle" style="display: block; font-size: 24px; margin-bottom: 10px;"></i> No transactions found matching your criteria.</td></tr>';
             return;
         }
 
@@ -197,6 +198,11 @@
                     <td style="font-weight: 700; color: ${t.type === 'Order' ? 'var(--accent)' : 'var(--success)'}">₹ ${Math.abs(t.amount).toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
                     <td style="font-family: 'JetBrains Mono', monospace; color: var(--text-muted); font-size: 12px;">${t.ref}</td>
                     <td><span class="badge badge-status-${t.status.toLowerCase().replace(/\s+/g, '-')}" style="font-size: 10px; padding: 4px 10px;">${t.status}</span></td>
+                    <td>
+                        <button type="button" class="btn btn-sm btn-danger" onclick="deleteTransaction(${t.id})" style="padding: 4px 10px; font-size: 11px; background: #ef4444; border-color: #ef4444; color: white;">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
                 </tr>
             `;
         });
@@ -230,6 +236,60 @@
         if (!t) return;
         const m = t.member_details || {};
         viewMemberDetails(m.name, m.email, m.mobile, m.code, 'Dealer', m.address, m.shop, m.city, m.gst, m.discount, m.salesman, m.distributor);
+    }
+
+    function deleteTransaction(id) {
+        Swal.fire({
+            title: 'Are you sure?',
+            text: "You want to delete this transaction?",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: 'rgba(255,255,255,0.1)',
+            confirmButtonText: 'Yes, delete it!',
+            background: '#1e293b',
+            color: '#fff'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                fetch(`{{ url('/transactions') }}/${id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Accept': 'application/json'
+                    }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        Swal.fire({
+                            title: 'Deleted!',
+                            text: data.message,
+                            icon: 'success',
+                            background: '#1e293b',
+                            color: '#fff'
+                        }).then(() => location.reload());
+                    } else {
+                        Swal.fire({
+                            title: 'Error!',
+                            text: data.message || 'Error deleting transaction',
+                            icon: 'error',
+                            background: '#1e293b',
+                            color: '#fff'
+                        });
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    Swal.fire({
+                        title: 'Error!',
+                        text: 'Something went wrong!',
+                        icon: 'error',
+                        background: '#1e293b',
+                        color: '#fff'
+                    });
+                });
+            }
+        });
     }
 
     function viewMemberDetails(name, email, mobile, code, role, address, shop, city, gst, discount, salesman, distributor) {

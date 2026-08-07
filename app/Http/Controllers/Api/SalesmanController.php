@@ -2024,7 +2024,7 @@ class SalesmanController extends Controller
         }
 
         $allExpenses = Expense::where('salesman_id', $salesman->id)->get();
-        $total = $allExpenses->sum('amount');
+        $total = $allExpenses->where('status', 'Approved')->sum('amount');
         $approvedExpensesSum = $allExpenses->where('status', 'Approved')->sum(function ($e) {
             return $e->approved_amount ?? $e->amount;
         });
@@ -2198,7 +2198,7 @@ class SalesmanController extends Controller
         });
 
         $allExpenses = Expense::where('salesman_id', $salesman->id)->get();
-        $total = $allExpenses->sum('amount');
+        $total = $allExpenses->where('status', 'Approved')->sum('amount');
         $approvedExpensesSum = $allExpenses->where('status', 'Approved')->sum(function ($e) {
             return $e->approved_amount ?? $e->amount;
         });

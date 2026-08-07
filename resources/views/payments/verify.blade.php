@@ -10,7 +10,7 @@
 
     <div class="card animate-fade">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-            <h3>Verify Dealer Payments</h3>
+            <h3>Verify Payments</h3>
             <button class="btn glass" onclick="location.reload()" style="font-size: 13px;">
                 <i class="fas fa-sync-alt"></i> Refresh
             </button>
@@ -30,13 +30,21 @@
 
         <!-- Filter Form style search -->
         <div style="background: rgba(255,255,255,0.02); padding: 20px; border-radius: 12px; margin-bottom: 25px; border: 1px solid rgba(255,255,255,0.05);">
-            <div class="grid-3" style="gap: 15px;">
+            <div class="grid-4" style="gap: 15px;">
                 <div>
                     <label class="form-label" style="font-size: 11px; text-transform: uppercase; color: var(--text-muted);">Quick Search</label>
                     <div class="search-bar glass" style="border: 1px solid var(--glass-border); padding: 5px 15px; border-radius: 8px;">
                         <i class="fas fa-search" style="color: var(--text-muted);"></i>
                         <input type="text" id="paymentSearch" placeholder="Search ID or Shop Name..." onkeyup="filterPayments()" style="background: transparent; border: none; color: white; outline: none; width: 100%; height: 32px;">
                     </div>
+                </div>
+                <div>
+                    <label class="form-label" style="font-size: 11px; text-transform: uppercase; color: var(--text-muted);">Type Filter</label>
+                    <select id="typeFilter" onchange="filterPayments()" class="form-control" style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1); color: #fff;">
+                        <option value="all">All Types</option>
+                        <option value="dealer">Dealer</option>
+                        <option value="distributor">Distributor</option>
+                    </select>
                 </div>
                 <div>
                     <label class="form-label" style="font-size: 11px; text-transform: uppercase; color: var(--text-muted);">Status Filter</label>
@@ -60,6 +68,7 @@
                 <thead>
                     <tr>
                         <th>ID</th>
+                        <th>Type</th>
                         <th>Shop Name</th>
                         <th>Amount</th>
                         <th>Date/Time</th>
@@ -70,10 +79,17 @@
                 </thead>
                 <tbody id="paymentTableBody">
                     @forelse($submissions as $submission)
-                        <tr class="payment-row" data-search="{{ strtolower($submission->member->shop . ' ' . $submission->member->name . ' ' . $submission->id) }}" data-status="{{ $submission->status }}">
+                        <tr class="payment-row" data-search="{{ strtolower($submission->member->shop . ' ' . $submission->member->name . ' ' . $submission->id) }}" data-status="{{ $submission->status }}" data-type="{{ strtolower($submission->member->role ?? 'dealer') }}">
                             <td>#{{ str_pad($submission->id, 5, '0', STR_PAD_LEFT) }}</td>
                             <td>
-                                <a href="javascript:void(0)" onclick="viewMemberDetails('{{ addslashes($submission->member->name) }}', '{{ addslashes($submission->member->email) }}', '{{ addslashes($submission->member->mobile) }}', '{{ addslashes($submission->member->ref_code ?? '') }}', 'Dealer', '{{ addslashes(preg_replace('/\r|\n/', ' ', $submission->member->address ?? '')) }}', '{{ addslashes($submission->member->shop ?? '') }}', '{{ addslashes($submission->member->city->city ?? '') }}', '{{ addslashes($submission->member->gst_no ?? '') }}', '{{ $submission->member->discount_percent ?? '' }}', '{{ addslashes($submission->member->salesman->name ?? '') }}', '{{ addslashes($distributors->firstWhere('dist_id', $submission->member->dist_id)->name ?? $submission->member->dist_id ?? '') }}')" style="font-weight: 500; color: #3b82f6; text-decoration: none; border-bottom: 1px dashed rgba(59, 130, 246, 0.3);">
+                                @if(strtolower($submission->member->role ?? 'dealer') == 'distributor')
+                                    <span class="badge" style="background: rgba(245,158,11,0.1); color: #f59e0b; border: 1px solid rgba(245,158,11,0.2);">Distributor</span>
+                                @else
+                                    <span class="badge" style="background: rgba(59,130,246,0.1); color: #3b82f6; border: 1px solid rgba(59,130,246,0.2);">Dealer</span>
+                                @endif
+                            </td>
+                            <td>
+                                <a href="javascript:void(0)" onclick="viewMemberDetails('{{ addslashes($submission->member->name) }}', '{{ addslashes($submission->member->email) }}', '{{ addslashes($submission->member->mobile) }}', '{{ addslashes($submission->member->ref_code ?? '') }}', '{{ ucfirst($submission->member->role ?? 'Dealer') }}', '{{ addslashes(preg_replace('/\r|\n/', ' ', $submission->member->address ?? '')) }}', '{{ addslashes($submission->member->shop ?? '') }}', '{{ addslashes($submission->member->city->city ?? '') }}', '{{ addslashes($submission->member->gst_no ?? '') }}', '{{ $submission->member->discount_percent ?? '' }}', '{{ addslashes($submission->member->salesman->name ?? '') }}', '{{ addslashes($distributors->firstWhere('dist_id', $submission->member->dist_id)->name ?? $submission->member->dist_id ?? '') }}')" style="font-weight: 500; color: #3b82f6; text-decoration: none; border-bottom: 1px dashed rgba(59, 130, 246, 0.3);">
                                     {{ $submission->member->shop ?? $submission->member->name }}
                                 </a>
                             </td>
@@ -122,7 +138,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 30px 10px;">
+                            <td colspan="8" style="text-align: center; color: var(--text-muted); padding: 30px 10px;">
                                 <i class="fas fa-receipt" style="font-size: 30px; margin-bottom: 10px; display: block; opacity: 0.5;"></i>
                                 No payment uploads found.
                             </td>
@@ -257,16 +273,20 @@
         function filterPayments() {
             const searchTerm = document.getElementById('paymentSearch').value.toLowerCase();
             const statusFilter = document.getElementById('statusFilter').value;
+            const typeFilter = document.getElementById('typeFilter').value;
             const rows = document.querySelectorAll('.payment-row');
             let visibleCount = 0;
 
             rows.forEach(row => {
                 const text = row.getAttribute('data-search');
                 const status = row.getAttribute('data-status');
+                const type = row.getAttribute('data-type');
+                
                 const matchesSearch = text.includes(searchTerm);
                 const matchesStatus = statusFilter === 'all' || status === statusFilter;
+                const matchesType = typeFilter === 'all' || type === typeFilter;
 
-                if (matchesSearch && matchesStatus) {
+                if (matchesSearch && matchesStatus && matchesType) {
                     row.style.display = '';
                     visibleCount++;
                 } else {

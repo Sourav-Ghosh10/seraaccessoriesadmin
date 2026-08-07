@@ -271,6 +271,7 @@
                         <th>Invoice</th>
                         <th>Amount</th>
                         <th>Credit Note</th>
+                        <th>Amount</th>
                         <th>Action</th>
                     </tr>
                 </thead>
@@ -343,6 +344,13 @@
                                 @endif
                             </td>
                             <td>
+                                @if($order->creditNote && $order->creditNote->amount > 0)
+                                    <span style="font-weight: 600;">&#8377; {{ number_format($order->creditNote->amount, 2) }}</span>
+                                @else
+                                    <span style="color: var(--text-muted); font-size: 13px;">-</span>
+                                @endif
+                            </td>
+                            <td>
                                 @php $role = session('role', 'Admin'); @endphp
                                 @if($role == 'Admin' || $role == 'Account')
                                     <div class="action-menu-container">
@@ -359,6 +367,9 @@
                                                 <a href="{{ asset('uploads/' . $order->invoice->file_path) }}" target="_blank">
                                                     <i class="fas fa-file-pdf"></i> View Invoice PDF
                                                 </a>
+                                                <button type="button" onclick="openUpdateInvoiceModal('{{ $order->id }}', '{{ $order->order_number }}', '{{ $order->invoice->invoice_number }}', '{{ $order->invoice->amount }}')">
+                                                    <i class="fas fa-edit"></i> Update Invoice
+                                                </button>
                                             @endif
                                             @if(in_array($order->status, ['Invoiced', 'Out for Delivery', 'Delivered']))
                                                 <button type="button" onclick="markAsReturned('{{ $order->id }}', '{{ $order->order_number }}')">
@@ -380,6 +391,9 @@
                                                 )">
                                                     <i class="fas fa-eye" style="color: #ef4444;"></i> View Credit Note
                                                 </button>
+                                                <button type="button" onclick="openUpdateCreditNoteModal('{{ $order->id }}', '{{ $order->order_number }}', '{{ addslashes($order->creditNote->note ?? '') }}', '{{ $order->creditNote->amount ?? 0 }}', '{{ $order->member->role ?? request('tab', 'dealer') }}')">
+                                                    <i class="fas fa-edit" style="color: #ef4444;"></i> Update Credit Note
+                                                </button>
                                             @endif
                                         </div>
                                     </div>
@@ -390,7 +404,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 30px;">
+                            <td colspan="8" style="text-align: center; color: var(--text-muted); padding: 30px;">
                                 No orders found.
                             </td>
                         </tr>
@@ -615,6 +629,148 @@
                         <button type="submit" id="cnSubmitBtn" class="btn btn-primary"
                             style="padding: 12px 30px; background: #ef4444; border-color: #ef4444; box-shadow: 0 10px 15px -3px rgba(239, 68, 68, 0.3);">Upload &
                             Save</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Update Invoice Modal -->
+        <div id="updateInvoiceModal"
+            style="display: none; position: fixed; z-index: 10000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(2, 6, 23, 0.9); backdrop-filter: blur(10px); overflow-y: auto; align-items: center; justify-content: center; padding: 20px;">
+            <div class="card"
+                style="width: 100%; max-width: 500px; padding: 30px; background: #0f172a; border: 1px solid var(--glass-border); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); animation: modalIn 0.3s ease-out; margin: auto;">
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 15px;">
+                    <h3 style="margin: 0; font-size: 20px; font-weight: 700;">Update Invoice</h3>
+                    <div onclick="closeUpdateInvoiceModal()"
+                        style="width: 30px; height: 30px; border-radius: 50%; background: var(--glass); display: flex; align-items: center; justify-content: center; cursor: pointer;">
+                        <i class="fas fa-times" style="color: var(--text-muted); font-size: 14px;"></i>
+                    </div>
+                </div>
+
+                <form id="updateInvoiceForm" onsubmit="event.preventDefault(); submitUpdateInvoice();">
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label class="form-label"
+                            style="color: var(--text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Link
+                            to Order</label>
+                        <input type="text" id="updInvOrderNumberDisplay" class="form-control" readonly
+                            style="background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1); color: #fff; cursor: not-allowed;">
+                        <input type="hidden" id="updInvOrderId">
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label class="form-label"
+                            style="color: var(--text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Invoice
+                            Number</label>
+                        <input type="text" id="updInvNumber" class="form-control"
+                            style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1);" required>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label class="form-label"
+                            style="color: var(--text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Update Invoice
+                            Document (Optional)</label>
+                        <div style="border: 2px dashed rgba(255,255,255,0.1); border-radius: 12px; padding: 30px; text-align: center; background: rgba(255,255,255,0.02); cursor: pointer;"
+                            onclick="document.getElementById('updInvoiceFile').click()">
+                            <i class="fas fa-cloud-upload-alt"
+                                style="font-size: 30px; color: var(--primary); margin-bottom: 10px;"></i>
+                            <p id="updFileNameDisplay" style="margin: 0; font-size: 13px; color: #cbd5e1;">Click to browse or drag
+                                and drop new invoice</p>
+                            <input type="file" id="updInvoiceFile" style="display: none;" accept=".pdf,.jpg,.png"
+                                onchange="updateUpdFileName(this)">
+                        </div>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 30px;">
+                        <label class="form-label"
+                            style="color: var(--text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Invoice
+                            Amount</label>
+                        <input type="number" id="updInvAmount" class="form-control"
+                            style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1);" step="0.01"
+                            required>
+                    </div>
+
+                    <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 10px;">
+                        <button type="button" class="btn glass" onclick="closeUpdateInvoiceModal()"
+                            style="border: none; background: rgba(255,255,255,0.05);">Cancel</button>
+                        <button type="submit" id="updSubmitBtn" class="btn btn-primary"
+                            style="padding: 12px 30px; box-shadow: 0 10px 15px -3px rgba(154, 90, 58, 0.3);">Update</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Update Credit Note Modal -->
+        <div id="updateCreditNoteModal"
+            style="display: none; position: fixed; z-index: 10000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(2, 6, 23, 0.9); backdrop-filter: blur(10px); overflow-y: auto; align-items: center; justify-content: center; padding: 20px;">
+            <div class="card"
+                style="width: 100%; max-width: 500px; padding: 30px; background: #0f172a; border: 1px solid var(--glass-border); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); animation: modalIn 0.3s ease-out; margin: auto;">
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 15px;">
+                    <h3 style="margin: 0; font-size: 20px; font-weight: 700;">Update Credit Note</h3>
+                    <div onclick="closeUpdateCreditNoteModal()"
+                        style="width: 30px; height: 30px; border-radius: 50%; background: var(--glass); display: flex; align-items: center; justify-content: center; cursor: pointer;">
+                        <i class="fas fa-times" style="color: var(--text-muted); font-size: 14px;"></i>
+                    </div>
+                </div>
+
+                <form id="updateCreditNoteForm" onsubmit="event.preventDefault(); submitUpdateCreditNote();" novalidate>
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label class="form-label"
+                            style="color: var(--text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Link
+                            to Order</label>
+                        <input type="text" id="updCnOrderNumberDisplay" class="form-control" readonly
+                            style="background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1); color: #fff; cursor: not-allowed;">
+                        <input type="hidden" id="updCnOrderId">
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label class="form-label"
+                            style="color: var(--text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; display: flex; justify-content: space-between; align-items: center;">
+                            <span>Add Amount (₹)</span>
+                        </label>
+                        <input type="number" id="updCnAmount" class="form-control" min="0" step="0.01"
+                            style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1); color: #fff;">
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label class="form-label"
+                            style="color: var(--text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Credit Note <span style="color: #ef4444;">*</span></label>
+                        <textarea id="updCnNote" class="form-control"
+                            style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1); height: 90px; color: #fff; width: 100%; border-radius: 6px; padding: 10px; resize: vertical;" required></textarea>
+                    </div>
+
+                    <!-- Dealer Document -->
+                    <div id="updCnDealerDocGroup" class="form-group" style="margin-bottom: 16px;">
+                        <label class="form-label" style="color: var(--text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">
+                            <i class="fas fa-user" style="color: #ef4444; margin-right: 5px;"></i> Update Dealer Document (Optional)
+                        </label>
+                        <div style="border: 2px dashed rgba(239,68,68,0.3); border-radius: 12px; padding: 20px; text-align: center; background: rgba(239,68,68,0.03); cursor: pointer;"
+                            onclick="document.getElementById('updDealerFile').click()">
+                            <i class="fas fa-cloud-upload-alt" style="font-size: 24px; color: #ef4444; margin-bottom: 8px;"></i>
+                            <p id="updDealerFileNameDisplay" style="margin: 0; font-size: 13px; color: #cbd5e1;">Click to browse new dealer credit note</p>
+                            <input type="file" id="updDealerFile" style="display: none;" accept=".pdf,.jpg,.png" onchange="updateUpdDealerFileName(this)">
+                        </div>
+                    </div>
+
+                    <!-- Distributor Document -->
+                    <div id="updCnDistributorDocGroup" class="form-group" style="margin-bottom: 30px;">
+                        <label class="form-label" style="color: var(--text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">
+                            <i class="fas fa-truck" style="color: #f59e0b; margin-right: 5px;"></i> Update Distributor Document (Optional)
+                        </label>
+                        <div style="border: 2px dashed rgba(245,158,11,0.3); border-radius: 12px; padding: 20px; text-align: center; background: rgba(245,158,11,0.03); cursor: pointer;"
+                            onclick="document.getElementById('updDistributorFile').click()">
+                            <i class="fas fa-cloud-upload-alt" style="font-size: 24px; color: #f59e0b; margin-bottom: 8px;"></i>
+                            <p id="updDistributorFileNameDisplay" style="margin: 0; font-size: 13px; color: #cbd5e1;">Click to browse new distributor credit note</p>
+                            <input type="file" id="updDistributorFile" style="display: none;" accept=".pdf,.jpg,.png" onchange="updateUpdDistributorFileName(this)">
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 10px;">
+                        <button type="button" class="btn glass" onclick="closeUpdateCreditNoteModal()"
+                            style="border: none; background: rgba(255,255,255,0.05);">Cancel</button>
+                        <button type="submit" id="updCnSubmitBtn" class="btn btn-primary"
+                            style="padding: 12px 30px; background: #ef4444; border-color: #ef4444; box-shadow: 0 10px 15px -3px rgba(239, 68, 68, 0.3);">Update</button>
                     </div>
                 </form>
             </div>
@@ -1041,6 +1197,57 @@
             document.getElementById('creditNoteModal').style.display = 'none';
         }
 
+        function openUpdateInvoiceModal(orderId, orderNumber, invoiceNumber, amount) {
+            document.getElementById('updInvOrderId').value = orderId;
+            document.getElementById('updInvOrderNumberDisplay').value = orderNumber;
+            document.getElementById('updInvNumber').value = invoiceNumber;
+            document.getElementById('updInvAmount').value = amount;
+            
+            // Reset file input
+            document.getElementById('updInvoiceFile').value = '';
+            document.getElementById('updFileNameDisplay').innerText = 'Click to browse or drag and drop new invoice';
+            document.getElementById('updFileNameDisplay').style.color = '#cbd5e1';
+
+            document.getElementById('updateInvoiceModal').style.display = 'flex';
+        }
+
+        function closeUpdateInvoiceModal() {
+            document.getElementById('updateInvoiceModal').style.display = 'none';
+        }
+
+        function openUpdateCreditNoteModal(orderId, orderNumber, note, amount, role = 'dealer') {
+            document.getElementById('updCnOrderId').value = orderId;
+            document.getElementById('updCnOrderNumberDisplay').value = orderNumber;
+            document.getElementById('updCnNote').value = note;
+            
+            const cnAmountEl = document.getElementById('updCnAmount');
+            if (cnAmountEl) cnAmountEl.value = amount;
+            
+            // Reset files
+            document.getElementById('updDealerFile').value = '';
+            document.getElementById('updDistributorFile').value = '';
+            document.getElementById('updDealerFileNameDisplay').innerText = 'Click to browse new dealer credit note';
+            document.getElementById('updDealerFileNameDisplay').style.color = '#cbd5e1';
+            document.getElementById('updDistributorFileNameDisplay').innerText = 'Click to browse new distributor credit note';
+            document.getElementById('updDistributorFileNameDisplay').style.color = '#cbd5e1';
+
+            const dealerGroup = document.getElementById('updCnDealerDocGroup');
+            const distGroup = document.getElementById('updCnDistributorDocGroup');
+            if (role === 'distributor') {
+                if (dealerGroup) dealerGroup.style.display = 'none';
+                if (distGroup) distGroup.style.display = 'block';
+            } else {
+                if (dealerGroup) dealerGroup.style.display = 'block';
+                if (distGroup) distGroup.style.display = 'none';
+            }
+
+            document.getElementById('updateCreditNoteModal').style.display = 'flex';
+        }
+
+        function closeUpdateCreditNoteModal() {
+            document.getElementById('updateCreditNoteModal').style.display = 'none';
+        }
+
         function updateFileName(input) {
             if (input.files && input.files[0]) {
                 document.getElementById('fileNameDisplay').innerText = input.files[0].name;
@@ -1059,6 +1266,27 @@
             if (input.files && input.files[0]) {
                 document.getElementById('distributorFileNameDisplay').innerText = input.files[0].name;
                 document.getElementById('distributorFileNameDisplay').style.color = '#f59e0b';
+            }
+        }
+
+        function updateUpdFileName(input) {
+            if (input.files && input.files[0]) {
+                document.getElementById('updFileNameDisplay').innerText = input.files[0].name;
+                document.getElementById('updFileNameDisplay').style.color = 'var(--primary)';
+            }
+        }
+
+        function updateUpdDealerFileName(input) {
+            if (input.files && input.files[0]) {
+                document.getElementById('updDealerFileNameDisplay').innerText = input.files[0].name;
+                document.getElementById('updDealerFileNameDisplay').style.color = '#ef4444';
+            }
+        }
+
+        function updateUpdDistributorFileName(input) {
+            if (input.files && input.files[0]) {
+                document.getElementById('updDistributorFileNameDisplay').innerText = input.files[0].name;
+                document.getElementById('updDistributorFileNameDisplay').style.color = '#f59e0b';
             }
         }
 
@@ -1140,6 +1368,48 @@
                 });
         }
 
+        function submitUpdateInvoice() {
+            const submitBtn = document.getElementById('updSubmitBtn');
+            const formData = new FormData();
+
+            formData.append('order_id', document.getElementById('updInvOrderId').value);
+            formData.append('invoice_number', document.getElementById('updInvNumber').value);
+            formData.append('amount', document.getElementById('updInvAmount').value);
+            const file = document.getElementById('updInvoiceFile').files[0];
+            if (file) {
+                formData.append('invoice_file', file);
+            }
+            formData.append('_token', '{{ csrf_token() }}');
+
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating...';
+
+            fetch('{{ route('invoices.update') }}', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                }
+            })
+                .then(response => response.json())
+                .then(result => {
+                    if (result.success) {
+                        alert(result.message);
+                        location.reload();
+                    } else {
+                        alert('Error: ' + (result.message || 'Unknown error'));
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = 'Update';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Something went wrong!');
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = 'Update';
+                });
+        }
+
         function submitCreditNote() {
             const submitBtn = document.getElementById('cnSubmitBtn');
             const noteVal = document.getElementById('cnNote').value.trim();
@@ -1192,6 +1462,56 @@
                     alert('Something went wrong!');
                     submitBtn.disabled = false;
                     submitBtn.innerHTML = 'Upload & Save';
+                });
+        }
+
+        function submitUpdateCreditNote() {
+            const submitBtn = document.getElementById('updCnSubmitBtn');
+            const noteVal = document.getElementById('updCnNote').value.trim();
+            const dealerFile = document.getElementById('updDealerFile').files[0];
+            const distributorFile = document.getElementById('updDistributorFile').files[0];
+
+            if (!noteVal) {
+                alert('Please enter credit notes/remarks.');
+                document.getElementById('updCnNote').focus();
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('order_id', document.getElementById('updCnOrderId').value);
+            formData.append('note', noteVal);
+            const cnAmountVal = document.getElementById('updCnAmount') ? document.getElementById('updCnAmount').value : '';
+            if (cnAmountVal) formData.append('amount', cnAmountVal);
+            if (dealerFile) formData.append('dealer_file', dealerFile);
+            if (distributorFile) formData.append('distributor_file', distributorFile);
+            formData.append('_token', '{{ csrf_token() }}');
+
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating...';
+
+            fetch('{{ route('credit-notes.update') }}', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                }
+            })
+                .then(response => response.json())
+                .then(result => {
+                    if (result.success) {
+                        alert(result.message);
+                        location.reload();
+                    } else {
+                        alert('Error: ' + (result.message || 'Unknown error'));
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = 'Update';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Something went wrong!');
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = 'Update';
                 });
         }
         // Modals do not close on outside click; user must click X icon or Close button
