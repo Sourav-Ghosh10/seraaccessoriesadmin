@@ -1998,7 +1998,7 @@ class SalesmanController extends Controller
         $categories = ExpenseCategory::where('status', 'active')->get(['id', 'name']);
 
         $allExpenses = Expense::where('salesman_id', $salesman->id)->get();
-        $total = $allExpenses->sum('amount');
+        $total = $allExpenses->where('status', 'Approved')->sum('amount');
         $approvedExpensesSum = $allExpenses->where('status', 'Approved')->sum(function ($e) {
             return $e->approved_amount ?? $e->amount;
         });
