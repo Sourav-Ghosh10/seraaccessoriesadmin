@@ -206,7 +206,7 @@
                         <li class="nav-item">
                             <a href="{{ route('passbook') }}" class="nav-link {{ Request::is('passbook*') ? 'active' : '' }}">
                                 <i class="fas fa-book"></i>
-                                <span>Dealer Passbook</span>
+                                <span>Passbook</span>
                             </a>
                         </li>
                     @endif

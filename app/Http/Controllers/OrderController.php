@@ -872,6 +872,136 @@ class OrderController extends Controller
             'message' => 'Order request deleted successfully!'
         ]);
     }
+
+    public function updateInvoice(Request $request)
+    {
+        $validated = $request->validate([
+            'order_id' => 'required|exists:orders,id',
+            'invoice_number' => 'required|string',
+            'amount' => 'required|numeric|min:0',
+            'invoice_file' => 'nullable|file|mimes:pdf,jpg,png|max:2048',
+        ]);
+
+        $order = Order::findOrFail($validated['order_id']);
+        $invoice = Invoice::where('order_id', $order->id)->firstOrFail();
+
+        if ($validated['invoice_number'] !== $invoice->invoice_number) {
+            $request->validate([
+                'invoice_number' => 'unique:invoices,invoice_number',
+            ]);
+        }
+
+        $oldAmount = $invoice->amount;
+        $newAmount = $validated['amount'];
+        $amountDiff = $newAmount - $oldAmount;
+
+        if ($request->hasFile('invoice_file')) {
+            $path = $request->file('invoice_file')->store('invoices', 'public');
+            $invoice->file_path = $path;
+        }
+
+        $oldInvoiceNumber = $invoice->invoice_number;
+        
+        $invoice->invoice_number = $validated['invoice_number'];
+        $invoice->amount = $newAmount;
+        $invoice->save();
+
+        if ($amountDiff != 0 || $oldInvoiceNumber !== $invoice->invoice_number) {
+            $dealer = $order->member;
+            if ($dealer && in_array($dealer->role, ['dealer', 'distributor'])) {
+                $balance = $dealer->dealerBalance;
+                if ($balance) {
+                    $balance->total_amount += $amountDiff;
+                    $balance->due_amount = $balance->total_amount - $balance->paid_amount;
+                    $balance->save();
+                }
+
+                $transaction = \App\Models\PassbookTransaction::where('ref', $oldInvoiceNumber)
+                                ->where('member_id', $dealer->id)
+                                ->where('type', 'Order')
+                                ->first();
+                if ($transaction) {
+                    $transaction->amount = $newAmount;
+                    $transaction->ref = $invoice->invoice_number;
+                    $transaction->save();
+                }
+            }
+        }
+
+        return response()->json(['success' => true, 'message' => 'Invoice updated successfully!']);
+    }
+
+    public function updateCreditNote(Request $request)
+    {
+        $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
+            'order_id' => 'required|exists:orders,id',
+            'note' => 'required|string|max:5000',
+            'amount' => 'nullable|numeric|min:0',
+            'dealer_file' => 'nullable|file|mimes:pdf,jpg,png|max:2048',
+            'distributor_file' => 'nullable|file|mimes:pdf,jpg,png|max:2048',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['success' => false, 'message' => $validator->errors()->first()]);
+        }
+
+        $validated = $validator->validated();
+        $order = Order::findOrFail($validated['order_id']);
+        $creditNote = \App\Models\CreditNote::where('order_id', $order->id)->firstOrFail();
+
+        $oldAmount = $creditNote->amount;
+        $newAmount = $request->has('amount') && is_numeric($request->amount) ? (float) $request->amount : 0.00;
+        $amountDiff = $newAmount - $oldAmount;
+
+        if ($request->hasFile('dealer_file')) {
+            $creditNote->dealer_file_path = $request->file('dealer_file')->store('credit_notes/dealer', 'public');
+            $creditNote->file_path = $creditNote->dealer_file_path;
+        }
+
+        if ($request->hasFile('distributor_file')) {
+            $creditNote->distributor_file_path = $request->file('distributor_file')->store('credit_notes/distributor', 'public');
+            if (!$request->hasFile('dealer_file')) {
+                $creditNote->file_path = $creditNote->distributor_file_path;
+            }
+        }
+
+        $creditNote->note = $validated['note'];
+        $creditNote->amount = $newAmount;
+        $creditNote->save();
+
+        if ($amountDiff != 0) {
+            $member = $order->member;
+            if ($member) {
+                $balance = $member->dealerBalance;
+                if ($balance) {
+                    $balance->paid_amount += $amountDiff;
+                    $balance->due_amount = $balance->total_amount - $balance->paid_amount;
+                    $balance->save();
+                }
+
+                $transaction = \App\Models\PassbookTransaction::where('ref', $creditNote->credit_note_number)
+                                ->where('member_id', $member->id)
+                                ->where('type', 'Credit Note')
+                                ->first();
+                if ($transaction) {
+                    $transaction->amount = $newAmount;
+                    $transaction->save();
+                } else if ($newAmount > 0) {
+                    $managerName = auth()->user() ? auth()->user()->name : 'System Admin';
+                    \App\Models\PassbookTransaction::create([
+                        'member_id' => $member->id,
+                        'managed_by' => $managerName,
+                        'type' => 'Credit Note',
+                        'amount' => $newAmount,
+                        'ref' => $creditNote->credit_note_number,
+                        'status' => 'Confirmed',
+                    ]);
+                }
+            }
+        }
+
+        return response()->json(['success' => true, 'message' => 'Credit Note updated successfully!']);
+    }
 }
 
 

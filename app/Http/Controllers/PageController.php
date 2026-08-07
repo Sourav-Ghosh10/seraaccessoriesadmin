@@ -989,6 +989,7 @@ class PageController extends Controller
             $distributorName = $distributors->firstWhere('dist_id', $member->dist_id)->name ?? $member->dist_id ?? '';
             
             return [
+                'id' => $txn->id,
                 'date' => $txn->created_at->format('Y-m-d'),
                 'dealer' => $member->shop ?? $member->name,
                 'user' => $txn->managed_by,
@@ -1015,6 +1016,30 @@ class PageController extends Controller
         });
 
         return view('transactions', compact('transactions', 'salesmen', 'admins', 'distributors'));
+    }
+
+    public function destroyTransaction($id) {
+        $transaction = \App\Models\PassbookTransaction::findOrFail($id);
+        
+        $member = \App\Models\Member::find($transaction->member_id);
+        if ($member && $member->dealerBalance) {
+            $balance = $member->dealerBalance;
+            if (in_array($transaction->type, ['Order'])) {
+                $balance->total_amount -= $transaction->amount;
+            } else {
+                // Payment, Credit Note, Adjustment
+                $balance->paid_amount -= $transaction->amount;
+            }
+            $balance->due_amount = $balance->total_amount - $balance->paid_amount;
+            $balance->save();
+        }
+        
+        $transaction->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Transaction deleted successfully.'
+        ]);
     }
 
     public function updateBalance(Request $request) {

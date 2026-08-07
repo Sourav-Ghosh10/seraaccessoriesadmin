@@ -98,7 +98,9 @@ Route::middleware(['auth'])->group(function () {
 
         Route::get('/invoices', [PageController::class, 'invoices'])->name('invoices');
         Route::post('/invoices/store', [OrderController::class, 'storeInvoice'])->name('invoices.store');
+        Route::post('/invoices/update', [OrderController::class, 'updateInvoice'])->name('invoices.update');
         Route::post('/credit-notes/store', [OrderController::class, 'storeCreditNote'])->name('credit-notes.store');
+        Route::post('/credit-notes/update', [OrderController::class, 'updateCreditNote'])->name('credit-notes.update');
         Route::post('/orders/{id}/mark-returned', [OrderController::class, 'markReturned'])->name('orders.mark-returned');
         Route::patch('/orders/{id}/cancel', [OrderController::class, 'cancelOrder'])->name('orders.cancel');
 
@@ -115,6 +117,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/passbook', [PageController::class, 'passbook'])->name('passbook');
         Route::post('/passbook/update', [PageController::class, 'updateBalance'])->name('passbook.update');
         Route::get('/all-transactions', [PageController::class, 'allTransactions'])->name('transactions.index');
+        Route::delete('/transactions/{id}', [PageController::class, 'destroyTransaction'])->name('transactions.destroy');
     });
 
     // =========================================================================
